@@ -1,0 +1,404 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Hearthsheet SRD sample compendium (partial).
+  This work includes material taken from the System Reference Document 5.1 ("SRD 5.1")
+  by Wizards of the Coast LLC and available at
+  https://dnd.wizards.com/resources/systems-reference-document. The SRD 5.1 is licensed
+  under the Creative Commons Attribution 4.0 International License available at
+  https://creativecommons.org/licenses/by/4.0/legalcode.
+  Text has been abridged. Classes include levels 1-5 only.
+-->
+<compendium version="5" auto_indent="NO">
+  <race>
+    <name>Human</name>
+    <size>M</size>
+    <speed>30</speed>
+    <ability>Str 1, Dex 1, Con 1, Int 1, Wis 1, Cha 1</ability>
+    <trait>
+      <name>Languages</name>
+      <text>You can speak, read, and write Common and one extra language of your choice.</text>
+    </trait>
+  </race>
+  <race>
+    <name>Dwarf (Hill)</name>
+    <size>M</size>
+    <speed>25</speed>
+    <ability>Con 2, Wis 1</ability>
+    <trait>
+      <name>Darkvision</name>
+      <text>You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light.</text>
+    </trait>
+    <trait>
+      <name>Dwarven Resilience</name>
+      <text>You have advantage on saving throws against poison, and you have resistance against poison damage.</text>
+    </trait>
+    <trait>
+      <name>Dwarven Toughness</name>
+      <text>Your hit point maximum increases by 1, and it increases by 1 every time you gain a level.</text>
+    </trait>
+  </race>
+  <race>
+    <name>Elf (High)</name>
+    <size>M</size>
+    <speed>30</speed>
+    <ability>Dex 2, Int 1</ability>
+    <proficiency>Perception</proficiency>
+    <trait>
+      <name>Darkvision</name>
+      <text>You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light.</text>
+    </trait>
+    <trait>
+      <name>Fey Ancestry</name>
+      <text>You have advantage on saving throws against being charmed, and magic can't put you to sleep.</text>
+    </trait>
+  </race>
+  <class>
+    <name>Fighter</name>
+    <hd>10</hd>
+    <proficiency>Strength, Constitution, Acrobatics, Animal Handling, Athletics, History, Insight, Intimidation, Perception, Survival</proficiency>
+    <numSkills>2</numSkills>
+    <armor>Light Armor, Medium Armor, Heavy Armor, Shields</armor>
+    <weapons>Simple Weapons, Martial Weapons</weapons>
+    <tools>None</tools>
+    <wealth>5d4x10</wealth>
+    <autolevel level="1">
+      <feature>
+        <name>Fighting Style</name>
+        <text>You adopt a particular style of fighting as your specialty.</text>
+      </feature>
+      <feature optional="YES">
+        <name>Fighting Style: Defense</name>
+        <text>While you are wearing armor, you gain a +1 bonus to AC.</text>
+        <modifier category="bonus">ac +1</modifier>
+      </feature>
+      <feature optional="YES">
+        <name>Fighting Style: Dueling</name>
+        <text>When you are wielding a melee weapon in one hand and no other weapons, you gain a +2 bonus to damage rolls with that weapon.</text>
+      </feature>
+      <feature>
+        <name>Second Wind</name>
+        <text>On your turn, you can use a bonus action to regain hit points equal to 1d10 + your fighter level. Once you use this feature, you must finish a short or long rest before you can use it again.</text>
+      </feature>
+      <counter>
+        <name>Second Wind</name>
+        <value>1</value>
+        <reset>S</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="2">
+      <feature>
+        <name>Action Surge</name>
+        <text>On your turn, you can take one additional action. Once you use this feature, you must finish a short or long rest before you can use it again.</text>
+      </feature>
+      <counter>
+        <name>Action Surge</name>
+        <value>1</value>
+        <reset>S</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="3">
+      <feature>
+        <name>Martial Archetype</name>
+        <text>You choose an archetype that you strive to emulate in your combat styles and techniques.</text>
+      </feature>
+      <feature optional="YES">
+        <name>Martial Archetype: Champion</name>
+        <text>The archetypal Champion focuses on the development of raw physical power honed to deadly perfection.</text>
+      </feature>
+      <feature optional="YES">
+        <name>Improved Critical (Champion)</name>
+        <text>Your weapon attacks score a critical hit on a roll of 19 or 20.</text>
+      </feature>
+    </autolevel>
+    <autolevel level="4">
+      <feature>
+        <name>Ability Score Improvement</name>
+        <text>You can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1. You can't increase an ability score above 20 using this feature.</text>
+      </feature>
+    </autolevel>
+    <autolevel level="5">
+      <feature>
+        <name>Extra Attack</name>
+        <text>You can attack twice, instead of once, whenever you take the Attack action on your turn.</text>
+      </feature>
+    </autolevel>
+  </class>
+  <class>
+    <name>Wizard</name>
+    <hd>6</hd>
+    <proficiency>Intelligence, Wisdom, Arcana, History, Insight, Investigation, Medicine, Religion</proficiency>
+    <numSkills>2</numSkills>
+    <armor>None</armor>
+    <weapons>Daggers, Darts, Slings, Quarterstaffs, Light Crossbows</weapons>
+    <tools>None</tools>
+    <wealth>4d4x10</wealth>
+    <spellAbility>Intelligence</spellAbility>
+    <autolevel level="1">
+      <feature>
+        <name>Spellcasting</name>
+        <text>Intelligence is your spellcasting ability for your wizard spells.</text>
+      </feature>
+      <feature>
+        <name>Arcane Recovery</name>
+        <text>Once per day when you finish a short rest, you can choose expended spell slots to recover with a combined level equal to or less than half your wizard level (rounded up).</text>
+      </feature>
+      <slots>3,2</slots>
+      <counter>
+        <name>Arcane Recovery</name>
+        <value>1</value>
+        <reset>L</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="2">
+      <feature>
+        <name>Arcane Tradition</name>
+        <text>You choose an arcane tradition, shaping your practice of magic.</text>
+      </feature>
+      <feature optional="YES">
+        <name>Arcane Tradition: School of Evocation</name>
+        <text>You focus your study on magic that creates powerful elemental effects.</text>
+      </feature>
+      <feature optional="YES">
+        <name>Evocation Savant (School of Evocation)</name>
+        <text>The gold and time you must spend to copy an evocation spell into your spellbook is halved.</text>
+      </feature>
+      <feature optional="YES">
+        <name>Sculpt Spells (School of Evocation)</name>
+        <text>When you cast an evocation spell that affects other creatures that you can see, you can choose a number of them equal to 1 + the spell's level to automatically succeed on their saving throws.</text>
+      </feature>
+      <slots>3,3</slots>
+    </autolevel>
+    <autolevel level="3">
+      <slots>3,4,2</slots>
+    </autolevel>
+    <autolevel level="4">
+      <feature>
+        <name>Ability Score Improvement</name>
+        <text>You can increase one ability score of your choice by 2, or you can increase two ability scores of your choice by 1.</text>
+      </feature>
+      <slots>4,4,3</slots>
+    </autolevel>
+    <autolevel level="5">
+      <slots>4,4,3,2</slots>
+    </autolevel>
+  </class>
+  <background>
+    <name>Acolyte</name>
+    <proficiency>Insight, Religion</proficiency>
+    <trait>
+      <name>Description</name>
+      <text>You have spent your life in the service of a temple to a specific god or pantheon of gods.</text>
+    </trait>
+    <trait>
+      <name>Feature: Shelter of the Faithful</name>
+      <text>You and your adventuring companions can expect to receive free healing and care at a temple, shrine, or other established presence of your faith.</text>
+    </trait>
+  </background>
+  <feat>
+    <name>Grappler</name>
+    <prerequisite>Strength 13 or higher</prerequisite>
+    <text>You have advantage on attack rolls against a creature you are grappling. You can use your action to try to pin a creature grappled by you.</text>
+  </feat>
+  <spell>
+    <name>Fire Bolt</name>
+    <level>0</level>
+    <school>EV</school>
+    <time>1 action</time>
+    <range>120 feet</range>
+    <components>V, S</components>
+    <duration>Instantaneous</duration>
+    <classes>Sorcerer, Wizard</classes>
+    <text>You hurl a mote of fire at a creature or object within range. Make a ranged spell attack against the target. On a hit, the target takes 1d10 fire damage.</text>
+    <text>This spell's damage increases by 1d10 when you reach 5th level (2d10), 11th level (3d10), and 17th level (4d10).</text>
+    <roll>1d10</roll>
+    <roll>2d10</roll>
+    <roll>3d10</roll>
+    <roll>4d10</roll>
+  </spell>
+  <spell>
+    <name>Magic Missile</name>
+    <level>1</level>
+    <school>EV</school>
+    <time>1 action</time>
+    <range>120 feet</range>
+    <components>V, S</components>
+    <duration>Instantaneous</duration>
+    <classes>Sorcerer, Wizard</classes>
+    <text>You create three glowing darts of magical force. Each dart hits a creature of your choice that you can see within range and deals 1d4 + 1 force damage.</text>
+    <roll>1d4+1</roll>
+  </spell>
+  <spell>
+    <name>Shield</name>
+    <level>1</level>
+    <school>A</school>
+    <time>1 reaction</time>
+    <range>Self</range>
+    <components>V, S</components>
+    <duration>1 round</duration>
+    <classes>Sorcerer, Wizard</classes>
+    <text>An invisible barrier of magical force appears and protects you. Until the start of your next turn, you have a +5 bonus to AC.</text>
+  </spell>
+  <spell>
+    <name>Mage Armor</name>
+    <level>1</level>
+    <school>A</school>
+    <time>1 action</time>
+    <range>Touch</range>
+    <components>V, S, M (a piece of cured leather)</components>
+    <duration>8 hours</duration>
+    <classes>Sorcerer, Wizard</classes>
+    <text>You touch a willing creature who isn't wearing armor. Until the spell ends, the target's base AC becomes 13 + its Dexterity modifier.</text>
+  </spell>
+  <spell>
+    <name>Cure Wounds</name>
+    <level>1</level>
+    <school>EV</school>
+    <time>1 action</time>
+    <range>Touch</range>
+    <components>V, S</components>
+    <duration>Instantaneous</duration>
+    <classes>Bard, Cleric, Druid, Paladin, Ranger</classes>
+    <text>A creature you touch regains a number of hit points equal to 1d8 + your spellcasting ability modifier.</text>
+    <roll>1d8</roll>
+  </spell>
+  <spell>
+    <name>Fireball</name>
+    <level>3</level>
+    <school>EV</school>
+    <time>1 action</time>
+    <range>150 feet</range>
+    <components>V, S, M (a tiny ball of bat guano and sulfur)</components>
+    <duration>Instantaneous</duration>
+    <classes>Sorcerer, Wizard</classes>
+    <text>Each creature in a 20-foot-radius sphere centered on a point within range must make a Dexterity saving throw. A target takes 8d6 fire damage on a failed save, or half as much damage on a successful one.</text>
+    <roll>8d6</roll>
+  </spell>
+  <item>
+    <name>Longsword</name>
+    <type>M</type>
+    <weight>3</weight>
+    <value>15</value>
+    <dmg1>1d8</dmg1>
+    <dmg2>1d10</dmg2>
+    <dmgType>S</dmgType>
+    <property>M, V</property>
+  </item>
+  <item>
+    <name>Longsword, +1</name>
+    <type>M</type>
+    <magic>YES</magic>
+    <detail>uncommon</detail>
+    <weight>3</weight>
+    <dmg1>1d8</dmg1>
+    <dmg2>1d10</dmg2>
+    <dmgType>S</dmgType>
+    <property>M, V</property>
+    <text>You have a +1 bonus to attack and damage rolls made with this magic weapon.</text>
+    <modifier category="bonus">melee attacks +1</modifier>
+    <modifier category="bonus">melee damage +1</modifier>
+  </item>
+  <item>
+    <name>Dagger</name>
+    <type>M</type>
+    <weight>1</weight>
+    <value>2</value>
+    <dmg1>1d4</dmg1>
+    <dmgType>P</dmgType>
+    <property>F, L, T</property>
+    <range>20/60</range>
+  </item>
+  <item>
+    <name>Shortbow</name>
+    <type>R</type>
+    <weight>2</weight>
+    <value>25</value>
+    <dmg1>1d6</dmg1>
+    <dmgType>P</dmgType>
+    <property>A, 2H</property>
+    <range>80/320</range>
+  </item>
+  <item>
+    <name>Leather Armor</name>
+    <type>LA</type>
+    <weight>10</weight>
+    <value>10</value>
+    <ac>11</ac>
+  </item>
+  <item>
+    <name>Scale Mail</name>
+    <type>MA</type>
+    <weight>45</weight>
+    <value>50</value>
+    <ac>14</ac>
+    <stealth>YES</stealth>
+  </item>
+  <item>
+    <name>Chain Mail</name>
+    <type>HA</type>
+    <weight>55</weight>
+    <value>75</value>
+    <ac>16</ac>
+    <strength>13</strength>
+    <stealth>YES</stealth>
+  </item>
+  <item>
+    <name>Shield</name>
+    <type>S</type>
+    <weight>6</weight>
+    <value>10</value>
+    <ac>2</ac>
+  </item>
+  <item>
+    <name>Potion of Healing</name>
+    <type>P</type>
+    <magic>YES</magic>
+    <detail>common</detail>
+    <weight>0.5</weight>
+    <value>50</value>
+    <text>You regain 2d4 + 2 hit points when you drink this potion.</text>
+    <roll>2d4+2</roll>
+  </item>
+  <item>
+    <name>Ring of Protection</name>
+    <type>RG</type>
+    <magic>YES</magic>
+    <detail>rare (requires attunement)</detail>
+    <text>You gain a +1 bonus to AC and saving throws while wearing this ring.</text>
+    <modifier category="bonus">ac +1</modifier>
+    <modifier category="bonus">saving throws +1</modifier>
+  </item>
+  <monster>
+    <name>Goblin</name>
+    <size>S</size>
+    <type>humanoid (goblinoid)</type>
+    <alignment>neutral evil</alignment>
+    <ac>15 (leather armor, shield)</ac>
+    <hp>7 (2d6)</hp>
+    <speed>30 ft.</speed>
+    <str>8</str>
+    <dex>14</dex>
+    <con>10</con>
+    <int>10</int>
+    <wis>8</wis>
+    <cha>8</cha>
+    <skill>Stealth +6</skill>
+    <senses>darkvision 60 ft.</senses>
+    <passive>9</passive>
+    <languages>Common, Goblin</languages>
+    <cr>1/4</cr>
+    <trait>
+      <name>Nimble Escape</name>
+      <text>The goblin can take the Disengage or Hide action as a bonus action on each of its turns.</text>
+    </trait>
+    <action>
+      <name>Scimitar</name>
+      <text>Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 5 (1d6 + 2) slashing damage.</text>
+      <attack>Scimitar|4|1d6+2</attack>
+    </action>
+    <action>
+      <name>Shortbow</name>
+      <text>Ranged Weapon Attack: +4 to hit, range 80/320 ft., one target. Hit: 5 (1d6 + 2) piercing damage.</text>
+      <attack>Shortbow|4|1d6+2</attack>
+    </action>
+  </monster>
+</compendium>
