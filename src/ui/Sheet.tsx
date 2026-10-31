@@ -1,15 +1,16 @@
 import { useMemo, useReducer, useRef, useState } from 'react';
 import {
-  ABBR, ABILITIES, Ability, Entry, KIND_LABEL, Kind, classView, featView, itemView, lookup, spellView,
+  ABBR, ABILITIES, Ability, ClassFeature, Entry, KIND_LABEL, Kind, featView, itemView, spellClassMatches, spellView,
 } from '../model/compendium';
 import {
-  AppState, Character, CharacterRecord, CHARACTER_TAGS, classLevel, classSubclass, hdCurrent, isAttuned,
-  isEquipped, isPrepared, itemQuantity, setAttuned, setEquipped, setHdCurrent, setItemQuantity, setPrepared,
+  AppState, COIN_KINDS, Character, CharacterRecord, CoinKind, classFeatNames, classLevel, classSpells, coinKind,
+  containerCarried, customItem, hdCurrent, isAttuned, isEquipped, isPrepared, itemQuantity, removeClassFeat, setAttuned,
+  setEquipped, setHdCurrent, setItemQuantity, setPrepared,
 } from '../model/character';
-import { deriveSheet, mod } from '../rules/derive';
-import { applyLevelUp, levelOptions, removeLevel, XP_TABLE } from '../rules/level';
-import { cryptoRng } from '../rules/dice';
-import { XElement, childText, childTexts, setChildText } from '../xml/xml';
+import { Sheet as SheetData, deriveSheet, mod } from '../rules/derive';
+import { applyLevelUp, levelOptions, removeLevel, subclassFeaturesAt, syncClassSlots, XP_TABLE } from '../rules/level';
+import { cryptoRng, isRollable, resolveFormula } from '../rules/dice';
+import { XElement, childText, childTexts, elements, setChildText } from '../xml/xml';
 import { EntryDetail } from './CompendiumView';
 import { Field, Modal, NumberInput, RichText, RollChip, signed, useApp } from './common';
 
@@ -17,6 +18,7 @@ const CONDITIONS = ['Blinded', 'Charmed', 'Deafened', 'Frightened', 'Grappled', 
   'Paralyzed', 'Petrified', 'Poisoned', 'Prone', 'Restrained', 'Stunned', 'Unconscious'];
 
 type Tab = 'main' | 'spells' | 'inventory' | 'features' | 'notes' | 'xml';
+type Mutate = (fn: (c: Character, a: AppState) => void) => void;
 
 export function Sheet({ record, onSave, onBack, onExport }: {
   record: CharacterRecord; onSave: (r: CharacterRecord) => void; onBack: () => void; onExport: (r: CharacterRecord) => void;
@@ -29,17 +31,20 @@ export function Sheet({ record, onSave, onBack, onExport }: {
   const [levelUp, setLevelUp] = useState(false);
   const s = deriveSheet(c, app.current, options);
 
-  const mutate = (fn: (c: Character, a: AppState) => void) => {
+  const mutate: Mutate = (fn) => {
     fn(c, app.current);
+    // Keep the stored combined slot rows and wealth in step with the derived sheet,
+    // as the original app does.
+    const sheet = deriveSheet(c, app.current, options);
+    c.setSlots(sheet.slots, sheet.slots.map((t, i) => (i === 0 ? t : Math.max(0, t - sheet.slotsUsed[i]))));
+    c.syncMoney();
     app.current = { ...app.current };
     onSave({ ...record, xml: c.serialize(), app: app.current, updatedAt: Date.now() });
     bump();
   };
 
-  const classesLine = c.classes.map((ce) => {
-    const sub = classSubclass(ce);
-    return `${childText(ce, 'name')} ${classLevel(ce)}${sub ? ` (${sub})` : ''}`;
-  }).join(' / ');
+  const rollF = (formula: string, label?: string) => roll(resolveFormula(formula, s.formula), label);
+  const classesLine = s.classes.map((k) => `${k.name} ${k.level}${k.subclasses.length ? ` (${k.subclasses.join(', ')})` : ''}`).join(' / ');
   const nextXp = XP_TABLE[Math.min(19, s.level)];
 
   const shortRest = () => mutate((_, a) => {
@@ -49,18 +54,18 @@ export function Sheet({ record, onSave, onBack, onExport }: {
   });
   const longRest = () => mutate((ch, a) => {
     ch.hpCurrent = s.hpMax;
-    ch.hpTemp = 0;
-    a.slotsUsed = Array(10).fill(0);
+    a.hpTemp = 0;
+    ch.setSlots(s.slots, s.slots);
+    for (const k of ch.classes) syncClassSlots(k);
     a.pactUsed = 0;
     a.countersUsed = {};
     a.deathSaves = { success: 0, failure: 0 };
     a.exhaustion = Math.max(0, a.exhaustion - 1);
-    // Regain spent hit dice up to half the character's total (minimum 1).
     let regain = Math.max(1, Math.floor(s.level / 2));
     for (const ce of ch.classes) {
       const missing = classLevel(ce) - hdCurrent(ce);
       const r = Math.min(missing, regain);
-      setHdCurrent(ce, hdCurrent(ce) + r);
+      if (r > 0) setHdCurrent(ce, hdCurrent(ce) + r);
       regain -= r;
     }
     toast('Long rest: hit points, spell slots and resources restored.');
@@ -77,7 +82,7 @@ export function Sheet({ record, onSave, onBack, onExport }: {
         <div className="row">
           <span className="muted small">XP</span>
           <NumberInput className="xp" value={c.xp} min={0} onChange={(n) => mutate((ch) => { ch.xp = n; })} />
-          {s.level < 20 && c.xp >= nextXp && <span className="tag">level up!</span>}
+          {s.level < 20 && c.xp >= nextXp && c.xp > 0 && <span className="tag">level up!</span>}
           <button className="primary" onClick={() => setLevelUp(true)}>Level up</button>
           <button onClick={shortRest}>Short rest</button>
           <button onClick={longRest}>Long rest</button>
@@ -87,7 +92,7 @@ export function Sheet({ record, onSave, onBack, onExport }: {
 
       <div className="vitals">
         <Stat label="Armor Class" value={s.ac} title={s.acNotes.join('\n')} />
-        <HitPoints c={c} max={s.hpMax} mutate={mutate} />
+        <HitPoints c={c} app={app.current} max={s.hpMax} mutate={mutate} />
         <Stat label="Initiative" value={<RollChip expr={`1d20${signed(s.initiative)}`} label="Initiative">{signed(s.initiative)}</RollChip>} />
         <Stat label="Speed" value={`${s.speed} ft`} />
         <Stat label="Proficiency" value={signed(s.prof)} />
@@ -137,10 +142,7 @@ export function Sheet({ record, onSave, onBack, onExport }: {
                   const state = sk.expertise ? 'E' : sk.proficient ? 'P' : sk.half ? '½' : '';
                   return (
                     <tr key={sk.name}>
-                      <td>
-                        <button className="prof-toggle" title="Cycle: none → proficient → expertise"
-                          onClick={() => mutate((ch) => cycleSkill(ch, sk.name))}>{state || '○'}</button>
-                      </td>
+                      <td><span className="prof-toggle" title={sk.proficient ? 'Proficient' : sk.half ? 'Half proficiency' : ''}>{state || '○'}</span></td>
                       <td>{sk.name} <span className="muted small">{ABBR[sk.ability]}</span></td>
                       <td><RollChip expr={`1d20${signed(sk.bonus)}`} label={sk.name}>{signed(sk.bonus)}</RollChip></td>
                     </tr>
@@ -148,7 +150,7 @@ export function Sheet({ record, onSave, onBack, onExport }: {
                 })}
               </tbody>
             </table>
-            <p className="muted small">Passive Investigation {s.passiveInvestigation} · Passive Insight {s.passiveInsight}</p>
+            <p className="muted small">Skill proficiencies come from the race, background, class and feats. Passive Investigation {s.passiveInvestigation} · Passive Insight {s.passiveInsight}</p>
           </section>
           <section className="panel">
             <h3>Attacks</h3>
@@ -167,16 +169,16 @@ export function Sheet({ record, onSave, onBack, onExport }: {
                 ))}
               </tbody>
             </table>
+            <label className="check small"><input type="checkbox" checked={c.unarmed} onChange={(e) => mutate((ch) => { ch.unarmed = e.target.checked; })} /> Show unarmed strike</label>
             <h3>Hit dice</h3>
-            {c.classes.map((ce) => {
-              const cv = classView(ce);
-              const left = hdCurrent(ce);
+            {s.hitDice.map((hd) => {
+              const ce = s.classes.find((k) => k.name === hd.className)!.el;
               return (
-                <div key={cv.name} className="row">
-                  <span>{cv.name}: {left}/{classLevel(ce)} d{cv.hd}</span>
-                  <button disabled={left <= 0} onClick={() => {
-                    const r = roll(`1d${cv.hd}${signed(s.mods.constitution)}`, 'Hit die');
-                    if (r) mutate((ch) => { setHdCurrent(ce, left - 1); ch.hpCurrent = Math.min(s.hpMax, ch.hpCurrent + Math.max(0, r.total)); });
+                <div key={hd.className} className="row">
+                  <span>{hd.className}: {hd.current}/{hd.total} d{hd.die}</span>
+                  <button disabled={hd.current <= 0} onClick={() => {
+                    const r = roll(`1d${hd.die}${signed(s.mods.constitution)}`, 'Hit die');
+                    if (r) mutate((ch) => { setHdCurrent(ce, hd.current - 1); ch.hpCurrent = Math.min(s.hpMax, ch.hpCurrent + Math.max(0, r.total)); });
                   }}>Spend</button>
                 </div>
               );
@@ -187,7 +189,6 @@ export function Sheet({ record, onSave, onBack, onExport }: {
               <dt>Weapons</dt><dd>{s.proficiencies.weapons.join(', ') || '—'}</dd>
               <dt>Tools</dt><dd>{s.proficiencies.tools.join(', ') || '—'}</dd>
               {s.proficiencies.other.length > 0 && <><dt>Other</dt><dd>{s.proficiencies.other.join(', ')}</dd></>}
-              <dt>Languages</dt><dd><input value={c.languages} onChange={(e) => mutate((ch) => { ch.languages = e.target.value; })} /></dd>
             </dl>
           </section>
           <section className="panel">
@@ -224,9 +225,9 @@ export function Sheet({ record, onSave, onBack, onExport }: {
         </div>
       )}
 
-      {tab === 'spells' && <SpellsTab c={c} app={app.current} sheet={s} mutate={mutate} />}
-      {tab === 'inventory' && <InventoryTab c={c} sheet={s} mutate={mutate} />}
-      {tab === 'features' && <FeaturesTab sheet={s} app={app.current} mutate={mutate} />}
+      {tab === 'spells' && <SpellsTab c={c} app={app.current} sheet={s} mutate={mutate} rollF={rollF} />}
+      {tab === 'inventory' && <InventoryTab c={c} sheet={s} mutate={mutate} rollF={rollF} />}
+      {tab === 'features' && <FeaturesTab c={c} sheet={s} app={app.current} mutate={mutate} rollF={rollF} />}
       {tab === 'notes' && <NotesTab c={c} mutate={mutate} />}
       {tab === 'xml' && (
         <section className="panel">
@@ -240,27 +241,17 @@ export function Sheet({ record, onSave, onBack, onExport }: {
   );
 }
 
-type Mutate = (fn: (c: Character, a: AppState) => void) => void;
-type SheetT = ReturnType<typeof deriveSheet>;
-
-function cycleSkill(ch: Character, name: string) {
-  const p = ch.skills, e = ch.expertise;
-  if (e.includes(name)) { ch.expertise = e.filter((x) => x !== name); ch.skills = p.filter((x) => x !== name); }
-  else if (p.includes(name)) ch.expertise = [...e, name];
-  else ch.skills = [...p, name];
-}
-
 function Stat({ label, value, title }: { label: string; value: React.ReactNode; title?: string }) {
   return <div className="stat" title={title}><span className="label">{label}</span><span className="value">{value}</span></div>;
 }
 
-function HitPoints({ c, max, mutate }: { c: Character; max: number; mutate: Mutate }) {
+function HitPoints({ c, app, max, mutate }: { c: Character; app: AppState; max: number; mutate: Mutate }) {
   const [amount, setAmount] = useState('');
   const n = parseInt(amount, 10);
-  const damage = () => mutate((ch) => {
+  const damage = () => mutate((ch, a) => {
     let d = n;
-    const t = Math.min(ch.hpTemp, d);
-    ch.hpTemp = ch.hpTemp - t;
+    const t = Math.min(a.hpTemp, d);
+    a.hpTemp -= t;
     d -= t;
     ch.hpCurrent = Math.max(0, ch.hpCurrent - d);
   });
@@ -272,13 +263,13 @@ function HitPoints({ c, max, mutate }: { c: Character; max: number; mutate: Muta
         <NumberInput className="hp-cur" value={c.hpCurrent} onChange={(v) => mutate((ch) => { ch.hpCurrent = v; })} />
         <span className="muted"> / </span>
         <span title="Edit stored maximum below">{max}</span>
-        {c.hpTemp > 0 && <span className="tag">+{c.hpTemp} temp</span>}
+        {app.hpTemp > 0 && <span className="tag">+{app.hpTemp} temp</span>}
       </span>
       <span className="row small">
         <input className="hp-amt" placeholder="±" value={amount} onChange={(e) => setAmount(e.target.value)} />
         <button disabled={!(n > 0)} onClick={damage}>Damage</button>
         <button disabled={!(n > 0)} onClick={heal}>Heal</button>
-        <button disabled={!(n > 0)} onClick={() => mutate((ch) => { ch.hpTemp = Math.max(ch.hpTemp, n); })}>Temp</button>
+        <button disabled={!(n > 0)} onClick={() => mutate((_, a) => { a.hpTemp = Math.max(a.hpTemp, n); })}>Temp</button>
       </span>
       <span className="row small muted">Max <NumberInput className="hp-max" value={c.hpMax} min={0} onChange={(v) => mutate((ch) => { ch.hpMax = v; })} /></span>
     </div>
@@ -287,22 +278,24 @@ function HitPoints({ c, max, mutate }: { c: Character; max: number; mutate: Muta
 
 // ---------------------------------------------------------------- spells
 
-function SpellsTab({ c, app, sheet, mutate }: { c: Character; app: AppState; sheet: SheetT; mutate: Mutate }) {
-  const [adding, setAdding] = useState(false);
+function SpellsTab({ c, app, sheet, mutate, rollF }: { c: Character; app: AppState; sheet: SheetData; mutate: Mutate; rollF: (f: string, l?: string) => unknown }) {
+  const [adding, setAdding] = useState<XElement | null>(null);
   const [open, setOpen] = useState<XElement | null>(null);
-  const spells = c.spells.map((el) => ({ el, v: spellView(el), prepared: isPrepared(el) }))
-    .sort((a, b) => a.v.level - b.v.level || a.v.name.localeCompare(b.v.name));
-  const levels = [...new Set(spells.map((x) => x.v.level))];
+  const groups = c.classes.map((ce) => ({
+    ce, name: childText(ce, 'name'),
+    spells: classSpells(ce).map((el) => ({ el, v: spellView(el), prepared: isPrepared(el) }))
+      .sort((a, b) => a.v.level - b.v.level || a.v.name.localeCompare(b.v.name)),
+  }));
   const maxSlot = sheet.slots.reduce((m, v, i) => (v > 0 ? i : m), 0);
+  const setUsed = (l: number, n: number) => mutate((ch) => {
+    const cur = sheet.slots.map((t, i) => (i === 0 ? t : Math.max(0, t - (i === l ? n : sheet.slotsUsed[i]))));
+    ch.setSlots(sheet.slots, cur);
+  });
   const cast = (level: number) => {
     if (level === 0) return;
-    // Use the lowest available slot of at least this level, preferring pact slots at their level.
-    if (sheet.pact && sheet.pact.level >= level && app.pactUsed < sheet.pact.count) {
-      mutate((_, a) => { a.pactUsed += 1; });
-      return;
-    }
+    if (sheet.pact && sheet.pact.level >= level && app.pactUsed < sheet.pact.count) { mutate((_, a) => { a.pactUsed += 1; }); return; }
     for (let l = level; l <= 9; l++) {
-      if ((app.slotsUsed[l] ?? 0) < sheet.slots[l]) { mutate((_, a) => { a.slotsUsed[l] = (a.slotsUsed[l] ?? 0) + 1; }); return; }
+      if (sheet.slotsUsed[l] < sheet.slots[l]) { setUsed(l, sheet.slotsUsed[l] + 1); return; }
     }
     alert('No spell slots of that level or higher remain.');
   };
@@ -310,7 +303,7 @@ function SpellsTab({ c, app, sheet, mutate }: { c: Character; app: AppState; she
   return (
     <div className="spells">
       <section className="panel">
-        {sheet.spellcasting.length === 0 && <p className="muted">No spellcasting classes. You can still track spells (for example from racial traits or feats).</p>}
+        {sheet.spellcasting.length === 0 && <p className="muted">No spellcasting classes. You can still add spells to a class (for example from racial traits or feats).</p>}
         <div className="row wrap">
           {sheet.spellcasting.map((sc) => (
             <div key={sc.className} className="caster">
@@ -327,8 +320,8 @@ function SpellsTab({ c, app, sheet, mutate }: { c: Character; app: AppState; she
               <div key={l} className="slot-level">
                 <span className="small">{ordinal(l)}</span>
                 {Array.from({ length: sheet.slots[l] }, (_, j) => (
-                  <input key={j} type="checkbox" checked={j < (app.slotsUsed[l] ?? 0)} title="Used"
-                    onChange={(e) => mutate((_, a) => { a.slotsUsed[l] = e.target.checked ? j + 1 : j; })} />
+                  <input key={j} type="checkbox" checked={j < sheet.slotsUsed[l]} title="Used"
+                    onChange={(e) => setUsed(l, e.target.checked ? j + 1 : j)} />
                 ))}
               </div>
             ))}
@@ -343,21 +336,23 @@ function SpellsTab({ c, app, sheet, mutate }: { c: Character; app: AppState; she
             )}
           </div>
         )}
-        <div className="row"><button onClick={() => setAdding(true)}>Add spells…</button></div>
+        <div className="row">
+          {c.classes.map((ce) => <button key={childText(ce, 'name')} onClick={() => setAdding(ce)}>Add {childText(ce, 'name')} spells…</button>)}
+        </div>
       </section>
-      {levels.map((lv) => (
-        <section key={lv} className="panel">
-          <h3>{lv === 0 ? 'Cantrips' : `${ordinal(lv)} level`}</h3>
+      {groups.filter((g) => g.spells.length).map((g) => (
+        <section key={g.name} className="panel">
+          <h3>{g.name} spells</h3>
           <table className="spell-table">
             <tbody>
-              {spells.filter((x) => x.v.level === lv).map(({ el, v, prepared }) => (
+              {g.spells.map(({ el, v, prepared }) => (
                 <tr key={v.name}>
-                  <td>{lv > 0 && <input type="checkbox" title="Prepared" checked={prepared} onChange={(e) => mutate(() => setPrepared(el, e.target.checked))} />}</td>
+                  <td>{v.level > 0 && <input type="checkbox" title="Prepared" checked={prepared} onChange={(e) => mutate(() => setPrepared(el, e.target.checked))} />}</td>
                   <td><button className="link" onClick={() => setOpen(el)}>{v.name}</button>
-                    <div className="muted small">{[v.time, v.range, v.duration, v.ritual && 'ritual'].filter(Boolean).join(' · ')}</div></td>
-                  <td>{v.rolls.slice(0, 1).map((r) => <RollChip key={r} expr={r} label={v.name} />)}</td>
-                  <td>{lv > 0 && <button onClick={() => cast(lv)}>Cast</button>}</td>
-                  <td><button className="link danger" onClick={() => mutate((ch) => ch.remove(el))}>Remove</button></td>
+                    <div className="muted small">{[v.level ? ordinal(v.level) : 'Cantrip', v.time, v.range, v.duration, v.ritual && 'ritual'].filter(Boolean).join(' · ')}</div></td>
+                  <td>{v.rolls.slice(0, 2).map((r, i) => <button key={i} className="roll" title={r.description} onClick={() => rollF(r.formula, v.name)}>{resolveFormula(r.formula, sheet.formula)}</button>)}</td>
+                  <td>{v.level > 0 && <button onClick={() => cast(v.level)}>Cast</button>}</td>
+                  <td><button className="link danger" onClick={() => mutate(() => { const i = g.ce.children.indexOf(el); if (i >= 0) g.ce.children.splice(i, 1); })}>Remove</button></td>
                 </tr>
               ))}
             </tbody>
@@ -370,10 +365,10 @@ function SpellsTab({ c, app, sheet, mutate }: { c: Character; app: AppState; she
         </Modal>
       )}
       {adding && (
-        <Picker kind="spell" onClose={() => setAdding(false)}
-          filterHint={c.classes.map((ce) => childText(ce, 'name'))}
-          has={(n) => c.spells.some((s) => childText(s, 'name').toLowerCase() === n.toLowerCase())}
-          onPick={(e) => mutate((ch) => { ch.addSpell(e.el); })} />
+        <Picker kind="spell" onClose={() => setAdding(null)}
+          filterHint={[childText(adding, 'name')]} subclasses={sheet.classes.find((k) => k.el === adding)?.subclasses ?? []}
+          has={(n) => classSpells(adding).some((sp) => childText(sp, 'name').toLowerCase() === n.toLowerCase())}
+          onPick={(e) => mutate((ch) => { ch.addSpell(adding, e.el); })} />
       )}
     </div>
   );
@@ -383,22 +378,23 @@ const ordinal = (n: number) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 
 
 // ---------------------------------------------------------------- inventory
 
-function InventoryTab({ c, sheet, mutate }: { c: Character; sheet: SheetT; mutate: Mutate }) {
+function InventoryTab({ c, sheet, mutate, rollF }: { c: Character; sheet: SheetData; mutate: Mutate; rollF: (f: string, l?: string) => unknown }) {
   const [adding, setAdding] = useState(false);
   const [open, setOpen] = useState<XElement | null>(null);
-  const items = c.items.map((el) => ({ el, v: itemView(el), qty: itemQuantity(el), eq: isEquipped(el), att: isAttuned(el) }));
+  const items = c.items.filter((el) => !coinKind(el)).map((el) => ({ el, v: itemView(el), qty: itemQuantity(el), eq: isEquipped(el), att: isAttuned(el) }));
   return (
     <div className="inventory">
       <section className="panel">
         <div className="row between">
           <div className="row currency">
-            {CHARACTER_TAGS.currency.map((k) => (
+            {COIN_KINDS.map((k: CoinKind) => (
               <Field key={k} label={k.toUpperCase()}>
-                <NumberInput value={c.currency(k)} min={0} onChange={(n) => mutate((ch) => ch.setCurrency(k, n))} />
+                <NumberInput value={c.coin(k)} min={0} onChange={(n) => mutate((ch) => ch.setCoin(k, n))} />
               </Field>
             ))}
+            <span className="muted small">= {c.coinTotal()} gp</span>
           </div>
-          <div className={sheet.carried > sheet.capacity ? 'danger' : 'muted'}>Carrying {round(sheet.carried)} / {sheet.capacity} lb</div>
+          <div className={sheet.carried > sheet.capacity ? 'danger' : 'muted'}>Carrying {sheet.carried} / {sheet.capacity} lb</div>
         </div>
         <table className="items">
           <thead><tr><th title="Equipped">Eq</th><th title="Attuned">At</th><th>Item</th><th>Qty</th><th>Weight</th><th /></tr></thead>
@@ -406,12 +402,12 @@ function InventoryTab({ c, sheet, mutate }: { c: Character; sheet: SheetT; mutat
             {items.map(({ el, v, qty, eq, att }, i) => (
               <tr key={i}>
                 <td><input type="checkbox" checked={eq} onChange={(e) => mutate(() => setEquipped(el, e.target.checked))} /></td>
-                <td>{(v.magic || /attunement/i.test(v.detail)) && <input type="checkbox" checked={att} onChange={(e) => mutate(() => setAttuned(el, e.target.checked))} />}</td>
+                <td>{(v.magic || v.attunement) && <input type="checkbox" checked={att} onChange={(e) => mutate(() => setAttuned(el, e.target.checked))} />}</td>
                 <td><button className="link" onClick={() => setOpen(el)}>{v.name}</button> <span className="muted small">{v.typeLabel}</span></td>
                 <td><NumberInput className="qty" value={qty} min={0} onChange={(n) => mutate(() => setItemQuantity(el, n))} /></td>
-                <td>{v.weight ? round(v.weight * qty) : ''}</td>
+                <td>{v.weight ? Math.round(v.weight * qty * 100) / 100 : ''}</td>
                 <td>
-                  {v.rolls[0] && <RollChip expr={v.rolls[0]} label={v.name} />}
+                  {v.rolls[0] && <button className="roll" onClick={() => rollF(v.rolls[0].formula, v.name)}>{v.rolls[0].formula}</button>}
                   <button className="link danger" onClick={() => mutate((ch) => ch.remove(el))}>Remove</button>
                 </td>
               </tr>
@@ -420,16 +416,20 @@ function InventoryTab({ c, sheet, mutate }: { c: Character; sheet: SheetT; mutat
         </table>
         <div className="row">
           <button onClick={() => setAdding(true)}>Add items…</button>
-          <button onClick={() => {
-            const name = prompt('Custom item name');
-            if (name) mutate((ch) => {
-              const it = ch.addItem({ type: 'el', name: 'item', attrs: [], children: [] });
-              setChildText(it, 'name', name);
-              setChildText(it, 'type', 'G');
-            });
-          }}>Custom item…</button>
+          <button onClick={() => { const name = prompt('Custom item name'); if (name) mutate((ch) => { ch.insert(customItem(name)); }); }}>Custom item…</button>
         </div>
       </section>
+      {c.containers.map((ct, i) => (
+        <section key={i} className="panel">
+          <div className="row between">
+            <h3>{childText(ct, 'label') || childText(ct, 'name')} <span className="muted small">{childText(ct, 'name')} · {containerCarried(ct) ? 'carried' : 'not carried'}</span></h3>
+            <button className="link danger" onClick={() => { if (confirm('Remove this container and its contents?')) mutate((ch) => ch.remove(ct)); }}>Remove</button>
+          </div>
+          <ul className="small">
+            {elements(ct, 'item').map((it, j) => <li key={j}>{childText(it, 'name')}{itemQuantity(it) !== 1 ? ` ×${itemQuantity(it)}` : ''} <span className="muted">{childText(it, 'weight') && `${childText(it, 'weight')} lb`}</span></li>)}
+          </ul>
+        </section>
+      ))}
       {open && <ItemEditor el={open} onClose={() => setOpen(null)} mutate={mutate} />}
       {adding && (
         <Picker kind="item" onClose={() => setAdding(false)} has={() => false}
@@ -439,13 +439,10 @@ function InventoryTab({ c, sheet, mutate }: { c: Character; sheet: SheetT; mutat
   );
 }
 
-const round = (n: number) => Math.round(n * 100) / 100;
-
 function ItemEditor({ el, onClose, mutate }: { el: XElement; onClose: () => void; mutate: Mutate }) {
   const [edit, setEdit] = useState(false);
-  const fields: [string, string][] = [['name', 'Name'], ['type', 'Type code'], ['detail', 'Detail'], ['weight', 'Weight'],
-    ['value', 'Value'], ['ac', 'AC'], ['dmg1', 'Damage'], ['dmg2', 'Versatile damage'], ['dmgType', 'Damage type code'],
-    ['property', 'Properties'], ['range', 'Range']];
+  const fields: [string, string][] = [['name', 'Name'], ['detail', 'Detail'], ['value', 'Value (gp)'], ['weight', 'Weight'],
+    ['ac', 'AC'], ['damage1H', 'Damage'], ['damage2H', 'Versatile damage'], ['range', 'Range']];
   return (
     <Modal title={childText(el, 'name')} onClose={onClose}>
       {!edit && <EntryDetail entry={{ kind: 'item', name: childText(el, 'name'), el, fileId: '' }} />}
@@ -455,10 +452,7 @@ function ItemEditor({ el, onClose, mutate }: { el: XElement; onClose: () => void
             <Field key={k} label={label}><input defaultValue={childText(el, k)} onBlur={(e) => mutate(() => setChildText(el, k, e.target.value))} /></Field>
           ))}
           <Field label="Description"><textarea defaultValue={childTexts(el, 'text').join('\n')} rows={5}
-            onBlur={(e) => mutate(() => {
-              el.children = el.children.filter((x) => !(x.type === 'el' && x.name === 'text'));
-              for (const line of e.target.value.split('\n')) el.children.push({ type: 'el', name: 'text', attrs: [], children: line ? [{ type: 'text', value: line }] : [] });
-            })} /></Field>
+            onBlur={(e) => mutate(() => setChildText(el, 'text', e.target.value))} /></Field>
         </div>
       )}
       <footer className="modal-actions"><button onClick={() => setEdit(!edit)}>{edit ? 'Done editing' : 'Edit this copy'}</button></footer>
@@ -468,9 +462,10 @@ function ItemEditor({ el, onClose, mutate }: { el: XElement; onClose: () => void
 
 // ---------------------------------------------------------------- features
 
-function FeaturesTab({ sheet, app, mutate }: { sheet: SheetT; app: AppState; mutate: Mutate }) {
+function FeaturesTab({ c, sheet, app, mutate, rollF }: { c: Character; sheet: SheetData; app: AppState; mutate: Mutate; rollF: (f: string, l?: string) => unknown }) {
   const groups = new Map<string, typeof sheet.features>();
   for (const f of sheet.features) groups.set(f.source, [...(groups.get(f.source) ?? []), f]);
+  const classEl = (source: string) => c.classes.find((ce) => childText(ce, 'name') === source);
   return (
     <div className="features">
       {sheet.counters.length > 0 && (
@@ -496,8 +491,13 @@ function FeaturesTab({ sheet, app, mutate }: { sheet: SheetT; app: AppState; mut
           <h3>{source}</h3>
           {list.map((f, i) => (
             <details key={i}>
-              <summary>{f.name}{f.level ? <span className="muted small"> · level {f.level}</span> : null}</summary>
+              <summary>{f.name}{f.level ? <span className="muted small"> · level {f.level}</span> : null}
+                {classEl(source) && classFeatNames(classEl(source)!).includes(f.name) && (
+                  <button className="link danger small" onClick={(e) => { e.preventDefault(); if (confirm(`Remove the feature "${f.name}"?`)) mutate(() => removeClassFeat(classEl(source)!, f.name)); }}>remove</button>
+                )}
+              </summary>
               <RichText text={f.text} label={f.name} />
+              {f.rolls.length > 0 && <p>{f.rolls.map((r, j) => <button key={j} className="roll" title={r.description} onClick={() => rollF(r.formula, f.name)}>{r.description ? `${r.description}: ` : ''}{resolveFormula(r.formula, sheet.formula)}</button>)}</p>}
             </details>
           ))}
         </section>
@@ -517,9 +517,6 @@ function FeaturesTab({ sheet, app, mutate }: { sheet: SheetT; app: AppState; mut
 function NotesTab({ c, mutate }: { c: Character; mutate: Mutate }) {
   return (
     <div className="notes">
-      <section className="panel">
-        <Field label="Alignment"><input value={c.alignment} onChange={(e) => mutate((ch) => { ch.alignment = e.target.value; })} /></Field>
-      </section>
       {c.notes.map((n, i) => (
         <section key={i} className="panel">
           <div className="row between">
@@ -530,6 +527,7 @@ function NotesTab({ c, mutate }: { c: Character; mutate: Mutate }) {
         </section>
       ))}
       <button onClick={() => mutate((ch) => { ch.addNote('New note', ''); })}>Add note</button>
+      <p className="muted small">Notes are stored in the character file under a &lt;note&gt; element, which other apps ignore.</p>
     </div>
   );
 }
@@ -537,86 +535,101 @@ function NotesTab({ c, mutate }: { c: Character; mutate: Mutate }) {
 // ---------------------------------------------------------------- level up
 
 function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => void; mutate: Mutate }) {
-  const { lib } = useApp();
+  const { lib, options } = useApp();
   const existing = c.classes;
-  const [target, setTarget] = useState<string>(existing[0] ? `existing:0` : lib.byKind.class[0] ? `new:${lib.byKind.class[0].name}` : '');
+  const [target, setTarget] = useState<string>(existing[0] ? 'existing:0' : lib.byKind.class[0] ? `new:${lib.byKind.class[0].name}` : '');
   const [hp, setHp] = useState<'average' | 'roll' | 'manual'>('average');
   const [manualHp, setManualHp] = useState(1);
   const [subclass, setSubclass] = useState('');
-  const [choices, setChoices] = useState<string[]>([]);
+  const [choices, setChoices] = useState<string[] | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const [asiMode, setAsiMode] = useState<'two' | 'split' | 'feat'>('two');
   const [asiA, setAsiA] = useState<Ability>('strength');
   const [asiB, setAsiB] = useState<Ability>('dexterity');
   const [feat, setFeat] = useState('');
 
   const existingEl = target.startsWith('existing:') ? existing[+target.split(':')[1]] : undefined;
-  const newEl = target.startsWith('new:') ? lookup(lib, 'class', target.slice(4))?.el : undefined;
+  const newEl = target.startsWith('new:') ? lib.byKind.class.find((e) => e.name === target.slice(4))?.el : undefined;
   const classEl = existingEl ?? newEl;
   const nextLevel = existingEl ? classLevel(existingEl) + 1 : 1;
-  const opts = classEl ? levelOptions(classEl, nextLevel, existingEl ? classSubclass(existingEl) : '') : null;
-  const multiclassNotes = newEl && existing.length ? 'Multiclassing: check ability score prerequisites. Only the first class grants saving throw proficiencies.' : '';
+  const lo = classEl ? levelOptions(classEl, nextLevel, options) : null;
+  const introFor = (sub: string) => lo?.subclassIntros.find((f) => f.name.endsWith(`: ${sub}`));
+  const picked = choices ?? lo?.subclassFeatures.map((f) => f.name) ?? [];
+  const toggle = (name: string, on: boolean) => setChoices(on ? [...picked, name] : picked.filter((x) => x !== name));
+  const subclassPick = (sub: string) => {
+    setSubclass(sub);
+    const base = picked.filter((n) => !lo?.subclassIntros.some((f) => f.name === n) && !lo?.otherSubclassFeatures.some((f) => f.name === n));
+    if (!sub || !lo) { setChoices(base); return; }
+    const intro = introFor(sub);
+    setChoices([...base, ...(intro ? [intro.name] : []), ...subclassFeaturesAt(lo.cv, sub, nextLevel).map((f) => f.name)]);
+  };
 
   const apply = () => {
-    if (!classEl || c.totalLevel >= 20) return;
-    const asi: Partial<Record<Ability, number>> | undefined = opts?.asi && asiMode !== 'feat'
+    if (!classEl || c.totalLevel >= 20 || !lo) return;
+    const asi: Partial<Record<Ability, number>> | undefined = lo.asi && asiMode !== 'feat'
       ? (asiMode === 'two' ? { [asiA]: 2 } : { [asiA]: 1, [asiB]: 1 }) : undefined;
-    const featEl = opts?.asi && asiMode === 'feat' && feat ? lookup(lib, 'feat', feat)?.el : undefined;
+    const featEl = lo.asi && asiMode === 'feat' && feat ? lib.byKind.feat.find((f) => f.name === feat)?.el : undefined;
     mutate((ch) => {
       applyLevelUp(ch, {
         existing: existingEl, newClass: newEl,
         hp: hp === 'manual' ? { method: 'manual', value: manualHp } : { method: hp },
-        subclass: subclass || undefined, choices, asi, feat: featEl,
-      }, cryptoRng);
+        choices: picked, asi, feat: featEl,
+      }, cryptoRng, options);
     });
     onClose();
   };
+
+  const FeatureCheck = ({ f }: { f: ClassFeature }) => (
+    <label title={f.text.slice(0, 400)}>
+      <input type="checkbox" checked={picked.includes(f.name)} onChange={(e) => toggle(f.name, e.target.checked)} /> {f.name}
+    </label>
+  );
 
   return (
     <Modal title="Level up" onClose={onClose} wide>
       {c.totalLevel >= 20 && <p className="danger">This character is already level 20.</p>}
       <Field label="Class">
-        <select value={target} onChange={(e) => { setTarget(e.target.value); setSubclass(''); setChoices([]); }}>
+        <select value={target} onChange={(e) => { setTarget(e.target.value); setSubclass(''); setChoices(null); }}>
           {existing.map((ce, i) => <option key={i} value={`existing:${i}`}>{childText(ce, 'name')} → {classLevel(ce) + 1}</option>)}
           {lib.byKind.class.filter((e) => !existing.some((ce) => childText(ce, 'name').toLowerCase() === e.name.toLowerCase()))
             .map((e) => <option key={e.name} value={`new:${e.name}`}>{e.name} (new class, multiclass)</option>)}
         </select>
       </Field>
-      {multiclassNotes && <p className="muted small">{multiclassNotes}</p>}
-      {opts && (
+      {newEl && existing.length > 0 && <p className="muted small">Multiclassing: check ability score prerequisites. Only the first class grants saving throw proficiencies.</p>}
+      {lo && (
         <>
           {c.totalLevel > 0 && (
             <div className="row">
-              <span>Hit points (d{opts.cv.hd} {signed(mod(c.abilities.constitution))} Con):</span>
+              <span>Hit points (d{lo.cv.hd} {signed(mod(c.abilities.constitution))} Con):</span>
               {(['average', 'roll', 'manual'] as const).map((m) => (
-                <label key={m} className="radio"><input type="radio" checked={hp === m} onChange={() => setHp(m)} />{m === 'average' ? `Average (${Math.floor(opts.cv.hd / 2) + 1})` : m === 'roll' ? 'Roll' : 'Enter roll'}</label>
+                <label key={m} className="radio"><input type="radio" checked={hp === m} onChange={() => setHp(m)} />{m === 'average' ? `Average (${Math.floor(lo.cv.hd / 2) + 1})` : m === 'roll' ? 'Roll' : 'Enter roll'}</label>
               ))}
-              {hp === 'manual' && <NumberInput value={manualHp} min={1} max={opts.cv.hd} onChange={setManualHp} />}
+              {hp === 'manual' && <NumberInput value={manualHp} min={1} max={lo.cv.hd} onChange={setManualHp} />}
             </div>
           )}
-          {opts.gained.length > 0 && <><h3>New features</h3><ul>{opts.gained.map((f) => <li key={f.name}>{f.name}</li>)}</ul></>}
-          {opts.subclassIntro && (
-            <Field label="Subclass">
-              <select value={subclass} onChange={(e) => setSubclass(e.target.value)}>
-                <option value="">(choose later)</option>
-                {opts.subclasses.map((sname) => <option key={sname}>{sname}</option>)}
+          {lo.gained.length > 0 && <><h3>New features</h3><ul>{lo.gained.map((f) => <li key={f.name} title={f.text.slice(0, 400)}>{f.name}</li>)}</ul></>}
+          {lo.subclassIntros.length > 0 && (
+            <Field label={lo.subclassIntros[0].name.split(':')[0]}>
+              <select value={subclass} onChange={(e) => subclassPick(e.target.value)}>
+                <option value="">(choose)</option>
+                {lo.subclassIntros.map((f) => { const sub = f.name.slice(f.name.indexOf(':') + 1).trim(); return <option key={f.name} value={sub}>{sub}</option>; })}
               </select>
             </Field>
           )}
-          {opts.optional.length > 0 && (
-            <>
-              <h3>Options</h3>
-              <div className="checks">
-                {opts.optional.map((f) => (
-                  <label key={f.name} title={f.text}>
-                    <input type="checkbox" checked={choices.includes(f.name)}
-                      onChange={(e) => setChoices(e.target.checked ? [...choices, f.name] : choices.filter((x) => x !== f.name))} />
-                    {f.name}
-                  </label>
-                ))}
-              </div>
-            </>
+          {subclass && lo && subclassFeaturesAt(lo.cv, subclass, nextLevel).length > 0 && (
+            <><h3>{subclass} features</h3><div className="checks">{subclassFeaturesAt(lo.cv, subclass, nextLevel).map((f) => <FeatureCheck key={f.name} f={f} />)}</div></>
           )}
-          {opts.asi && (
+          {lo.subclassFeatures.length > 0 && (
+            <><h3>{lo.chosenSubclasses.join(', ')} features</h3><div className="checks">{lo.subclassFeatures.map((f) => <FeatureCheck key={f.name} f={f} />)}</div></>
+          )}
+          {lo.other.length > 0 && (
+            <><h3>Options</h3><div className="checks">{lo.other.map((f) => <FeatureCheck key={f.name} f={f} />)}</div></>
+          )}
+          {lo.otherSubclassFeatures.length > 0 && (
+            <p><button className="link" onClick={() => setShowAll(!showAll)}>{showAll ? 'Hide' : 'Show'} features of other subclasses ({lo.otherSubclassFeatures.length})</button></p>
+          )}
+          {showAll && <div className="checks">{lo.otherSubclassFeatures.map((f) => <FeatureCheck key={f.name} f={f} />)}</div>}
+          {lo.asi && (
             <>
               <h3>Ability Score Improvement</h3>
               <div className="row">
@@ -645,7 +658,7 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
         {existing.length > 0 && (
           <button className="danger" onClick={() => {
             const ce = existingEl ?? existing[existing.length - 1];
-            if (confirm(`Remove one ${childText(ce, 'name')} level?`)) { mutate((ch) => removeLevel(ch, ce)); onClose(); }
+            if (confirm(`Remove one ${childText(ce, 'name')} level?`)) { mutate((ch) => removeLevel(ch, ce, options)); onClose(); }
           }}>Remove a level</button>
         )}
         <span className="spacer" />
@@ -658,19 +671,17 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
 
 // ---------------------------------------------------------------- picker
 
-function Picker({ kind, onClose, onPick, has, filterHint }: {
-  kind: Kind; onClose: () => void; onPick: (e: Entry) => void; has: (name: string) => boolean; filterHint?: string[];
+function Picker({ kind, onClose, onPick, has, filterHint, subclasses = [] }: {
+  kind: Kind; onClose: () => void; onPick: (e: Entry) => void; has: (name: string) => boolean; filterHint?: string[]; subclasses?: string[];
 }) {
   const { lib, toast } = useApp();
   const [q, setQ] = useState('');
   const [onlyMine, setOnlyMine] = useState(!!filterHint?.length);
   const [sel, setSel] = useState<Entry | null>(null);
-  const hint = (filterHint ?? []).map((x) => x.toLowerCase());
   const list = lib.byKind[kind].filter((e) => {
     if (q && !e.name.toLowerCase().includes(q.toLowerCase())) return false;
-    if (onlyMine && kind === 'spell' && hint.length) {
-      const cls = spellView(e.el).classes.map((x) => x.toLowerCase());
-      return cls.some((x) => hint.some((h) => x.startsWith(h)));
+    if (onlyMine && kind === 'spell' && filterHint?.length) {
+      return spellView(e.el).classes.some((x) => filterHint.some((h) => spellClassMatches(x, h, subclasses)));
     }
     return true;
   });
@@ -695,3 +706,5 @@ function Picker({ kind, onClose, onPick, has, filterHint }: {
     </Modal>
   );
 }
+
+export { isRollable };

@@ -1,9 +1,10 @@
 # Hearthsheet
 
 An independent, open-source 5e character manager for Windows (Electron + TypeScript + React).
-It reads and writes the community compendium XML format, so you can use compendium files you
-already own. It ships with no game content apart from an optional small SRD 5.1 sample
-(CC-BY-4.0, attribution in the app's Settings → About and in the sample file).
+It reads and writes the compendium and character XML files used by the popular community
+compendium ecosystem, so you can use compendium files you already own and carry characters
+across. It ships with no game content apart from an optional small SRD 5.1 sample (CC-BY-4.0,
+attribution in the app's Settings → About and in the sample file).
 
 ## Run it
 
@@ -21,50 +22,74 @@ Data is stored locally (IndexedDB in the app profile). Export characters and com
 - **Compendium:** import any number of XML files, enable or disable each file, browse and search
   races, classes, backgrounds, feats, spells, items and monsters, and export the merged library.
 - **Characters:** create (standard array, point buy, 4d6 or manual), level up and multiclass
-  (subclass, optional features, ASI or feat, HP average/roll/manual), remove levels, duplicate,
-  import and export XML.
-- **Sheet:** ability scores, saves, skills (proficiency/expertise), AC, HP with damage/heal/temp,
-  hit dice, initiative, passives, attacks, conditions, exhaustion, death saves, short/long rests,
-  class resources, spells with slots (including multiclass and pact slots), inventory with
-  equip/attune/quantity/currency/weight, custom items, notes, and a raw XML view.
-- **Dice:** `2d6+3`, `1d20+5 adv`, `4d6kh3`, `d%`; every number on the sheet can be clicked to roll.
+  (subclass choice, optional features, ASI or feat, HP average/roll/manual), remove levels,
+  duplicate, import and export XML.
+- **Sheet:** ability scores, saves, skills, AC, HP with damage/heal/temp, hit dice, initiative,
+  passives, attacks, conditions, exhaustion, death saves, short/long rests, class resources,
+  spells with slots (including multiclass and pact slots), inventory with equip/attune/quantity/
+  coins/weight/containers, custom items, notes, and a raw XML view.
+- **Dice:** `2d6+3`, `1d20+5 adv`, `4d6kh3`, `d%`; every number on the sheet can be clicked to
+  roll, and compendium formulas with placeholders (`%0`, `SPELL`, `PROF`, …) are resolved.
 
 ## Architecture
 
 | Layer | Path | Notes |
 | --- | --- | --- |
-| XML | `src/xml/xml.ts` | Tolerant, lossless parser/serializer. Keeps unknown elements, attributes, comments, CDATA and order. Recovers from bare `&`, HTML entities, stray `<`, mismatched and unclosed tags, and reports warnings. |
-| Model | `src/model/` | Typed *views* over the preserved XML. A character **is** its XML document, so export re-emits everything it was imported with. |
+| XML | `src/xml/xml.ts` | Tolerant, lossless parser/serializer. Keeps unknown elements, attributes, comments, CDATA and order. Recovers from bare `&`, HTML entities, stray `<`, mismatched and unclosed tags, and reports warnings. Parses a 15 MB compendium in about 0.3 s. |
+| Model | `src/model/` | `compendium.ts`: typed views over compendium entries (also accepts the compiled shapes inside character files). `character.ts`: the character document in the real export format. `codes.ts`: numeric codes used in character files. |
 | Rules | `src/rules/` | Pure functions: derived sheet, multiclass slots, level-up, dice. |
 | Store | `src/store/db.ts` | IndexedDB. Compendium files are stored as their original text. |
 | UI | `src/ui/` | React. |
 
-## Compatibility status — read this
+## File compatibility
 
-There were **no real export files to test against**, so compatibility is as follows:
+The formats were worked out from the community XSD and build tools, thousands of real
+compendium source files, a real 15 MB compiled compendium, and two real character exports from
+the iOS app (character `<version>38</version>`). The relevant facts, all verified against those files:
 
-**Tested** (`tests/`, 32 tests):
-- Byte-identical round-trip of well-formed files, and semantic round-trip of malformed ones.
-- Unknown elements are preserved through edits.
-- Duplicate merging, and derived stats for sample characters against hand-calculated values.
+**Compendium files** (`<compendium version="5">`)
+- Classes split across several files (base class in one, subclasses in others) are merged by
+  name, appending their `<autolevel>` elements; spells with the same name merge their `<classes>`
+  lists. Other duplicate names replace the earlier entry, with a note.
+- Subclass features are recognised in both naming conventions: `Subclass: Feature` and
+  `Feature (Subclass)`, introduced by an optional `Family: Subclass` feature. Option families such
+  as fighting styles, metamagic and invocations are not mistaken for subclasses.
+- Spellcasting granted by a subclass uses `<slots optional="YES">`; those rows apply once the
+  subclass casting feature is chosen. Caster type (full, half, third, pact) is inferred from the
+  slot table.
+- `<special>` markers are honoured: `Fighting Style: …`, `Unarmored Defense: Constitution|Wisdom`,
+  `Natural Armor: 13+%2`, `Jack of all Trades`, `Powerful Build`, `Toughness`.
+- Modifier categories `bonus`, `ability score`, `ability modifier`, `saving throw`, `skill(s)` in
+  any capitalisation, with the documented synonyms (`Armor Class`, `Strength Score`, `wisdom save`,
+  `weapon attack`) and placeholder values (`+%8`, `prof`).
+- Slot rows with or without the trailing comma, `YES`/`1` booleans, `<roll description= level=>`,
+  `<counter>` with `<subclass>`, monster `<attack>Name|+4|1d6+2</attack>` and `<recharge>`.
 
-**Based on the publicly documented compendium format but not checked against real files:**
-- Element names (`<autolevel>`, `<slots>` with cantrips first, `<modifier category=…>`, item type
-  codes, and so on).
+**Character files** (`<pc version="5"><character>`)
+- The real format stores compendium data in a compiled form: features as `<feat>` with a single
+  `<text>`; proficiencies as codes (0–5 saving throws, 100–117 skills in alphabetical order);
+  racial ability bonuses as `<mod><category>1</category><type>…</type><value>…</value></mod>`;
+  item `<type>`, `<damageType>` as 1-based codes and `<weaponProperty>` as a bit mask; spell
+  `<school>` as a 1-based code with `<v>/<s>/<m>` flags and `<sclass>` entries; `<hd>` as a code;
+  `<level>` omitted at level 1; the whole class progression embedded as `<autolevel>` elements with
+  a `<level>` child; `<slots>`/`<slotsCurrent>` per class and combined; coins as items plus `<money>`.
+- Hearthsheet reads and writes exactly this shape. Both real exports import, produce the expected
+  sheet values (checked by hand), and export semantically identical files after a full
+  import → sheet → export cycle through the UI (`tests/local/`, run only when the files are present).
 
-**Provisional — the character file layout.** This was designed without seeing a real character
-export. All character element names live in `CHARACTER_TAGS` in `src/model/character.ts`, so they
-can be corrected in one place. Until that is checked, characters exported from this app may not
-import into the other app, and imported characters may show partial sheets (although their
-unknown data is preserved).
+**Still inferred, not verified** (no sample contained them):
+- Codes for item types other than light armor, melee weapons and gear; damage types other than
+  bludgeoning and slashing; sizes other than Small; equipment slots other than armor (5),
+  one-handed (2) and two-handed (3) weapons. All follow the documented ordering, which fits every
+  observed value.
+- Where the original app stores experience points, temporary hit points, feats taken at level up,
+  notes, conditions and resource usage. Hearthsheet writes `<xp>`, `<feat>` and `<note>` elements
+  and keeps the rest in its own local storage.
+- Data the compiled format has no known home for (item `strength`, `stealth`, `range`, `magic`,
+  non-ability modifiers, attunement) is written under its compendium element names, which other
+  apps ignore.
+- Android exports, other character versions than 38, and Game Master 5e files have not been seen.
 
-**Assumptions to confirm:**
-1. When merging, a later file replaces an earlier entry with the same kind and name (case-insensitive).
-2. Subclasses are inferred from optional features named "Family: Subclass" or with a `<subclass>` child.
-3. Racial `<ability>` bonuses are used, and "ability score" modifiers on the same race are not added twice.
-4. Caster type (full, half, third, pact) is inferred from the shape of the slot table.
-5. Stored `hpMax` is the full maximum, and "hp" bonus modifiers are added on top.
-6. Multiclass armor and weapon proficiencies are not reduced to the multiclass subset (a warning is shown).
-
-To close these gaps, add real compendium and character exports, plus screenshots of the
-official sheets, under `tests/fixtures/` and turn them into golden tests.
+To check any of these, export a character containing the feature in question and compare it with
+Hearthsheet's export of the same character; `tests/local/characters.test.ts` shows how such a file
+becomes a golden test.

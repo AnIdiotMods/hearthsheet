@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { buildLibrary, CompendiumFile } from '../model/compendium';
+import { buildLibrary, CompendiumFile, lookup } from '../model/compendium';
 import { Character, CharacterRecord } from '../model/character';
 import { defaultOptions, RulesOptions } from '../rules/derive';
 import { naturalD20, roll as rollDice, RollResult } from '../rules/dice';
@@ -17,7 +17,7 @@ export function App() {
   const [files, setFiles] = useState<CompendiumFile[]>([]);
   const [records, setRecords] = useState<CharacterRecord[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
-  const [options, setOptions] = useState<RulesOptions>(() => db.loadSetting('rules', defaultOptions));
+  const [options, setOptions] = useState<RulesOptions>(() => ({ multiclassRounding: db.loadSetting('rules', defaultOptions).multiclassRounding }));
   const [log, setLog] = useState<RollResult[]>([]);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +29,7 @@ export function App() {
   }, []);
 
   const lib = useMemo(() => buildLibrary(files), [files]);
+  const rules = useMemo<RulesOptions>(() => ({ ...options, classLookup: (n: string) => lookup(lib, 'class', n)?.el }), [options, lib]);
 
   const toast = useCallback((msg: string) => {
     setToastMsg(msg);
@@ -118,10 +119,10 @@ export function App() {
   };
 
   const openRecord = records.find((r) => r.id === openId);
-  const setOpt = (o: RulesOptions) => { setOptions(o); db.saveSetting('rules', o); };
+  const setOpt = (o: RulesOptions) => { const { classLookup: _unused, ...plain } = o; void _unused; setOptions(plain); db.saveSetting('rules', plain); };
 
   return (
-    <AppContext.Provider value={{ lib, options, roll, log, toast }}>
+    <AppContext.Provider value={{ lib, options: rules, roll, log, toast }}>
       <div className="app">
         <nav className="topbar">
           <span className="brand">Hearthsheet</span>
@@ -187,11 +188,6 @@ function SettingsView({ options, setOptions }: { options: RulesOptions; setOptio
             <option value="2024">Round up (2024 rules)</option>
           </select>
         </Field>
-        <label className="check">
-          <input type="checkbox" checked={options.applyRaceAbilityElement} onChange={(e) => setOptions({ ...options, applyRaceAbilityElement: e.target.checked })} />
-          Apply racial ability score bonuses from the race's &lt;ability&gt; field
-        </label>
-        <p className="muted small">If a compendium lists racial bonuses both in &lt;ability&gt; and as "ability score" modifiers, only the &lt;ability&gt; field is used, so bonuses are not counted twice.</p>
       </section>
       <section className="panel">
         <h3>About</h3>

@@ -1,11 +1,12 @@
 import { Fragment, useMemo, useState } from 'react';
 import {
   CompendiumFile, Entry, KINDS, KIND_LABEL, Kind, backgroundView, classView, exportLibrary, featView, fieldsOf,
-  itemView, monsterView, raceView, spellView, ABBR, ABILITIES, WEAPON_PROPERTIES,
+  itemView, monsterView, raceView, spellView, ABBR, ABILITIES, WEAPON_PROPERTIES, Roll,
 } from '../model/compendium';
 import { downloadText } from '../store/db';
 import { RichText, RollChip, signed, useApp } from './common';
 import { mod } from '../rules/derive';
+import { isRollable } from '../rules/dice';
 
 interface Props {
   files: CompendiumFile[];
@@ -51,13 +52,13 @@ export function CompendiumView({ files, onImport, onLoadSample, onToggle, onRemo
         {lib.warnings.length > 0 && (
           <p>
             <button className="link" onClick={() => setShowWarnings(!showWarnings)}>
-              {lib.warnings.length} import warning{lib.warnings.length > 1 ? 's' : ''} {showWarnings ? '▲' : '▼'}
+              {lib.warnings.length} import note{lib.warnings.length > 1 ? 's' : ''} {showWarnings ? '▲' : '▼'}
             </button>
           </p>
         )}
         {showWarnings && (
           <ul className="warnings">
-            {lib.warnings.map((w, i) => <li key={i}><b>{files.find((f) => f.id === w.fileId)?.fileName}</b>: {w.message}</li>)}
+            {lib.warnings.slice(0, 300).map((w, i) => <li key={i}><b>{files.find((f) => f.id === w.fileId)?.fileName}</b>: {w.message}</li>)}
           </ul>
         )}
       </section>
@@ -98,6 +99,17 @@ function subtitle(e: Entry): string {
   }
 }
 
+function Rolls({ rolls, label }: { rolls: Roll[]; label: string }) {
+  if (!rolls.length) return null;
+  return (
+    <p>
+      {rolls.map((r, i) => isRollable(r.formula)
+        ? <RollChip key={i} expr={r.formula} label={label}>{r.description ? `${r.description}: ` : ''}{r.formula}{r.level !== null ? ` (lvl ${r.level})` : ''}</RollChip>
+        : <code key={i} className="roll-static" title="Uses character values">{r.description ? `${r.description}: ` : ''}{r.formula} </code>)}
+    </p>
+  );
+}
+
 export function EntryDetail({ entry }: { entry: Entry }) {
   const e = entry.el;
   switch (entry.kind) {
@@ -113,7 +125,7 @@ export function EntryDetail({ entry }: { entry: Entry }) {
             <dt>Classes</dt><dd>{s.classes.join(', ')}</dd>
           </dl>
           <RichText text={s.text} label={s.name} />
-          {s.rolls.length > 0 && <p>{s.rolls.map((r, i) => <RollChip key={i} expr={r} label={s.name} />)}</p>}
+          <Rolls rolls={s.rolls} label={s.name} />
         </article>
       );
     }
@@ -131,15 +143,17 @@ export function EntryDetail({ entry }: { entry: Entry }) {
             {it.strength ? <><dt>Strength</dt><dd>{it.strength}</dd></> : null}
             {it.stealth ? <><dt>Stealth</dt><dd>Disadvantage</dd></> : null}
             {it.weight ? <><dt>Weight</dt><dd>{it.weight} lb</dd></> : null}
-            {it.value ? <><dt>Value</dt><dd>{it.value}</dd></> : null}
+            {it.value ? <><dt>Value</dt><dd>{it.value} gp</dd></> : null}
             {it.modifiers.length ? <><dt>Modifiers</dt><dd>{it.modifiers.map((m) => m.raw).join('; ')}</dd></> : null}
           </dl>
           <RichText text={it.text} label={it.name} />
+          <Rolls rolls={it.rolls} label={it.name} />
         </article>
       );
     }
     case 'monster': {
       const m = monsterView(e);
+      const blocks: [string, typeof m.traits][] = [['Traits', m.traits], ['Actions', m.actions], ['Reactions', m.reactions], ['Legendary Actions', m.legendary]];
       return (
         <article className="statblock">
           <h2>{m.name}</h2>
@@ -153,15 +167,25 @@ export function EntryDetail({ entry }: { entry: Entry }) {
           <dl className="facts">
             {([['Saving Throws', m.save], ['Skills', m.skill], ['Vulnerabilities', m.vulnerable], ['Resistances', m.resist],
               ['Immunities', m.immune], ['Condition Immunities', m.conditionImmune], ['Senses', [m.senses, m.passive && `passive Perception ${m.passive}`].filter(Boolean).join(', ')],
-              ['Languages', m.languages], ['Challenge', m.cr]] as [string, string][]).filter(([, v]) => v).map(([k, v]) => <Fragment key={k}><dt>{k}</dt><dd>{v}</dd></Fragment>)}
+              ['Languages', m.languages], ['Challenge', m.cr], ['Spells', m.spells.join(', ')], ['Environment', m.environment]] as [string, string][]).filter(([, v]) => v).map(([k, v]) => <Fragment key={k}><dt>{k}</dt><dd>{v}</dd></Fragment>)}
           </dl>
-          {[['Traits', m.traits], ['Actions', m.actions], ['Reactions', m.reactions], ['Legendary Actions', m.legendary]].map(([title, list]) =>
-            (list as typeof m.traits).length ? (
-              <section key={title as string}>
-                <h3>{title as string}</h3>
-                {(list as typeof m.traits).map((t, i) => <div key={i}><h4>{t.name}</h4><RichText text={t.text} label={`${m.name}: ${t.name}`} /></div>)}
-              </section>
-            ) : null)}
+          {blocks.map(([title, list]) => list.length ? (
+            <section key={title}>
+              <h3>{title}</h3>
+              {list.map((t, i) => (
+                <div key={i}>
+                  <h4>{t.name}{t.recharge && <span className="tag">{t.recharge}</span>}</h4>
+                  <RichText text={t.text} label={`${m.name}: ${t.name}`} />
+                  {t.attacks.map((a, j) => (
+                    <p key={j} className="small">
+                      {a.bonus !== null && <RollChip expr={`1d20${signed(a.bonus)}`} label={`${m.name}: ${a.name} attack`}>{signed(a.bonus)} to hit</RollChip>}{' '}
+                      {a.damage && isRollable(a.damage) && <RollChip expr={a.damage} label={`${m.name}: ${a.name} damage`} />}
+                    </p>
+                  ))}
+                </div>
+              ))}
+            </section>
+          ) : null)}
           {m.description && <RichText text={m.description} />}
         </article>
       );
@@ -188,9 +212,15 @@ export function EntryDetail({ entry }: { entry: Entry }) {
           )}
           {levels.map((lv) => (
             <section key={lv}>
-              <h3>Level {lv}</h3>
+              <h3>Level {lv}{c.asiLevels.has(lv) && <span className="tag">ASI</span>}</h3>
+              {c.counters.filter((ct) => ct.level === lv).map((ct, i) => <p key={i} className="small muted">Resource: {ct.name} {ct.value} ({ct.reset === 'S' ? 'short rest' : 'long rest'}){ct.subclass && ` · ${ct.subclass}`}</p>)}
               {c.features.filter((f) => f.level === lv).map((f, i) => (
-                <div key={i}><h4>{f.name}{f.optional && <span className="tag">optional</span>}</h4><RichText text={f.text} label={f.name} /></div>
+                <details key={i}>
+                  <summary>{f.name}{f.optional && <span className="tag">optional</span>}{f.special && <span className="tag" title="Special rule marker">{f.special}</span>}</summary>
+                  <RichText text={f.text} label={f.name} />
+                  <Rolls rolls={f.rolls} label={f.name} />
+                  {f.modifiers.length > 0 && <p className="muted small">Modifiers: {f.modifiers.map((m) => m.raw).join('; ')}</p>}
+                </details>
               ))}
             </section>
           ))}
@@ -199,15 +229,17 @@ export function EntryDetail({ entry }: { entry: Entry }) {
     }
     case 'race': {
       const r = raceView(e);
+      const bonuses = Object.entries(r.abilityBonuses).map(([a, v]) => `${ABBR[a as keyof typeof ABBR]} ${signed(v!)}`);
+      for (const m of r.modifiers) if (m.category === 'ability score' && m.value !== null) bonuses.push(`${ABBR[m.target as keyof typeof ABBR] ?? m.target} ${signed(m.value)}`);
       return (
         <article>
           <h2>{r.name}</h2>
           <dl className="facts">
             <dt>Size</dt><dd>{r.size}</dd><dt>Speed</dt><dd>{r.speed} ft.</dd>
-            <dt>Ability scores</dt><dd>{Object.entries(r.abilityBonuses).map(([a, v]) => `${ABBR[a as keyof typeof ABBR]} ${signed(v!)}`).join(', ') || '—'}</dd>
+            <dt>Ability scores</dt><dd>{bonuses.join(', ') || '—'}</dd>
             {r.proficiencies.length > 0 && <><dt>Proficiencies</dt><dd>{r.proficiencies.join(', ')}</dd></>}
           </dl>
-          {r.traits.map((t, i) => <div key={i}><h4>{t.name}</h4><RichText text={t.text} /></div>)}
+          {r.traits.map((t, i) => <div key={i}><h4>{t.name}</h4><RichText text={t.text} /><Rolls rolls={t.rolls} label={t.name} /></div>)}
         </article>
       );
     }
@@ -217,7 +249,7 @@ export function EntryDetail({ entry }: { entry: Entry }) {
         <article>
           <h2>{b.name}</h2>
           <dl className="facts"><dt>Proficiencies</dt><dd>{b.proficiencies.join(', ')}</dd></dl>
-          {b.traits.map((t, i) => <div key={i}><h4>{t.name}</h4><RichText text={t.text} /></div>)}
+          {b.traits.map((t, i) => <div key={i}><h4>{t.name}</h4><RichText text={t.text} /><Rolls rolls={t.rolls} label={t.name} /></div>)}
         </article>
       );
     }
@@ -228,7 +260,9 @@ export function EntryDetail({ entry }: { entry: Entry }) {
           <h2>{f.name}</h2>
           {f.prerequisite && <p className="muted">Prerequisite: {f.prerequisite}</p>}
           <RichText text={f.text} />
-          {f.modifiers.length > 0 && <p className="muted">Modifiers: {f.modifiers.map((m) => m.raw).join('; ')}</p>}
+          {f.proficiencies.length > 0 && <p className="muted small">Proficiencies: {f.proficiencies.join(', ')}</p>}
+          {f.modifiers.length > 0 && <p className="muted small">Modifiers: {f.modifiers.map((m) => m.raw).join('; ')}</p>}
+          <Rolls rolls={f.rolls} label={f.name} />
         </article>
       );
     }

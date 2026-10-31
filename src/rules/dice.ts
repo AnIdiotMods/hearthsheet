@@ -1,4 +1,7 @@
 // Dice expressions: "1d20+5", "2d6 + 1d4 - 1", "4d6kh3", "2d20kl1", "d%", "1d20+3 adv".
+// Compendium formulas may also carry placeholders, resolved by `resolveFormula`:
+//   %0 spellcasting modifier, %1-%6 ability modifiers, %7 level, %8 proficiency bonus,
+//   %9 current hit points, %10 half level; STR DEX CON INT WIS CHA SPELL PROF LVL.
 
 export interface DieTerm { sign: 1 | -1; count: number; sides: number; keep?: { hi: boolean; n: number }; rolls: number[]; kept: number[] }
 export interface ConstTerm { sign: 1 | -1; value: number }
@@ -20,6 +23,44 @@ const TERM = /([+-])?\s*(?:(\d*)d(\d+|%)(?:(kh|kl|k)(\d+))?|(\d+))/gi;
 
 export function isRollable(expr: string): boolean {
   return /^\s*([+-]?\s*(\d*d(\d+|%)((kh|kl|k)\d+)?|\d+)\s*)+(adv|dis|advantage|disadvantage)?\s*$/i.test(expr);
+}
+
+export interface FormulaContext {
+  abilityMods: number[];      // STR..CHA
+  spellMod: number;
+  prof: number;
+  level: number;
+  hpCurrent: number;
+  weaponDamage?: string;      // for "1w"/"1o" (main/off hand weapon damage dice)
+}
+
+/** Replace placeholders with numbers; leaves unknown tokens so `isRollable` can reject them. */
+export function resolveFormula(expr: string, ctx: FormulaContext): string {
+  const names = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'];
+  let s = expr.trim().replace(/\s+/g, '').replace(/[×x]/g, '*');
+  s = s.replace(/%(\d+)/g, (_, n: string) => {
+    const i = +n;
+    if (i === 0) return String(ctx.spellMod);
+    if (i >= 1 && i <= 6) return String(ctx.abilityMods[i - 1] ?? 0);
+    if (i === 7) return String(ctx.level);
+    if (i === 8) return String(ctx.prof);
+    if (i === 9) return String(ctx.hpCurrent);
+    if (i === 10) return String(Math.floor(ctx.level / 2));
+    return `%${n}`;
+  });
+  s = s.replace(/\b(STR|DEX|CON|INT|WIS|CHA|SPELL|PROF|LVL)\b/gi, (t) => {
+    const u = t.toUpperCase();
+    if (u === 'SPELL') return String(ctx.spellMod);
+    if (u === 'PROF') return String(ctx.prof);
+    if (u === 'LVL') return String(ctx.level);
+    return String(ctx.abilityMods[names.indexOf(u)] ?? 0);
+  });
+  if (ctx.weaponDamage) s = s.replace(/\b1[wo]\b/gi, ctx.weaponDamage);
+  // "(1d4+1)+(1d4+1)" → drop the parentheses; "+-3" → "-3".
+  s = s.replace(/[()]/g, '').replace(/\+-/g, '-').replace(/--/g, '+');
+  // "2*3" style multiplication of constants only.
+  s = s.replace(/(\d+)\*(\d+)/g, (_, a, b) => String(+a * +b));
+  return s;
 }
 
 export function roll(expression: string, rng: Rng = cryptoRng, label?: string): RollResult {

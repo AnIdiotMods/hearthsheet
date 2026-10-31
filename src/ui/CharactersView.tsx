@@ -64,7 +64,7 @@ function summarize(r: CharacterRecord) {
 type Method = 'standard' | 'pointbuy' | 'roll' | 'manual';
 
 function NewCharacter({ onClose, onCreate }: { onClose: () => void; onCreate: (c: Character) => void }) {
-  const { lib } = useApp();
+  const { lib, options } = useApp();
   const [name, setName] = useState('');
   const [race, setRace] = useState(lib.byKind.race[0]?.name ?? '');
   const [cls, setCls] = useState(lib.byKind.class[0]?.name ?? '');
@@ -80,7 +80,7 @@ function NewCharacter({ onClose, onCreate }: { onClose: () => void; onCreate: (c
   const cv = classEl ? classView(classEl) : null;
   const rv = raceEl ? raceView(raceEl) : null;
   const fixed = useMemo(() => new Set([...(rv?.proficiencies ?? []), ...(bgEl ? backgroundView(bgEl).proficiencies : [])]), [rv, bgEl]);
-  const level1Optional = cv?.features.filter((f) => f.level === 1 && f.optional) ?? [];
+  const level1Optional = cv?.features.filter((f) => f.level === 1 && f.optional && !/^(starting|multiclass) /i.test(f.name)) ?? [];
 
   const setMethodAndReset = (m: Method) => {
     setMethod(m);
@@ -90,7 +90,6 @@ function NewCharacter({ onClose, onCreate }: { onClose: () => void; onCreate: (c
   };
   const pb = pointBuyTotal(scores);
   const swap = (a: Ability, value: number) => {
-    // Standard array / rolled: choosing a value swaps it with the ability that had it.
     const other = ABILITIES.find((x) => x !== a && scores[x] === value);
     setScores({ ...scores, [a]: value, ...(other ? { [other]: scores[a] } : {}) });
   };
@@ -102,8 +101,7 @@ function NewCharacter({ onClose, onCreate }: { onClose: () => void; onCreate: (c
     if (raceEl) c.setRace(raceEl);
     if (bgEl) c.setBackground(bgEl);
     c.abilities = scores;
-    c.skills = skills;
-    if (classEl) applyLevelUp(c, { newClass: classEl, hp: { method: 'max' }, choices }, cryptoRng);
+    if (classEl) applyLevelUp(c, { newClass: classEl, hp: { method: 'max' }, choices, skills }, cryptoRng, options);
     onCreate(c);
   };
 
