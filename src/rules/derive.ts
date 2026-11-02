@@ -241,7 +241,7 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
   if (!classes.length) warnings.push('No class selected');
   classes.forEach(({ ce, cv, level: lv, active, subclasses }, i) => {
     const source = cv.name;
-    const levelOf = new Map(cv.features.map((f) => [f.name, f.level] as const));
+    const levelOf = new Map([...cv.features].reverse().map((f) => [f.name, f.level] as const)); // first occurrence wins
     for (const f of active) {
       addMods(f.modifiers, `${cv.name}: ${f.name}`);
       addFeature(f, source, levelOf.get(f.name));

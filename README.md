@@ -37,6 +37,10 @@ Data is stored locally (IndexedDB in the app profile). Export characters and com
 - **Trackers:** custom counters on the Abilities & Skills page (luck points, ki, arrows, charges, …)
   with a maximum that can be a number or a formula (`PROF`, `1+CHA`, `LVL`, `2*PROF`) and that
   refill on a short rest, a long rest, or only by hand.
+- **Class options:** Eldritch Invocations, Pact Boons, Metamagic, Fighting Styles, Battle Master
+  maneuvers, Arcane Shots, Runes, Elemental Disciplines, Artificer infusions and similar lists
+  (including homebrew ones) are offered whenever the class grants them, at level up, at character
+  creation and from the Features tab, with prerequisites checked. Expertise lets you pick the skills.
 - **Class features:** add features from the class's own list (any level, any option), write your
   own with optional modifiers (e.g. `ac +1`, `speed +10`, `stealth +2`), edit any feature's name,
   text and modifiers, remove features, and restore missing ones. Feats can be added, edited and
@@ -75,6 +79,17 @@ the iOS app (character `<version>38</version>`). The relevant facts, all verifie
 - Spellcasting granted by a subclass uses `<slots optional="YES">`; those rows apply once the
   subclass casting feature is chosen. Caster type (full, half, third, pact) is inferred from the
   slot table.
+- Class option lists come either as optional class features named `Family: Option` (listed only
+  at the level they first appear, e.g. Metamagic at 3) or as `<feat>` entries named
+  `Family: Option` with a `<prerequisite>` (e.g. `Invocation: Agonizing Blast`). Both are offered
+  whenever a feature the character has names the family (`Eldritch Invocations`,
+  `Additional Invocation`, `Battle Master: Maneuvers`), or describes it near the start of its text
+  when no feature is named after it. `Metamagic Options` (Tasha's) is merged into `Metamagic`.
+  Chosen option feats are stored as character-level `<feat>` elements.
+- Subclass features are matched to their subclass by name prefix (`Thief: Fast Hands`), suffix
+  (`Improved Critical (Champion)`), or short suffix (`Rite of the Dawn (Ghostslayer)` for
+  *Order of the Ghostslayer*), including UA subclasses that introduce themselves
+  (`The Celestial (UA): The Celestial`).
 - `<special>` markers are honoured: `Fighting Style: …`, `Unarmored Defense: Constitution|Wisdom`,
   `Natural Armor: 13+%2`, `Jack of all Trades`, `Powerful Build`, `Toughness`.
 - Modifier categories `bonus`, `ability score`, `ability modifier`, `saving throw`, `skill(s)` in

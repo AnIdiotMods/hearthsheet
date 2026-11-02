@@ -1,0 +1,187 @@
+// Class option lists: the choices a class grants that are not fixed
+// features, such as Eldritch Invocations, Metamagic, Fighting Styles,
+// Battle Master maneuvers, Artificer infusions, Elemental Disciplines,
+// Arcane Shots, Runes and Pact Boons.
+//
+// Compendiums encode these in two ways:
+//  - as optional features inside the class, named "Family: Option", listed
+//    only at the level where the choice first appears (older files);
+//  - as <feat> entries named "Family: Option" with a <prerequisite>, in
+//    separate "optional features" files (current files). The class itself
+//    only has a feature such as "Eldritch Invocations" that grants them.
+//
+// A family is offered to a class when one of the class's features (or a
+// chosen subclass feature) mentions it by name, e.g. "Eldritch Invocations"
+// mentions "Invocation" and "Combat Superiority" mentions "maneuvers".
+
+import { ClassFeature, Entry, Library, featView, subclassOwner } from '../model/compendium';
+import type { CV } from './derive';
+
+export interface OptionItem {
+  /** Full name, e.g. "Invocation: Agonizing Blast". */
+  name: string;
+  /** Name without the family prefix. */
+  label: string;
+  text: string;
+  prerequisite: string;
+  /** true met, false not met, null cannot tell. */
+  prereqMet: boolean | null;
+  prereqNote: string;
+  taken: boolean;
+  level?: number;
+  /** Set for options that live inside the class. */
+  feature?: ClassFeature;
+  /** Set for options that are compendium feats. */
+  feat?: Entry;
+}
+
+export interface OptionGroup {
+  family: string;
+  /** Feature that grants the choice, e.g. "Eldritch Invocations". */
+  grantedBy: string;
+  /** The class grants (more of) this choice at the level being taken. */
+  now: boolean;
+  options: OptionItem[];
+}
+
+export interface OptionContext {
+  lib: Library | null;
+  cv: CV;
+  /** Class level after the level being taken. */
+  level: number;
+  /** Features of this class the character has, plus those gained at this level. */
+  classFeatures: { name: string; text: string; level?: number }[];
+  /** Names of every feature and feat the character has. */
+  known: Set<string>;
+  /** Names of spells the character knows (lowercase). */
+  spells: Set<string>;
+  /** Total character level, for prerequisites such as "5th level". */
+  characterLevel: number;
+  subclasses: string[];
+}
+
+const rawFamily = (name: string) => { const i = name.indexOf(':'); return i > 0 ? name.slice(0, i).trim() : ''; };
+/** "Metamagic Options" (Tasha's additions) is the same list as "Metamagic". */
+const familyOf = (name: string) => rawFamily(name).replace(/\s+options?$/i, '');
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Family name as words, each optionally plural: "Invocation" matches "Eldritch Invocations",
+ * "Elemental Discipline" matches "elemental disciplines", "Infusion" does not match "infusing".
+ */
+export function mentions(text: string, family: string): boolean {
+  const words = family.trim().split(/\s+/).filter(Boolean).map((w) => escape(w.replace(/s$/i, '')));
+  if (!words.length || family.trim().length < 3) return false;
+  return new RegExp(`\\b${words.join('(s|es)?\\s+')}(s|es)?\\b`, 'i').test(text);
+}
+
+/** How much of a feature's text is searched for a family name: mentions further in are usually asides. */
+const TEXT_WINDOW = 300;
+
+/** Option families that are really subclasses or noise, never offered as option lists. */
+const NOT_OPTIONS = /^(starting|multiclass|ability score improvement)/i;
+
+export function checkPrerequisite(prereq: string, ctx: OptionContext): { met: boolean | null; note: string } {
+  const p = prereq.trim();
+  if (!p) return { met: true, note: '' };
+  const parts = p.split(/,\s*(?![^()]*\))/).map((x) => x.trim()).filter(Boolean);
+  const unmet: string[] = [];
+  let unknown = false;
+  const knownLower = [...ctx.known].map((k) => k.toLowerCase());
+  const hasFeature = (needle: string) => knownLower.some((k) => k.includes(needle.toLowerCase()));
+  for (const part of parts) {
+    let m: RegExpExecArray | null;
+    if ((m = /^(\d+)(st|nd|rd|th) level$/i.exec(part))) {
+      if (ctx.level < +m[1]) unmet.push(`${part} (${ctx.cv.name} ${ctx.level})`);
+    } else if ((m = /^(.+?) cantrip$/i.exec(part)) || (m = /^(?:the ability to cast )?(.+?) spell$/i.exec(part))) {
+      const names = m[1].split(/\s+or\s+|\//).map((x) => x.trim().toLowerCase());
+      if (!names.some((n) => ctx.spells.has(n))) unmet.push(part);
+    } else if ((m = /^(pact of the \w+)( feature)?$/i.exec(part))) {
+      if (!hasFeature(m[1])) unmet.push(part);
+    } else if ((m = /^the (.+?) patron$/i.exec(part))) {
+      if (!ctx.subclasses.some((s) => s.toLowerCase().includes(m![1].toLowerCase()))) unmet.push(part);
+    } else if ((m = /^(.+?) feature$/i.exec(part))) {
+      if (!hasFeature(m[1])) unmet.push(part);
+    } else if (/^(a |an )/i.test(part)) {
+      // Item requirements ("A suit of armor"): not checked.
+    } else {
+      unknown = true;
+    }
+  }
+  if (unmet.length) return { met: false, note: `Requires ${unmet.join(', ')}` };
+  return { met: unknown ? null : true, note: '' };
+}
+
+/** All option groups a class offers at `ctx.level`. */
+export function optionGroups(ctx: OptionContext): OptionGroup[] {
+  const groups = new Map<string, OptionGroup>();
+  const triggers = ctx.classFeatures;
+  const allNames = ctx.cv.features.map((f) => f.name);
+  // If any feature of the class is named after the family, only named features grant it;
+  // otherwise the start of a feature's description may ("Combat Superiority: you learn maneuvers").
+  const grants = (f: { name: string; text: string }, family: string) => {
+    if (familyOf(f.name).toLowerCase() === family.toLowerCase()) return false;
+    if (mentions(f.name, family)) return true;
+    const named = allNames.some((n) => familyOf(n).toLowerCase() !== family.toLowerCase() && mentions(n, family));
+    return !named && mentions(f.text.slice(0, TEXT_WINDOW), family);
+  };
+  const grantedAt = (family: string) => triggers.filter((f) => grants(f, family));
+  const ensure = (family: string, grantedBy: string) => {
+    const key = family.toLowerCase();
+    let g = groups.get(key);
+    if (!g) { g = { family, grantedBy, now: false, options: [] }; groups.set(key, g); }
+    return g;
+  };
+  const subclassFamilies = new Set(ctx.cv.subclasses.map((s) => s.toLowerCase()));
+  const label = ctx.cv.subclassLabel.toLowerCase();
+
+  // 1. Options inside the class, at or below the current level.
+  for (const f of ctx.cv.features) {
+    if (!f.optional || f.level > ctx.level || NOT_OPTIONS.test(f.name)) continue;
+    const family = familyOf(f.name);
+    if (!family || subclassFamilies.has(family.toLowerCase()) || family.toLowerCase() === label || subclassOwner(f, ctx.cv.subclasses)) continue;
+    const g = ensure(family, grantedAt(family)[0]?.name ?? family);
+    if (g.options.some((o) => o.name === f.name)) continue;
+    g.options.push({
+      name: f.name, label: f.name.slice(rawFamily(f.name).length + 1).trim(), text: f.text, prerequisite: '', prereqMet: true, prereqNote: '',
+      taken: ctx.known.has(f.name), level: f.level, feature: f,
+    });
+    if (f.level === ctx.level) g.now = true;
+  }
+
+  // 2. Option feats from the compendium whose family the class mentions.
+  if (ctx.lib) {
+    const byFamily = new Map<string, Entry[]>();
+    for (const e of ctx.lib.byKind.feat) {
+      const family = familyOf(e.name);
+      if (!family) continue;
+      byFamily.set(family, [...(byFamily.get(family) ?? []), e]);
+    }
+    for (const [family, entries] of byFamily) {
+      if (entries.length < 2) continue; // a lone "X: Y" feat is just a feat with a colon in its name
+      const by = grantedAt(family);
+      if (!by.length) continue;
+      const g = ensure(family, by[0].name);
+      for (const e of entries) {
+        if (g.options.some((o) => o.name.toLowerCase() === e.name.toLowerCase())) continue;
+        const v = featView(e.el);
+        const pre = checkPrerequisite(v.prerequisite, ctx);
+        g.options.push({
+          name: e.name, label: e.name.slice(rawFamily(e.name).length + 1).trim(), text: v.text, prerequisite: v.prerequisite,
+          prereqMet: pre.met, prereqNote: pre.note, taken: ctx.known.has(e.name), feat: e,
+        });
+      }
+    }
+  }
+
+  // A group is "now" when a feature gained at this level mentions it (e.g. "Additional Invocation").
+  for (const g of groups.values()) {
+    if (triggers.some((f) => f.level === ctx.level && grants(f, g.family))) g.now = true;
+    g.options.sort((a, b) => Number(b.prereqMet !== false) - Number(a.prereqMet !== false) || a.label.localeCompare(b.label));
+  }
+  return [...groups.values()].filter((g) => g.options.length).sort((a, b) => Number(b.now) - Number(a.now) || a.family.localeCompare(b.family));
+}
+
+/** Features at this level that let the character pick skills for expertise. */
+export const grantsExpertise = (features: { name: string; text: string }[]) =>
+  features.some((f) => /(^|: |\b)expertise$/i.test(f.name.trim()) && !/tool expertise/i.test(f.name) && /skill/i.test(f.text));

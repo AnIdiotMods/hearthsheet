@@ -28,7 +28,7 @@ import {
   serializeXml, setChildText, textOf,
 } from '../xml/xml';
 import {
-  ABILITIES, Ability, ClassFeature, Trait, classView, featView, itemView, parseAbility, parseAbilityBonuses, parseSlots,
+  ABILITIES, Ability, ClassFeature, Trait, classView, subclassOwner, featView, itemView, parseAbility, parseAbilityBonuses, parseSlots,
   proficiencyNames, raceView, spellView, splitList, backgroundView, traitsOf,
 } from './compendium';
 import {
@@ -494,12 +494,13 @@ export const hasEmbeddedProgression = (c: XElement) => elements(c, 'autolevel').
 export function chosenSubclasses(c: XElement): string[] {
   const cv = classView(c);
   const chosen = new Set(classFeats(c).map((f) => f.name));
-  return cv.subclasses.filter((s) => cv.features.some((f) => f.optional && chosen.has(f.name)
-    && (f.name === `${subclassFamily(cv.features, s)}: ${s}` || f.name.toLowerCase().startsWith(s.toLowerCase() + ': ') || f.name.toLowerCase().endsWith(`(${s.toLowerCase()})`))));
-}
-function subclassFamily(features: ClassFeature[], subclass: string): string {
-  const intro = features.find((f) => f.optional && f.name.endsWith(`: ${subclass}`));
-  return intro ? intro.name.slice(0, -subclass.length - 2) : '';
+  const out = new Set<string>();
+  for (const f of cv.features) {
+    if (!f.optional || !chosen.has(f.name)) continue;
+    const owner = subclassOwner(f, cv.subclasses);
+    if (owner) out.add(owner);
+  }
+  return [...out];
 }
 
 // ---------------------------------------------------------------- item helpers

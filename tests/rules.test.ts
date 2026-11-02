@@ -245,7 +245,8 @@ describe('multiclass spellcasting', () => {
     k = applyLevelUp(c, { existing: k, hp: { method: 'average' } }, avg);
     expect(deriveSheet(c, emptyAppState()).spellcasting).toEqual([]);
     const lo = levelOptions(k, 3);
-    expect(lo.subclassIntros.map((f) => f.name)).toEqual(['Archetype: Eldritch Knight']);
+    expect(lo.subclassChoices).toEqual(['Eldritch Knight']);
+    expect(lo.subclassLabel).toBe('Archetype');
     removeLevel(c, k);
     applyLevelUp(c, { existing: k, hp: { method: 'average' }, choices: ['Archetype: Eldritch Knight', 'Spellcasting (Eldritch Knight)'] }, avg);
     const s = deriveSheet(c, emptyAppState());

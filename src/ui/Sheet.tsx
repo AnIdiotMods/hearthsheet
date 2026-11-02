@@ -1,7 +1,7 @@
 import { useMemo, useReducer, useRef, useState } from 'react';
 import { ABBR, ABILITIES, Ability, ClassFeature, featView, itemView, spellView } from '../model/compendium';
 import {
-  AppState, COIN_KINDS, Character, CharacterRecord, CoinKind, classLevel, classSpells, coinKind,
+  AppState, COIN_KINDS, Character, CharacterRecord, CoinKind, emptyAppState, classLevel, classSpells, coinKind,
   containerCarried, customItem, hdCurrent, isAttuned, isEquipped, isPrepared, itemQuantity, setAttuned,
   setEquipped, setHdCurrent, setItemQuantity, setPrepared,
 } from '../model/character';
@@ -10,12 +10,15 @@ import { restTrackers } from '../model/tracker';
 import { Sheet as SheetData, deriveSheet, mod } from '../rules/derive';
 import { applyLevelUp, levelOptions, removeLevel, subclassFeaturesAt, syncClassSlots, XP_TABLE } from '../rules/level';
 import { cryptoRng, resolveFormula } from '../rules/dice';
+import { OptionItem, grantsExpertise, optionGroups } from '../rules/options';
+import { setSkillSetting } from '../model/custom';
 import { XElement, childText, childTexts, elements, setChildText } from '../xml/xml';
 import { EntryDetail } from './CompendiumView';
 import { CreaturesTab } from './Creatures';
 import { FeaturesTab } from './Features';
 import { Picker } from './Picker';
 import { MainTab } from './MainTab';
+import { ExpertisePicker, OptionGroupsPicker, optionContext } from './Options';
 import { Field, Modal, Mutate, NumberInput, RollChip, signed, useApp } from './common';
 
 
@@ -390,21 +393,33 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
   const [asiA, setAsiA] = useState<Ability>('strength');
   const [asiB, setAsiB] = useState<Ability>('dexterity');
   const [feat, setFeat] = useState('');
+  const [optionFeats, setOptionFeats] = useState<OptionItem[]>([]);
+  const [expertise, setExpertise] = useState<string[]>([]);
+  const sheet = deriveSheet(c, emptyAppState(), options);
 
   const existingEl = target.startsWith('existing:') ? existing[+target.split(':')[1]] : undefined;
   const newEl = target.startsWith('new:') ? lib.byKind.class.find((e) => e.name === target.slice(4))?.el : undefined;
   const classEl = existingEl ?? newEl;
   const nextLevel = existingEl ? classLevel(existingEl) + 1 : 1;
   const lo = classEl ? levelOptions(classEl, nextLevel, options) : null;
-  const introFor = (sub: string) => lo?.subclassIntros.find((f) => f.name.endsWith(`: ${sub}`));
   const picked = choices ?? lo?.subclassFeatures.map((f) => f.name) ?? [];
   const toggle = (name: string, on: boolean) => setChoices(on ? [...picked, name] : picked.filter((x) => x !== name));
+  const incoming = lo ? [...lo.gained, ...lo.cv.features.filter((f) => picked.includes(f.name))] : [];
+  const groups = lo && classEl ? optionGroups(optionContext({
+    lib, cv: lo.cv, level: nextLevel, c, classEl: existingEl, sheet, incoming, subclass: subclass || undefined,
+  })) : [];
+  const pickedOptions = [...picked, ...optionFeats.map((o) => o.name)];
+  const toggleOption = (o: OptionItem, on: boolean) => {
+    if (o.feature) toggle(o.name, on);
+    else setOptionFeats(on ? [...optionFeats, o] : optionFeats.filter((x) => x.name !== o.name));
+  };
+  const needsExpertise = grantsExpertise(incoming);
   const subclassPick = (sub: string) => {
     setSubclass(sub);
-    const base = picked.filter((n) => !lo?.subclassIntros.some((f) => f.name === n) && !lo?.otherSubclassFeatures.some((f) => f.name === n));
+    const dropped = new Set(lo ? lo.subclassChoices.flatMap((x) => subclassFeaturesAt(lo.cv, x, nextLevel).map((f) => f.name)) : []);
+    const base = picked.filter((n) => !dropped.has(n));
     if (!sub || !lo) { setChoices(base); return; }
-    const intro = introFor(sub);
-    setChoices([...base, ...(intro ? [intro.name] : []), ...subclassFeaturesAt(lo.cv, sub, nextLevel).map((f) => f.name)]);
+    setChoices([...base, ...subclassFeaturesAt(lo.cv, sub, nextLevel).map((f) => f.name)]);
   };
 
   const apply = () => {
@@ -418,6 +433,8 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
         hp: hp === 'manual' ? { method: 'manual', value: manualHp } : { method: hp },
         choices: picked, asi, feat: featEl,
       }, cryptoRng, options);
+      for (const o of optionFeats) if (o.feat) ch.addFeat(o.feat.el);
+      for (const name of needsExpertise ? expertise : []) setSkillSetting(ch.ch, name, { prof: 2 }, (e) => ch.insert(e));
     });
     onClose();
   };
@@ -432,7 +449,7 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
     <Modal title="Level up" onClose={onClose} wide>
       {c.totalLevel >= 20 && <p className="danger">This character is already level 20.</p>}
       <Field label="Class">
-        <select value={target} onChange={(e) => { setTarget(e.target.value); setSubclass(''); setChoices(null); }}>
+        <select value={target} onChange={(e) => { setTarget(e.target.value); setSubclass(''); setChoices(null); setOptionFeats([]); setExpertise([]); }}>
           {existing.map((ce, i) => <option key={i} value={`existing:${i}`}>{childText(ce, 'name')} → {classLevel(ce) + 1}</option>)}
           {lib.byKind.class.filter((e) => !existing.some((ce) => childText(ce, 'name').toLowerCase() === e.name.toLowerCase()))
             .map((e) => <option key={e.name} value={`new:${e.name}`}>{e.name} (new class, multiclass)</option>)}
@@ -451,11 +468,11 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
             </div>
           )}
           {lo.gained.length > 0 && <><h3>New features</h3><ul>{lo.gained.map((f) => <li key={f.name} title={f.text.slice(0, 400)}>{f.name}</li>)}</ul></>}
-          {lo.subclassIntros.length > 0 && (
-            <Field label={lo.subclassIntros[0].name.split(':')[0]}>
+          {lo.subclassChoices.length > 0 && (
+            <Field label={lo.subclassLabel}>
               <select value={subclass} onChange={(e) => subclassPick(e.target.value)}>
                 <option value="">(choose)</option>
-                {lo.subclassIntros.map((f) => { const sub = f.name.slice(f.name.indexOf(':') + 1).trim(); return <option key={f.name} value={sub}>{sub}</option>; })}
+                {lo.subclassChoices.map((sub) => <option key={sub} value={sub}>{sub}</option>)}
               </select>
             </Field>
           )}
@@ -465,9 +482,12 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
           {lo.subclassFeatures.length > 0 && (
             <><h3>{lo.chosenSubclasses.join(', ')} features</h3><div className="checks">{lo.subclassFeatures.map((f) => <FeatureCheck key={f.name} f={f} />)}</div></>
           )}
-          {lo.other.length > 0 && (
-            <><h3>Options</h3><div className="checks">{lo.other.map((f) => <FeatureCheck key={f.name} f={f} />)}</div></>
+          {lo.other.filter((f) => !f.name.includes(':')).length > 0 && (
+            <><h3>Options</h3><div className="checks">{lo.other.filter((f) => !f.name.includes(':')).map((f) => <FeatureCheck key={f.name} f={f} />)}</div></>
           )}
+          <OptionGroupsPicker groups={groups} picked={pickedOptions} onToggle={toggleOption}
+            intro={groups.some((g) => g.now) ? 'Your class lets you choose from these lists at this level. Already known options are ticked.' : undefined} />
+          {needsExpertise && <ExpertisePicker skills={sheet.skills} picked={expertise} onChange={setExpertise} />}
           {lo.otherSubclassFeatures.length > 0 && (
             <p><button className="link" onClick={() => setShowAll(!showAll)}>{showAll ? 'Hide' : 'Show'} features of other subclasses ({lo.otherSubclassFeatures.length})</button></p>
           )}

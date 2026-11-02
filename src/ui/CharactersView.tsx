@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
-import { ABBR, ABILITIES, Ability, backgroundView, classView, lookup, raceView } from '../model/compendium';
+import { ABBR, ABILITIES, Ability, SKILLS, backgroundView, classView, lookup, raceView } from '../model/compendium';
+import { setSkillSetting } from '../model/custom';
+import { OptionItem, grantsExpertise, optionGroups } from '../rules/options';
+import { ExpertisePicker, OptionGroupsPicker, optionContext } from './Options';
 import { Character, CharacterRecord, classLevel, emptyAppState } from '../model/character';
-import { applyLevelUp, POINT_BUY_COST, pointBuyTotal, STANDARD_ARRAY } from '../rules/level';
+import { applyLevelUp, levelOptions, POINT_BUY_COST, pointBuyTotal, STANDARD_ARRAY, subclassFeaturesAt } from '../rules/level';
 import { cryptoRng, roll } from '../rules/dice';
 import { childText } from '../xml/xml';
 import { Field, Modal, NumberInput, useApp } from './common';
@@ -80,7 +83,26 @@ function NewCharacter({ onClose, onCreate }: { onClose: () => void; onCreate: (c
   const cv = classEl ? classView(classEl) : null;
   const rv = raceEl ? raceView(raceEl) : null;
   const fixed = useMemo(() => new Set([...(rv?.proficiencies ?? []), ...(bgEl ? backgroundView(bgEl).proficiencies : [])]), [rv, bgEl]);
-  const level1Optional = cv?.features.filter((f) => f.level === 1 && f.optional && !/^(starting|multiclass) /i.test(f.name)) ?? [];
+  const [subclass, setSubclass] = useState('');
+  const [optionFeats, setOptionFeats] = useState<OptionItem[]>([]);
+  const [expertise, setExpertise] = useState<string[]>([]);
+  const lo = classEl ? levelOptions(classEl, 1, options) : null;
+  const level1Plain = lo ? lo.other.filter((f) => !f.name.includes(':')) : [];
+  const incoming = lo ? [...lo.gained, ...lo.cv.features.filter((f) => choices.includes(f.name))] : [];
+  const groups = lo ? optionGroups(optionContext({ lib, cv: lo.cv, level: 1, c: null, incoming, subclass: subclass || undefined })) : [];
+  const toggleOption = (o: OptionItem, on: boolean) => {
+    if (o.feature) setChoices(on ? [...choices, o.name] : choices.filter((x) => x !== o.name));
+    else setOptionFeats(on ? [...optionFeats, o] : optionFeats.filter((x) => x.name !== o.name));
+  };
+  const pickSubclass = (sub: string) => {
+    if (!lo) return;
+    const dropped = new Set(lo.subclassChoices.flatMap((x) => subclassFeaturesAt(lo.cv, x, 1).map((f) => f.name)));
+    const base = choices.filter((n) => !dropped.has(n));
+    setSubclass(sub);
+    setChoices(sub ? [...base, ...subclassFeaturesAt(lo.cv, sub, 1).map((f) => f.name)] : base);
+  };
+  const needsExpertise = grantsExpertise(incoming);
+  const proficientSkills = [...new Set([...skills, ...fixed])].filter((x) => SKILLS.some(([n]) => n === x));
 
   const setMethodAndReset = (m: Method) => {
     setMethod(m);
@@ -102,6 +124,8 @@ function NewCharacter({ onClose, onCreate }: { onClose: () => void; onCreate: (c
     if (bgEl) c.setBackground(bgEl);
     c.abilities = scores;
     if (classEl) applyLevelUp(c, { newClass: classEl, hp: { method: 'max' }, choices, skills }, cryptoRng, options);
+    for (const o of optionFeats) if (o.feat) c.addFeat(o.feat.el);
+    for (const name of needsExpertise ? expertise : []) setSkillSetting(c.ch, name, { prof: 2 }, (e) => c.insert(e));
     onCreate(c);
   };
 
@@ -124,7 +148,7 @@ function NewCharacter({ onClose, onCreate }: { onClose: () => void; onCreate: (c
           </select>
         </Field>
         <Field label="Class">
-          <select value={cls} onChange={(e) => { setCls(e.target.value); setSkills([]); setChoices([]); }}>
+          <select value={cls} onChange={(e) => { setCls(e.target.value); setSkills([]); setChoices([]); setSubclass(''); setOptionFeats([]); setExpertise([]); }}>
             {lib.byKind.class.map((r) => <option key={r.name}>{r.name}</option>)}
           </select>
         </Field>
@@ -184,11 +208,19 @@ function NewCharacter({ onClose, onCreate }: { onClose: () => void; onCreate: (c
           </div>
         </>
       )}
-      {level1Optional.length > 0 && (
+      {lo && lo.subclassChoices.length > 0 && (
+        <Field label={lo.subclassLabel}>
+          <select value={subclass} onChange={(e) => pickSubclass(e.target.value)}>
+            <option value="">(choose)</option>
+            {lo.subclassChoices.map((sub) => <option key={sub} value={sub}>{sub}</option>)}
+          </select>
+        </Field>
+      )}
+      {level1Plain.length > 0 && (
         <>
           <h3>Level 1 options</h3>
           <div className="checks">
-            {level1Optional.map((f) => (
+            {level1Plain.map((f) => (
               <label key={f.name} title={f.text}>
                 <input type="checkbox" checked={choices.includes(f.name)}
                   onChange={(e) => setChoices(e.target.checked ? [...choices, f.name] : choices.filter((x) => x !== f.name))} />
@@ -197,6 +229,10 @@ function NewCharacter({ onClose, onCreate }: { onClose: () => void; onCreate: (c
             ))}
           </div>
         </>
+      )}
+      <OptionGroupsPicker groups={groups} picked={[...choices, ...optionFeats.map((o) => o.name)]} onToggle={toggleOption} />
+      {needsExpertise && (
+        <ExpertisePicker skills={proficientSkills.map((n) => ({ name: n, proficient: true, expertise: false }))} picked={expertise} onChange={setExpertise} />
       )}
       <footer className="modal-actions">
         <button onClick={onClose}>Cancel</button>

@@ -388,6 +388,17 @@ export function classView(e: XElement) {
     }
   }
   const prof = proficiencyNames(e);
+  const subclasses = subclassNames(features, counters);
+  const subclassLevels = new Map<string, number>();
+  let subclassLabel = '';
+  for (const f of features) {
+    if (!f.optional) continue;
+    const owner = subclassOwner(f, subclasses);
+    if (!owner) continue;
+    subclassLevels.set(owner, Math.min(subclassLevels.get(owner) ?? 99, f.level));
+    const m = /^([^:]+):\s*(.+)$/.exec(f.name);
+    if (!subclassLabel && m && m[2].trim().toLowerCase() === owner.toLowerCase() && !subclasses.some((x) => x.toLowerCase() === m[1].trim().toLowerCase())) subclassLabel = m[1].trim();
+  }
   return {
     name: childText(e, 'name'),
     hd: hdDie(childText(e, 'hd'), 8),
@@ -401,7 +412,7 @@ export function classView(e: XElement) {
     spellAbility: parseAbility(childText(e, 'spellAbility')),
     slotsReset: childText(e, 'slotsReset'),
     features, slots, counters, asiLevels,
-    subclasses: subclassNames(features, counters),
+    subclasses, subclassLevels, subclassLabel: subclassLabel || 'Subclass',
   };
 }
 
@@ -424,7 +435,10 @@ export function subclassNames(features: ClassFeature[], counters: Counter[] = []
     const low = s.toLowerCase();
     return optional.some((g) => {
       const n = g.name.toLowerCase();
-      return (n.startsWith(low + ': ') && n.length > low.length + 2) || n.endsWith(`(${low})`);
+      if (n.startsWith(low + ': ') && n.length > low.length + 2) return true;
+      // "Rite of the Dawn (Ghostslayer)" belongs to "Order of the Ghostslayer".
+      const paren = /\(([^()]+)\)\s*$/.exec(n);
+      return !!paren && (paren[1] === low || (paren[1].length >= 4 && low.endsWith(' ' + paren[1])));
     });
   };
   // Introductions: "Family: Subclass" where Family is itself a (non-optional) feature.
@@ -446,26 +460,47 @@ export function subclassNames(features: ClassFeature[], counters: Counter[] = []
     if (count < 2 || names.has(prefix)) continue;
     const low = prefix.toLowerCase();
     if (nonOptional.has(low) || nonOptional.has(low + 's') || OPTION_FAMILIES.test(prefix)) continue;
-    // Skip prefixes that are themselves introductions of known subclasses ("Divine Domain: X").
-    if ([...names].some((n) => optional.some((g) => g.name === `${prefix}: ${n}`))) continue;
+    // Skip family prefixes that introduce several known subclasses ("Divine Domain: X", "Divine Domain: Y");
+    // a single match is a subclass introducing itself ("The Celestial (UA): The Celestial").
+    if ([...names].filter((n) => optional.some((g) => g.name === `${prefix}: ${n}`)).length >= 2) continue;
     names.add(prefix);
   }
   return [...names];
 }
 
+/**
+ * Which subclass owns a feature, judged from its name:
+ * "Subclass: Feature", "Feature (Subclass)", "Feature (Short name)" (e.g. "(Ghostslayer)" for
+ * "Order of the Ghostslayer"), or the introduction "Family: Subclass".
+ */
+export function subclassOwner(f: { name: string; subclass?: string }, subclasses: string[]): string | null {
+  if (f.subclass) return subclasses.find((s) => s.toLowerCase() === f.subclass!.toLowerCase()) ?? f.subclass;
+  const n = f.name.trim();
+  const byLength = [...subclasses].sort((a, b) => b.length - a.length);
+  const find = (x: string) => byLength.find((s) => s.toLowerCase() === x.trim().toLowerCase()) ?? null;
+  const colon = n.indexOf(':');
+  if (colon > 0) { const hit = find(n.slice(0, colon)); if (hit) return hit; }
+  const paren = /\(([^()]+)\)\s*$/.exec(n);
+  if (paren) {
+    const hit = find(paren[1]);
+    if (hit) return hit;
+    const p = paren[1].trim().toLowerCase();
+    const bySuffix = p.length >= 4 ? byLength.filter((s) => s.toLowerCase().endsWith(' ' + p)) : [];
+    if (bySuffix.length === 1) return bySuffix[0];
+  }
+  if (colon > 0) { const hit = find(n.slice(colon + 1)); if (hit) return hit; }
+  return null;
+}
+
 /** Does this optional feature belong to the named subclass? */
-export function featureInSubclass(f: ClassFeature, subclass: string): boolean {
-  const s = subclass.toLowerCase().trim();
-  if (!s) return false;
-  if (f.subclass) return f.subclass.toLowerCase() === s;
-  const n = f.name.toLowerCase();
-  return n.startsWith(s + ': ') || n.endsWith(`(${s})`) || n.endsWith(`: ${s}`);
+export function featureInSubclass(f: ClassFeature, subclass: string, subclasses: string[] = [subclass]): boolean {
+  if (!subclass.trim()) return false;
+  return subclassOwner(f, subclasses.includes(subclass) ? subclasses : [...subclasses, subclass])?.toLowerCase() === subclass.toLowerCase();
 }
 
 /** The subclass a feature introduces or belongs to, if its name says so. */
 export function subclassOfFeature(f: ClassFeature, subclasses: string[]): string | null {
-  for (const s of subclasses) if (featureInSubclass(f, s)) return s;
-  return null;
+  return subclassOwner(f, subclasses);
 }
 
 export function spellView(e: XElement) {

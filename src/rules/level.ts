@@ -1,6 +1,6 @@
 // Character creation and level-up operations on the character document.
 
-import { Ability, ABILITIES, ClassFeature, classView, featureInSubclass } from '../model/compendium';
+import { Ability, ABILITIES, ClassFeature, classView, subclassOwner } from '../model/compendium';
 import {
   Character, addClassFeat, chosenSubclasses, classFeatNames, classFeats, classLevel, classSlots, classSlotsCurrent,
   hdCurrent, removeClassFeat, setClassLevel, setClassSkillProficiencies, setClassSlots, setHdCurrent,
@@ -30,11 +30,13 @@ export interface LevelOptions {
   cv: CV;
   level: number;
   gained: ClassFeature[];
-  /** "Family: Subclass" introductions available at this level. */
-  subclassIntros: ClassFeature[];
+  /** Label for the subclass choice, e.g. "Martial Archetype". */
+  subclassLabel: string;
+  /** Subclasses that can be chosen at this level (empty once one is chosen). */
+  subclassChoices: string[];
   /** Optional features of subclasses already chosen (pre-selected). */
   subclassFeatures: ClassFeature[];
-  /** Other optional features (fighting styles, invocations, ...). */
+  /** Other optional features that belong to no subclass. */
   other: ClassFeature[];
   /** Optional features of subclasses not chosen; hidden by default. */
   otherSubclassFeatures: ClassFeature[];
@@ -48,28 +50,25 @@ const NOISE = /^(starting |multiclass )/i;
 export function levelOptions(classEl: XElement, level: number, opts: RulesOptions = defaultOptions): LevelOptions {
   const cv = progressionOf(classEl, opts);
   const chosen = classEl.name === 'class' && classEl.children.some((c) => c.type === 'el' && c.name === 'feat') ? chosenSubclasses(classEl) : [];
+  const owner = (f: ClassFeature) => subclassOwner(f, cv.subclasses);
   const at = cv.features.filter((f) => f.level === level);
   const gained = at.filter((f) => !f.optional);
   const optional = at.filter((f) => f.optional && !NOISE.test(f.name));
-  const isIntro = (f: ClassFeature) => cv.subclasses.some((s) => f.name.endsWith(`: ${s}`) && !f.name.toLowerCase().startsWith(s.toLowerCase() + ':'));
-  const subclassIntros = optional.filter(isIntro);
-  const rest = optional.filter((f) => !isIntro(f));
-  const inChosen = (f: ClassFeature) => chosen.some((s) => featureInSubclass(f, s));
-  const inAny = (f: ClassFeature) => cv.subclasses.some((s) => featureInSubclass(f, s));
+  const subclassChoices = chosen.length ? [] : cv.subclasses.filter((s) => cv.subclassLevels.get(s) === level);
+  const isChosen = (f: ClassFeature) => { const o = owner(f); return !!o && chosen.includes(o); };
   return {
-    cv, level, gained, subclassIntros,
-    subclassFeatures: rest.filter(inChosen),
-    other: rest.filter((f) => !inAny(f)),
-    otherSubclassFeatures: rest.filter((f) => inAny(f) && !inChosen(f)),
+    cv, level, gained, subclassLabel: cv.subclassLabel, subclassChoices,
+    subclassFeatures: optional.filter(isChosen),
+    other: optional.filter((f) => !owner(f)),
+    otherSubclassFeatures: optional.filter((f) => { const o = owner(f); return !!o && !chosen.includes(o) && !subclassChoices.includes(o); }),
     asi: cv.asiLevels.has(level) || gained.some((f) => /ability score improvement/i.test(f.name)),
     chosenSubclasses: chosen,
   };
 }
 
-/** Members of a subclass at `level` (used when a subclass is picked in the same step). */
+/** A subclass's features at `level`, including its introduction (used when it is picked). */
 export function subclassFeaturesAt(cv: CV, subclass: string, level: number): ClassFeature[] {
-  return cv.features.filter((f) => f.optional && f.level === level && featureInSubclass(f, subclass)
-    && !f.name.endsWith(`: ${subclass}`));
+  return cv.features.filter((f) => f.optional && f.level === level && subclassOwner(f, cv.subclasses) === subclass);
 }
 
 export function applyLevelUp(c: Character, plan: LevelUpPlan, rollDie: (sides: number) => number, opts: RulesOptions = defaultOptions): XElement {

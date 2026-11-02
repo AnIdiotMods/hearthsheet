@@ -273,3 +273,16 @@ input[type="color"] { width: 40px; height: 30px; padding: 2px; }
 .setting-row { display: grid; grid-template-columns: 220px 1fr; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
 .setting-row:last-child { border-bottom: none; }
 @media (max-width: 760px) { .setting-row { grid-template-columns: 1fr; } }
+
+/* class option lists (invocations, maneuvers, metamagic, ...) */
+.option-groups { margin: 8px 0; }
+.option-group { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; margin: 6px 0; background: var(--panel); }
+.option-group > summary { cursor: pointer; }
+.option-group .row { margin: 6px 0; }
+.option-list { list-style: none; padding: 0; margin: 4px 0; max-height: 320px; overflow: auto; }
+.option-list li { padding: 3px 0; border-bottom: 1px solid var(--line); }
+.option-list li:last-child { border-bottom: none; }
+.option-list li label { display: inline-flex; gap: 6px; align-items: center; }
+.option-list li.unmet > label span { color: var(--muted); }
+.option-list .rich { margin: 4px 0 4px 24px; font-size: 13px; }
+.more-options > summary { cursor: pointer; margin: 6px 0; }

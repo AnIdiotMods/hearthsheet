@@ -8,11 +8,15 @@ import { CV, Sheet as SheetData, progressionOf } from '../rules/derive';
 import { resolveFormula } from '../rules/dice';
 import { XElement, childText, removeChild } from '../xml/xml';
 import { Field, Modal, Mutate, RichText, useApp } from './common';
+import { OptionGroupsPicker, familyTitle, optionContext } from './Options';
+import { Picker } from './Picker';
+import { OptionGroup, OptionItem, optionGroups } from '../rules/options';
 
 type RollF = (f: string, l?: string) => unknown;
 
 export function FeaturesTab({ c, sheet, app, mutate, rollF }: { c: Character; sheet: SheetData; app: AppState; mutate: Mutate; rollF: RollF }) {
-  const { options } = useApp();
+  const { options, lib, toast } = useApp();
+  const [pickingFeat, setPickingFeat] = useState(false);
   const [editing, setEditing] = useState<{ fe: XElement } | { classEl: XElement } | { characterFeat: true } | null>(null);
   const [adding, setAdding] = useState<XElement | null>(null);
   const classNames = new Set(c.classes.map((ce) => childText(ce, 'name')));
@@ -50,7 +54,7 @@ export function FeaturesTab({ c, sheet, app, mutate, rollF }: { c: Character; sh
         const cv = progressionOf(ce, options);
         const level = classLevel(ce);
         const feats = classFeats(ce);
-        const known = new Map(cv.features.map((f) => [f.name, f] as const));
+        const known = new Map([...cv.features].reverse().map((f) => [f.name, f] as const)); // first occurrence wins
         const missing = cv.features.filter((f) => !f.optional && f.level <= level && !feats.some((x) => x.name === f.name));
         const fallback = !feats.length && !hasEmbeddedProgression(ce);
         return (
@@ -99,13 +103,17 @@ export function FeaturesTab({ c, sheet, app, mutate, rollF }: { c: Character; sh
       <section className="panel">
         <div className="row between">
           <h3>Feats</h3>
-          <button className="small" onClick={() => setEditing({ characterFeat: true })}>Add custom feat…</button>
+          <div className="row">
+            <button className="small" onClick={() => setPickingFeat(true)}>Add from compendium…</button>
+            <button className="small" onClick={() => setEditing({ characterFeat: true })}>Add custom feat…</button>
+          </div>
         </div>
-        {c.feats.length === 0 && <p className="muted small">No feats. Feats chosen at level up appear here.</p>}
+        {c.feats.length === 0 && <p className="muted small">No feats. Feats and class options such as invocations, maneuvers or metamagic appear here.</p>}
         {c.feats.map((fe, i) => (
           <details key={i}>
             <summary>
-              {childText(fe, 'name')}
+              {childText(fe, 'name').includes(':') ? childText(fe, 'name').slice(childText(fe, 'name').indexOf(':') + 1).trim() : childText(fe, 'name')}
+              {childText(fe, 'name').includes(':') && <span className="tag">{familyTitle(childText(fe, 'name').split(':')[0].trim())}</span>}
               <span className="feature-actions">
                 <button className="link small" onClick={(e) => { e.preventDefault(); setEditing({ fe }); }}>edit</button>
                 <button className="link danger small" onClick={(e) => { e.preventDefault(); if (confirm(`Remove the feat “${childText(fe, 'name')}”?`)) mutate((ch) => ch.remove(fe)); }}>remove</button>
@@ -141,8 +149,14 @@ export function FeaturesTab({ c, sheet, app, mutate, rollF }: { c: Character; sh
         <FeatureEditor title="Add custom feat" initial={{ name: '', text: '', modifiers: [] }} onClose={() => setEditing(null)}
           onSave={(v) => { mutate((ch) => { const fe = ch.insert({ type: 'el', name: 'feat', attrs: [], children: [] }); updateFeat(fe, v); fe.children.push({ type: 'el', name: 'expanded', attrs: [], children: [{ type: 'text', value: '0' }] }); }); setEditing(null); }} />
       )}
+      {pickingFeat && (
+        <Picker kind="feat" onClose={() => setPickingFeat(false)} has={(n) => c.feats.some((f) => childText(f, 'name').toLowerCase() === n.toLowerCase())}
+          onPick={(e) => mutate((ch) => { ch.addFeat(e.el); })} />
+      )}
       {adding && (
         <AddClassFeature classEl={adding} cv={progressionOf(adding, options)} onClose={() => setAdding(null)}
+          groups={optionGroups(optionContext({ lib, cv: progressionOf(adding, options), level: classLevel(adding), c, classEl: adding, sheet, incoming: [] }))}
+          onAddOption={(o) => { mutate((ch) => { if (o.feature) addClassFeat(adding, o.feature); else if (o.feat) ch.addFeat(o.feat.el); }); toast(`Added ${o.label}`); }}
           onAddFromClass={(f) => mutate(() => addClassFeat(adding, f))}
           onAddCustom={(v) => { mutate(() => addCustomClassFeat(adding, v.name, v.text, v.modifiers)); setAdding(null); }} />
       )}
@@ -193,11 +207,12 @@ function FeatureEditor({ title, initial, onClose, onSave }: { title: string; ini
   );
 }
 
-function AddClassFeature({ classEl, cv, onClose, onAddFromClass, onAddCustom }: {
-  classEl: XElement; cv: CV; onClose: () => void; onAddFromClass: (f: ClassFeature) => void; onAddCustom: (v: FeatureValue) => void;
+function AddClassFeature({ classEl, cv, groups, onClose, onAddFromClass, onAddOption, onAddCustom }: {
+  classEl: XElement; cv: CV; groups: OptionGroup[]; onClose: () => void; onAddFromClass: (f: ClassFeature) => void;
+  onAddOption: (o: OptionItem) => void; onAddCustom: (v: FeatureValue) => void;
 }) {
   const level = classLevel(classEl);
-  const [mode, setMode] = useState<'class' | 'custom'>(cv.features.length ? 'class' : 'custom');
+  const [mode, setMode] = useState<'class' | 'options' | 'custom'>(groups.length ? 'options' : cv.features.length ? 'class' : 'custom');
   const [q, setQ] = useState('');
   const [allLevels, setAllLevels] = useState(false);
   const [custom, setCustom] = useState<FeatureValue>({ name: '', text: '', modifiers: [] });
@@ -208,9 +223,14 @@ function AddClassFeature({ classEl, cv, onClose, onAddFromClass, onAddCustom }: 
   return (
     <Modal title={`Add a ${cv.name} feature`} onClose={onClose} wide>
       <nav className="tabs">
+        <button className={mode === 'options' ? 'active' : ''} disabled={!groups.length} onClick={() => setMode('options')}>Class options{groups.length ? ` (${groups.map((g) => familyTitle(g.family)).join(', ')})` : ''}</button>
         <button className={mode === 'class' ? 'active' : ''} disabled={!cv.features.length} onClick={() => setMode('class')}>From the class</button>
         <button className={mode === 'custom' ? 'active' : ''} onClick={() => setMode('custom')}>Write your own</button>
       </nav>
+      {mode === 'options' && (
+        <OptionGroupsPicker groups={groups.map((g) => ({ ...g, now: true }))} picked={[]} onToggle={(o, on) => { if (on) onAddOption(o); }}
+          intro="Tick an option to add it. Options the character already has are ticked and greyed out." />
+      )}
       {mode === 'class' && (
         <>
           <div className="row">

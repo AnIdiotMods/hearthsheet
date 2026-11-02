@@ -139,7 +139,7 @@ export function App() {
         <nav className="topbar">
           <span className="brand">Hearthsheet</span>
           {(['characters', 'compendium', 'dice', 'settings'] as View[]).map((v) => (
-            <button key={v} className={view === v ? 'active' : ''} onClick={() => { setView(v); if (v !== 'characters') setOpenId(null); }}>
+            <button key={v} className={view === v ? 'active' : ''} onClick={() => { if (v !== 'characters' || view === 'characters') setOpenId(null); setView(v); }}>
               {{ characters: 'Characters', compendium: 'Compendium', dice: 'Dice', settings: 'Settings' }[v]}
             </button>
           ))}
