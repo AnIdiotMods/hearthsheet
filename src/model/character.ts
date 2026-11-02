@@ -61,7 +61,7 @@ export interface CharacterRecord {
 }
 
 const TOP_ORDER = ['version', 'uid', 'name', 'race', 'class', 'background', 'feat', 'unarmed', 'money', 'slots',
-  'slotsCurrent', 'item', 'container', 'abilities', 'hpMax', 'hpCurrent', 'xp', 'tracker', 'note', 'companion'];
+  'slotsCurrent', 'item', 'container', 'abilities', 'hpMax', 'hpCurrent', 'xp', 'customAbility', 'customSkill', 'skillSetting', 'tracker', 'note', 'companion'];
 const CLASS_ORDER = ['id', 'name', 'level', 'hd', 'hdCurrent', 'wealth', 'proficiency', 'numClassSkills', 'armor',
   'weapons', 'tools', 'slots', 'slotsCurrent', 'feat', 'autolevel', 'spellAbility', 'spell'];
 

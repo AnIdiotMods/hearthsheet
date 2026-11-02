@@ -15,11 +15,9 @@ import { EntryDetail } from './CompendiumView';
 import { CreaturesTab } from './Creatures';
 import { FeaturesTab } from './Features';
 import { Picker } from './Picker';
-import { TrackersPanel } from './Trackers';
+import { MainTab } from './MainTab';
 import { Field, Modal, Mutate, NumberInput, RollChip, signed, useApp } from './common';
 
-const CONDITIONS = ['Blinded', 'Charmed', 'Deafened', 'Frightened', 'Grappled', 'Incapacitated', 'Invisible',
-  'Paralyzed', 'Petrified', 'Poisoned', 'Prone', 'Restrained', 'Stunned', 'Unconscious'];
 
 type Tab = 'main' | 'spells' | 'inventory' | 'features' | 'creatures' | 'notes' | 'xml';
 
@@ -119,118 +117,7 @@ export function Sheet({ record, onSave, onBack, onExport }: {
         ))}
       </nav>
 
-      {tab === 'main' && (
-        <div className="main-grid">
-          <section className="panel">
-            <h3>Abilities</h3>
-            <div className="abilities">
-              {ABILITIES.map((a) => {
-                const save = s.saves.find((x) => x.ability === a)!;
-                return (
-                  <div key={a} className="ability">
-                    <b>{ABBR[a]}</b>
-                    <RollChip expr={`1d20${signed(s.mods[a])}`} label={`${ABBR[a]} check`}><span className="big">{signed(s.mods[a])}</span></RollChip>
-                    <span className="muted">{s.scores[a]}</span>
-                    <span className="small">Save <RollChip expr={`1d20${signed(save.bonus)}`} label={`${ABBR[a]} save`}>{signed(save.bonus)}</RollChip>{save.proficient && ' ●'}</span>
-                    <NumberInput className="base" value={c.abilities[a]} min={1} max={30}
-                      onChange={(n) => mutate((ch) => { ch.abilities = { ...ch.abilities, [a]: n }; })} />
-                  </div>
-                );
-              })}
-            </div>
-            <p className="muted small">Small number fields are base scores (before racial bonuses and modifiers).</p>
-          </section>
-          <section className="panel">
-            <h3>Skills</h3>
-            <table className="skills">
-              <tbody>
-                {s.skills.map((sk) => {
-                  const state = sk.expertise ? 'E' : sk.proficient ? 'P' : sk.half ? '½' : '';
-                  return (
-                    <tr key={sk.name}>
-                      <td><span className="prof-toggle" title={sk.proficient ? 'Proficient' : sk.half ? 'Half proficiency' : ''}>{state || '○'}</span></td>
-                      <td>{sk.name} <span className="muted small">{ABBR[sk.ability]}</span></td>
-                      <td><RollChip expr={`1d20${signed(sk.bonus)}`} label={sk.name}>{signed(sk.bonus)}</RollChip></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            <p className="muted small">Skill proficiencies come from the race, background, class and feats. Passive Investigation {s.passiveInvestigation} · Passive Insight {s.passiveInsight}</p>
-          </section>
-          <section className="panel">
-            <h3>Attacks</h3>
-            <table className="attacks">
-              <thead><tr><th>Name</th><th>Hit</th><th>Damage</th></tr></thead>
-              <tbody>
-                {s.attacks.map((at, i) => (
-                  <tr key={i}>
-                    <td>{at.name}<div className="muted small">{[at.range, at.notes].filter(Boolean).join(' · ')}</div></td>
-                    <td><RollChip expr={`1d20${signed(at.bonus)}`} label={`${at.name} attack`}>{signed(at.bonus)}</RollChip></td>
-                    <td>
-                      <RollChip expr={at.damage} label={`${at.name} damage`} /> {at.versatile && <>/ <RollChip expr={at.versatile} label={`${at.name} (two-handed)`} /></>}
-                      <span className="muted small"> {at.damageType}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <label className="check small"><input type="checkbox" checked={c.unarmed} onChange={(e) => mutate((ch) => { ch.unarmed = e.target.checked; })} /> Show unarmed strike</label>
-            <h3>Hit dice</h3>
-            {s.hitDice.map((hd) => {
-              const ce = s.classes.find((k) => k.name === hd.className)!.el;
-              return (
-                <div key={hd.className} className="row">
-                  <span>{hd.className}: {hd.current}/{hd.total} d{hd.die}</span>
-                  <button disabled={hd.current <= 0} onClick={() => {
-                    const r = roll(`1d${hd.die}${signed(s.mods.constitution)}`, 'Hit die');
-                    if (r) mutate((ch) => { setHdCurrent(ce, hd.current - 1); ch.hpCurrent = Math.min(s.hpMax, ch.hpCurrent + Math.max(0, r.total)); });
-                  }}>Spend</button>
-                </div>
-              );
-            })}
-            <h3>Proficiencies</h3>
-            <dl className="facts small">
-              <dt>Armor</dt><dd>{s.proficiencies.armor.join(', ') || '—'}</dd>
-              <dt>Weapons</dt><dd>{s.proficiencies.weapons.join(', ') || '—'}</dd>
-              <dt>Tools</dt><dd>{s.proficiencies.tools.join(', ') || '—'}</dd>
-              {s.proficiencies.other.length > 0 && <><dt>Other</dt><dd>{s.proficiencies.other.join(', ')}</dd></>}
-            </dl>
-          </section>
-          <TrackersPanel c={c} sheet={s} mutate={mutate} />
-          <section className="panel">
-            <h3>Conditions</h3>
-            <div className="checks">
-              {CONDITIONS.map((cond) => (
-                <label key={cond}>
-                  <input type="checkbox" checked={app.current.conditions.includes(cond)}
-                    onChange={(e) => mutate((_, a) => { a.conditions = e.target.checked ? [...a.conditions, cond] : a.conditions.filter((x) => x !== cond); })} />
-                  {cond}
-                </label>
-              ))}
-            </div>
-            <Field label="Exhaustion">
-              <NumberInput value={app.current.exhaustion} min={0} max={6} onChange={(n) => mutate((_, a) => { a.exhaustion = Math.max(0, Math.min(6, n)); })} />
-            </Field>
-            {c.hpCurrent <= 0 && (
-              <>
-                <h3>Death saves</h3>
-                <div className="row">
-                  <RollChip expr="1d20" label="Death save" />
-                  {(['success', 'failure'] as const).map((k) => (
-                    <span key={k}>{k === 'success' ? 'Successes' : 'Failures'}{' '}
-                      {[1, 2, 3].map((n) => (
-                        <input key={n} type="checkbox" checked={app.current.deathSaves[k] >= n}
-                          onChange={(e) => mutate((_, a) => { a.deathSaves = { ...a.deathSaves, [k]: e.target.checked ? n : n - 1 }; })} />
-                      ))}
-                    </span>
-                  ))}
-                </div>
-              </>
-            )}
-          </section>
-        </div>
-      )}
+      {tab === 'main' && <MainTab c={c} app={app.current} sheet={s} mutate={mutate} />}
 
       {tab === 'spells' && <SpellsTab c={c} app={app.current} sheet={s} mutate={mutate} rollF={rollF} />}
       {tab === 'inventory' && <InventoryTab c={c} sheet={s} mutate={mutate} rollF={rollF} />}

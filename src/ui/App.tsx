@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { PRESET_ACCENTS, Theme, ThemeMode, applyTheme, defaultTheme, effectiveMode, textContrast } from './theme';
 import { buildLibrary, CompendiumFile, lookup } from '../model/compendium';
 import { Character, CharacterRecord } from '../model/character';
 import { defaultOptions, RulesOptions } from '../rules/derive';
@@ -27,6 +28,17 @@ export function App() {
       .then(([f, c]) => { setFiles(f); setRecords(c); })
       .catch((e) => setError(`Could not open local storage: ${e}`));
   }, []);
+
+  const [theme, setThemeState] = useState<Theme>(() => db.loadSetting('theme', defaultTheme));
+  const setTheme = (t: Theme) => { setThemeState(t); db.saveSetting('theme', t); };
+  useEffect(() => {
+    applyTheme(theme);
+    if (theme.mode !== 'system' || typeof matchMedia === 'undefined') return;
+    const mq = matchMedia('(prefers-color-scheme: dark)');
+    const onChange = () => applyTheme(theme);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, [theme]);
 
   const lib = useMemo(() => buildLibrary(files), [files]);
   const rules = useMemo<RulesOptions>(() => ({ ...options, classLookup: (n: string) => lookup(lib, 'class', n)?.el }), [options, lib]);
@@ -140,7 +152,7 @@ export function App() {
                 onExport={exportCharacter} onDelete={deleteCharacter} onDuplicate={duplicate} />)}
           {view === 'compendium' && <CompendiumView files={files} onImport={importCompendiums} onLoadSample={loadSample} onToggle={toggleFile} onRemove={removeFile} />}
           {view === 'dice' && <DiceView />}
-          {view === 'settings' && <SettingsView options={options} setOptions={setOpt} />}
+          {view === 'settings' && <SettingsView options={options} setOptions={setOpt} theme={theme} setTheme={setTheme} />}
         </main>
         {toastMsg && <div className="toast" role="status">{toastMsg}</div>}
       </div>
@@ -176,10 +188,79 @@ function DiceView() {
   );
 }
 
-function SettingsView({ options, setOptions }: { options: RulesOptions; setOptions: (o: RulesOptions) => void }) {
+function ColorSetting({ label, hint, value, fallback, onChange, presets, mode }: {
+  label: string; hint: string; value: string | null; fallback: string; onChange: (v: string | null) => void; presets?: string[]; mode: ThemeMode;
+}) {
+  const ratio = value ? textContrast(value, mode) : null;
+  return (
+    <div className="setting-row">
+      <div><b>{label}</b><div className="muted small">{hint}</div></div>
+      <div>
+        <div className="swatches">
+          {presets?.map((p) => <button key={p} className={`swatch ${value === p ? 'active' : ''}`} style={{ background: p }} title={p} aria-label={`Use ${p}`} onClick={() => onChange(p)} />)}
+          <input type="color" value={value ?? fallback} onChange={(e) => onChange(e.target.value)} aria-label={`Pick ${label.toLowerCase()}`} />
+          <button className="small" disabled={!value} onClick={() => onChange(null)}>Default</button>
+        </div>
+        {ratio !== null && ratio < 4.5 && !presets && (
+          <p className="danger small">This color may be hard to read on the current background (contrast {ratio.toFixed(1)}:1; 4.5:1 or more is recommended).</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AppearanceSettings({ theme, setTheme }: { theme: Theme; setTheme: (t: Theme) => void }) {
+  const dark = effectiveMode(theme.mode) === 'dark';
+  return (
+    <section className="panel">
+      <h3>Appearance</h3>
+      <div className="setting-row">
+        <div><b>Mode</b><div className="muted small">“System” follows your Windows setting.</div></div>
+        <div className="row">
+          {(['system', 'light', 'dark'] as ThemeMode[]).map((m) => (
+            <label key={m} className="radio"><input type="radio" checked={theme.mode === m} onChange={() => setTheme({ ...theme, mode: m })} />{{ system: 'System', light: 'Light', dark: 'Dark' }[m]}</label>
+          ))}
+        </div>
+      </div>
+      <ColorSetting label="Primary color" hint="Buttons, active tabs and highlights." value={theme.accent} fallback={dark ? '#d9765c' : '#8a3b2a'}
+        presets={PRESET_ACCENTS} mode={theme.mode} onChange={(v) => setTheme({ ...theme, accent: v })} />
+      <ColorSetting label="Text color" hint="The main lettering." value={theme.text} fallback={dark ? '#ece6dd' : '#23201c'}
+        mode={theme.mode} onChange={(v) => setTheme({ ...theme, text: v })} />
+      <ColorSetting label="Secondary text color" hint="Labels, headings and hints." value={theme.secondary} fallback={dark ? '#a39a8e' : '#6f675d'}
+        mode={theme.mode} onChange={(v) => setTheme({ ...theme, secondary: v })} />
+      <div className="setting-row">
+        <div><b>Font</b><div className="muted small">OpenDyslexic is designed to be easier to read for people with dyslexia.</div></div>
+        <div className="row">
+          <label className="radio"><input type="radio" checked={theme.font === 'default'} onChange={() => setTheme({ ...theme, font: 'default' })} />Standard</label>
+          <label className="radio" style={{ fontFamily: 'OpenDyslexic' }}><input type="radio" checked={theme.font === 'dyslexic'} onChange={() => setTheme({ ...theme, font: 'dyslexic' })} />OpenDyslexic</label>
+        </div>
+      </div>
+      <div className="setting-row">
+        <div><b>Text size</b><div className="muted small">Scales the whole window.</div></div>
+        <div className="row">
+          <input type="range" min={80} max={140} step={5} value={theme.scale} onChange={(e) => setTheme({ ...theme, scale: +e.target.value })} aria-label="Text size" />
+          <span>{theme.scale}%</span>
+        </div>
+      </div>
+      <div className="setting-row">
+        <div><b>Preview</b></div>
+        <div className="theme-preview">
+          <button className="primary">Primary button</button>
+          <button>Button</button>
+          <span>Text <span className="muted">secondary text</span></span>
+          <span className="tag">tag</span>
+        </div>
+      </div>
+      <p><button className="small" onClick={() => setTheme(defaultTheme)}>Reset appearance</button></p>
+    </section>
+  );
+}
+
+function SettingsView({ options, setOptions, theme, setTheme }: { options: RulesOptions; setOptions: (o: RulesOptions) => void; theme: Theme; setTheme: (t: Theme) => void }) {
   return (
     <div className="settings">
       <h1>Settings</h1>
+      <AppearanceSettings theme={theme} setTheme={setTheme} />
       <section className="panel">
         <h3>Rules</h3>
         <Field label="Multiclass spell slot rounding for half casters">

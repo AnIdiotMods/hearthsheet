@@ -2,7 +2,7 @@
 // Pure functions of (character, app state, options); no UI or storage.
 
 import {
-  ABILITIES, Ability, ClassFeature, Counter, Modifier, SKILLS, Trait, backgroundView, canonicalSkill, classView,
+  ABBR, ABILITIES, Ability, ClassFeature, Counter, Modifier, SKILLS, Trait, backgroundView, canonicalSkill, classView,
   isSkill, itemView, proficiencyNames, raceView, traitsOf,
 } from '../model/compendium';
 import {
@@ -11,6 +11,7 @@ import {
 } from '../model/character';
 import { XElement, childText, elements } from '../xml/xml';
 import { FormulaContext, resolveFormula } from './dice';
+import { ProfLevel, customAbilities, customSkills, isStandardAbility, skillSetting } from '../model/custom';
 
 export interface RulesOptions {
   /** 2024 rules round half-caster levels up when multiclassing; 2014 rounds down. */
@@ -43,13 +44,37 @@ export interface Attack {
   name: string; bonus: number; damage: string; versatile?: string; damageType: string; range: string; notes: string;
 }
 
+export interface SkillResult {
+  name: string;
+  /** Ability key: one of the six abilities or "custom:<id>". */
+  ability: string;
+  abilityLabel: string;
+  defaultAbility: string;
+  bonus: number;
+  proficient: boolean;
+  expertise: boolean;
+  half: boolean;
+  level: ProfLevel;
+  /** Proficiency from race, class, background and feats, before any per-skill setting. */
+  sourceLevel: ProfLevel;
+  misc: number;
+  overridden: boolean;
+  custom: boolean;
+  el?: XElement;
+}
+
+export interface CustomAbilityResult {
+  key: string; id: string; name: string; abbr: string; score: number; mod: number; save: number; saveProficient: boolean; el: XElement;
+}
+
 export interface Sheet {
   level: number;
   prof: number;
   scores: Record<Ability, number>;
   mods: Record<Ability, number>;
   saves: { ability: Ability; bonus: number; proficient: boolean }[];
-  skills: { name: string; ability: Ability; bonus: number; proficient: boolean; expertise: boolean; half: boolean }[];
+  skills: SkillResult[];
+  customAbilities: CustomAbilityResult[];
   ac: number;
   acNotes: string[];
   initiative: number;
@@ -310,16 +335,47 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
       + sumMods((m) => m.category === 'saving throw' && m.target === a),
   }));
 
-  // ---- skills
-  const skills = SKILLS.map(([name, ab]) => {
-    const proficient = skillProf.has(name) || expertise.has(name);
-    const exp = expertise.has(name);
-    const half = !proficient && joat;
-    const b = mods[ab] + (exp ? pb * 2 : proficient ? pb : half ? Math.floor(pb / 2) : 0)
-      + bonus('ability checks') + sumMods((m) => m.category === 'skill' && m.target === name.toLowerCase());
-    return { name, ability: ab, bonus: b, proficient, expertise: exp, half };
+  // ---- custom ability scores
+  const customAbilityList: CustomAbilityResult[] = customAbilities(c.ch).map((ca) => {
+    const m = mod(ca.score);
+    return {
+      key: `custom:${ca.id}`, id: ca.id, name: ca.name, abbr: ca.abbr, score: ca.score, mod: m, saveProficient: ca.saveProf,
+      save: m + (ca.saveProf ? pb : 0) + bonus('saving throws'), el: ca.el,
+    };
   });
-  const skill = (n: string) => skills.find((s) => s.name === n)!.bonus;
+  const abilityMod = (key: string) => (isStandardAbility(key) ? mods[key] : customAbilityList.find((x) => x.key === key)?.mod ?? 0);
+  const abilityLabel = (key: string) => (isStandardAbility(key) ? ABBR[key] : customAbilityList.find((x) => x.key === key)?.abbr ?? '?');
+  const skillBonus = (name: string, ab: string, level: ProfLevel, misc: number) => {
+    const half = level === 0 && joat;
+    return {
+      half,
+      bonus: abilityMod(ab) + (level === 2 ? pb * 2 : level === 1 ? pb : half ? Math.floor(pb / 2) : 0) + misc
+        + bonus('ability checks') + sumMods((m) => m.category === 'skill' && m.target === name.toLowerCase()),
+    };
+  };
+
+  // ---- skills (standard, with per-skill settings, then custom)
+  const skills: SkillResult[] = SKILLS.map(([name, defaultAbility]) => {
+    const setting = skillSetting(c.ch, name);
+    const ab = setting?.ability && (isStandardAbility(setting.ability) || customAbilityList.some((x) => x.key === setting.ability))
+      ? setting.ability : defaultAbility;
+    const sourceLevel: ProfLevel = expertise.has(name) ? 2 : skillProf.has(name) ? 1 : 0;
+    const level = setting?.prof ?? sourceLevel;
+    const { bonus: b, half } = skillBonus(name, ab, level, setting?.bonus ?? 0);
+    return {
+      name, ability: ab, abilityLabel: abilityLabel(ab), defaultAbility, bonus: b, proficient: level >= 1, expertise: level === 2, half,
+      level, sourceLevel, misc: setting?.bonus ?? 0, overridden: !!setting, custom: false,
+    };
+  });
+  for (const cs of customSkills(c.ch)) {
+    const ab = isStandardAbility(cs.ability) || customAbilityList.some((x) => x.key === cs.ability) ? cs.ability : 'intelligence';
+    const { bonus: b, half } = skillBonus(cs.name, ab, cs.prof, cs.bonus);
+    skills.push({
+      name: cs.name, ability: ab, abilityLabel: abilityLabel(ab), defaultAbility: ab, bonus: b, proficient: cs.prof >= 1,
+      expertise: cs.prof === 2, half, level: cs.prof, sourceLevel: 0, misc: cs.bonus, overridden: false, custom: true, el: cs.el,
+    });
+  }
+  const skill = (n: string) => skills.find((s) => s.name === n && !s.custom)!.bonus;
 
   // ---- armor class
   const acNotes: string[] = [];
@@ -476,7 +532,7 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
       armor: [...prof.armor], weapons: [...prof.weapons], tools: [...prof.tools],
       other: [...prof.other].filter((p) => !isSkill(p)),
     },
-    skillProficiencies: [...skillProf], expertise: [...expertise],
+    skillProficiencies: [...skillProf], expertise: [...expertise], customAbilities: customAbilityList,
     carried: Math.round(carried * 100) / 100, capacity, modifiers, formula,
     classes: classes.map(({ ce, cv, level: lv, subclasses }) => ({ el: ce, name: cv.name, level: lv, subclasses })),
     warnings,

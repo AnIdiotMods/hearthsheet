@@ -28,6 +28,12 @@ Data is stored locally (IndexedDB in the app profile). Export characters and com
   passives, attacks, conditions, exhaustion, death saves, short/long rests, class resources,
   spells with slots (including multiclass and pact slots), inventory with equip/attune/quantity/
   coins/weight/containers, custom items, notes, and a raw XML view.
+- **Custom ability scores and skills:** add ability scores (e.g. Sanity, Honor) with their own
+  modifier and saving throw; add skills; choose which ability any skill uses, standard or custom
+  (e.g. Intimidation with Strength); set proficiency or expertise per skill and add an extra bonus.
+- **Appearance:** light, dark or system mode; pick the primary (button) color, the text color and
+  the secondary text color, with a readability warning for low-contrast choices; a built-in
+  OpenDyslexic font (SIL Open Font License); text size from 80% to 140%.
 - **Trackers:** custom counters on the Abilities & Skills page (luck points, ki, arrows, charges, …)
   with a maximum that can be a number or a formula (`PROF`, `1+CHA`, `LVL`, `2*PROF`) and that
   refill on a short rest, a long rest, or only by hand.
@@ -106,6 +112,8 @@ the iOS app (character `<version>38</version>`). The relevant facts, all verifie
   extension; the official apps have no known equivalent and should ignore it, but may drop it if
   the character is re-saved there. Custom class features use the app's own `<feat>` shape and
   carry over normally.
+- Custom ability scores, custom skills and per-skill settings are stored as `<customAbility>`,
+  `<customSkill>` and `<skillSetting>` elements, with the same caveat.
 - Custom trackers are stored as `<tracker>` elements (`<name>`, `<max>`, `<value>`, `<reset>`), also a
   Hearthsheet extension with the same caveat.
 
