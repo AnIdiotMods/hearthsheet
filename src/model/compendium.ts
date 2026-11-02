@@ -44,11 +44,6 @@ export interface Library {
 
 export const entryKey = (kind: string, name: string) => `${kind}:${name.trim().toLowerCase()}`;
 
-export interface LibraryOptions {
-  /** Leave out playtest (Unearthed Arcana), Plane Shift, social-media, third-party and homebrew content. */
-  officialOnly?: boolean;
-}
-
 /**
  * Merge enabled files in import order, the way the community build tools do:
  * - classes with the same name are merged: the copy with <hd> is the base and
@@ -61,7 +56,7 @@ export interface LibraryOptions {
  * - two different entries with the same name inside one file (e.g. a race
  *   printed in two books) are both kept, the later one named after its source.
  */
-export function buildLibrary(files: CompendiumFile[], opts: LibraryOptions = {}): Library {
+export function buildLibrary(files: CompendiumFile[]): Library {
   const lib: Library = { entries: new Map(), byKind: emptyByKind(), others: [], warnings: [] };
   for (const f of files) {
     if (!f.enabled) continue;
@@ -80,7 +75,6 @@ export function buildLibrary(files: CompendiumFile[], opts: LibraryOptions = {})
         lib.warnings.push({ fileId: f.id, message: `<${e.name}> without a <name> skipped` });
         continue;
       }
-      if (opts.officialOnly && kind !== 'class' && isUnofficial(name, sourceOf(e))) continue;
       let key = entryKey(kind, name);
       const prev = lib.entries.get(key);
       if (!prev) { lib.entries.set(key, { kind, name, el: e, fileId: f.id }); continue; }
@@ -113,14 +107,6 @@ export function buildLibrary(files: CompendiumFile[], opts: LibraryOptions = {})
       const prevFile = files.find((x) => x.id === prev.fileId)?.fileName ?? '?';
       lib.warnings.push({ fileId: f.id, message: `${kind} "${name}" replaces the copy from ${prevFile}` });
       lib.entries.set(key, { kind, name, el: e, fileId: f.id });
-    }
-  }
-  if (opts.officialOnly) {
-    for (const [key, e] of lib.entries) {
-      if (e.kind !== 'class') continue;
-      const kept = officialClass(e.el);
-      if (kept) lib.entries.set(key, { ...e, el: kept });
-      else lib.entries.delete(key);
     }
   }
   for (const e of lib.entries.values()) lib.byKind[e.kind].push(e);
@@ -163,9 +149,6 @@ const shortSource = (s: string) => s.replace(/^(unearthed arcana|plane shift|adv
 const UNOFFICIAL_NAME = /\((UA|HB|TP|3pp|homebrew|playtest|PS[A-Z])\)|\[(UA|HB|homebrew)\]/i;
 const UNOFFICIAL_SOURCE = /unearthed arcana|plane shift|twitter|livestream|\(3pp\)|ccodex|matthew mercer|homebrew|third[- ]party|dragon magazine|critical role|tal'?dorei|blood hunter|playtest|\bUA\b/i;
 
-/** Well-known classes not published by Wizards of the Coast, often shipped without source lines. */
-const UNOFFICIAL_CLASS = /^(blood hunter|gunslinger|witch|shaman|warden|craftsman|alchemist|psion|monster hunter)\b/i;
-
 /** Playtest, Plane Shift, social media, third-party or homebrew content, judged from the name and source line. */
 export const isUnofficial = (name: string, source: string) => UNOFFICIAL_NAME.test(name) || (!!source && UNOFFICIAL_SOURCE.test(source));
 
@@ -178,30 +161,6 @@ export function sourceTag(name: string, source: string): string {
   if (/twitter|livestream/i.test(s)) return 'Unofficial';
   if (/3pp|third|\(TP\)|ccodex/i.test(s)) return 'Third party';
   return 'Homebrew';
-}
-
-/**
- * A class with its unofficial parts removed: features whose name or source is unofficial (and their
- * slot rows' subclass casting stays, since rows carry no source). Null when the class itself is unofficial.
- */
-function officialClass(e: XElement): XElement | null {
-  const name = childText(e, 'name');
-  if (UNOFFICIAL_NAME.test(name) || UNOFFICIAL_CLASS.test(name)) return null;
-  const out = cloneEl(e);
-  const kept: { official: number; unofficial: number } = { official: 0, unofficial: 0 };
-  for (const al of elements(out, 'autolevel')) {
-    al.children = al.children.filter((c) => {
-      if (c.type !== 'el' || (c.name !== 'feature' && c.name !== 'feat')) return true;
-      const optional = yes(attr(c, 'optional')) || yes(childText(c, 'optional'));
-      const bad = isUnofficial(childText(c, 'name'), sourceOf(c));
-      if (!optional) kept[bad ? 'unofficial' : 'official']++;
-      return !bad;
-    });
-  }
-  // A class whose own (non-optional) features are mostly unofficial is an unofficial class (e.g. a homebrew class).
-  if (kept.unofficial > kept.official) return null;
-  // Drop subclasses left without features other than their introduction? They have none by construction.
-  return out;
 }
 
 function mergeClass(a: XElement, b: XElement): XElement {

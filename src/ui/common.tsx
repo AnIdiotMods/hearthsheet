@@ -1,5 +1,7 @@
 import { createContext, ReactNode, useContext, useEffect } from 'react';
 import type { Library } from '../model/compendium';
+import type { CreatorKind } from '../model/homebrew';
+import type { XElement } from '../xml/xml';
 import type { AppState, Character } from '../model/character';
 import type { RulesOptions } from '../rules/derive';
 import { isRollable, RollResult } from '../rules/dice';
@@ -10,6 +12,14 @@ export interface Ctx {
   roll: (expr: string, label?: string) => RollResult | null;
   log: RollResult[];
   toast: (msg: string) => void;
+  /** The "My homebrew" compendium file the Creator writes to. */
+  homebrew: {
+    xml: string;
+    /** Add an entry, or replace the one named `previousName`. */
+    save: (e: XElement, previousName?: string) => Promise<void>;
+    remove: (kind: CreatorKind, name: string) => Promise<void>;
+    exportFile: () => void;
+  };
 }
 export const AppContext = createContext<Ctx>(null!);
 

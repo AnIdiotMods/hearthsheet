@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { PRESET_ACCENTS, Theme, ThemeMode, applyTheme, defaultTheme, effectiveMode, textContrast } from './theme';
-import { buildLibrary, CompendiumFile, LibraryOptions, lookup } from '../model/compendium';
+import { PRESET_ACCENTS, Theme, ThemeMode, applyTheme, customFontFamily, defaultTheme, effectiveMode, textContrast } from './theme';
+import { buildLibrary, CompendiumFile, lookup } from '../model/compendium';
 import { Character, CharacterRecord } from '../model/character';
 import { defaultOptions, RulesOptions } from '../rules/derive';
 import { naturalD20, roll as rollDice, RollResult } from '../rules/dice';
@@ -10,8 +10,13 @@ import { AppContext, Field, RollChip, useApp } from './common';
 import { CompendiumView } from './CompendiumView';
 import { CharactersView, newRecord } from './CharactersView';
 import { Sheet } from './Sheet';
+import { CreatorView } from './Creator';
+import { HOMEBREW_FILE_NAME, HOMEBREW_ID, CreatorKind, emptyHomebrewXml, removeEntry, upsertEntry } from '../model/homebrew';
+import type { XElement } from '../xml/xml';
 
-type View = 'characters' | 'compendium' | 'dice' | 'settings';
+type View = 'characters' | 'compendium' | 'creator' | 'dice' | 'settings';
+/** Sorts after every imported file, so homebrew wins over same-named entries. */
+const HOMEBREW_ORDER = 8.64e15;
 
 export function App() {
   const [view, setView] = useState<View>('characters');
@@ -40,14 +45,60 @@ export function App() {
     return () => mq.removeEventListener('change', onChange);
   }, [theme]);
 
-  const [libOptions, setLibOptionsState] = useState<LibraryOptions>(() => db.loadSetting('library', { officialOnly: false }));
-  const setLibOptions = (o: LibraryOptions) => { setLibOptionsState(o); db.saveSetting('library', o); };
-  const lib = useMemo(() => buildLibrary(files, libOptions), [files, libOptions]);
+  // Imported fonts: registered with the browser's font API so they can be chosen like any other font.
+  const [fonts, setFonts] = useState<db.StoredFont[]>([]);
+  const registerFont = async (f: db.StoredFont) => {
+    const face = new FontFace(customFontFamily(f.id), f.data.slice(0));
+    await face.load();
+    document.fonts.add(face);
+  };
+  useEffect(() => {
+    db.listFonts().then(async (list) => {
+      const ok: db.StoredFont[] = [];
+      for (const f of list) { try { await registerFont(f); ok.push(f); } catch { /* unreadable font: skip */ } }
+      setFonts(ok);
+    }).catch(() => {});
+  }, []);
+  const importFont = async () => {
+    const picked = await db.readBinaryFiles('.ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2');
+    for (const p of picked) {
+      const f: db.StoredFont = { id: db.newId(), name: p.name.replace(/\.(ttf|otf|woff2?)$/i, '').replace(/[-_]+/g, ' '), fileName: p.name, data: p.data, addedAt: Date.now() };
+      try {
+        await registerFont(f);
+      } catch {
+        setError(`${p.name} could not be read as a font. Use a TTF, OTF, WOFF or WOFF2 file.`);
+        continue;
+      }
+      await db.putFont(f);
+      setFonts((fs) => [...fs, f]);
+      setTheme({ ...theme, font: `custom:${f.id}` });
+      toast(`Font “${f.name}” imported and selected`);
+    }
+  };
+  const removeFont = async (f: db.StoredFont) => {
+    await db.deleteFont(f.id);
+    setFonts((fs) => fs.filter((x) => x.id !== f.id));
+  };
+
+  const lib = useMemo(() => buildLibrary(files), [files]);
   const rules = useMemo<RulesOptions>(() => ({
     ...options,
     classLookup: (n: string) => lookup(lib, 'class', n)?.el,
     spellLookup: (n: string) => lookup(lib, 'spell', n)?.el,
   }), [options, lib]);
+
+  const homebrewFile = files.find((f) => f.id === HOMEBREW_ID);
+  const writeHomebrew = async (xml: string) => {
+    const f: CompendiumFile = { id: HOMEBREW_ID, fileName: HOMEBREW_FILE_NAME, xml, importedAt: HOMEBREW_ORDER, enabled: true };
+    await db.putFile(f);
+    setFiles((fs) => [...fs.filter((x) => x.id !== HOMEBREW_ID), f]);
+  };
+  const homebrew = {
+    xml: homebrewFile?.xml ?? emptyHomebrewXml(),
+    save: (e: XElement, previousName?: string) => writeHomebrew(upsertEntry(homebrewFile?.xml ?? emptyHomebrewXml(), e, previousName)),
+    remove: (kind: CreatorKind, name: string) => writeHomebrew(removeEntry(homebrewFile?.xml ?? emptyHomebrewXml(), kind, name)),
+    exportFile: () => db.downloadText(HOMEBREW_FILE_NAME, homebrewFile?.xml ?? emptyHomebrewXml()),
+  };
 
   const toast = useCallback((msg: string) => {
     setToastMsg(msg);
@@ -140,13 +191,13 @@ export function App() {
   const setOpt = (o: RulesOptions) => { const { classLookup: _a, spellLookup: _b, ...plain } = o; void _a; void _b; setOptions(plain); db.saveSetting('rules', plain); };
 
   return (
-    <AppContext.Provider value={{ lib, options: rules, roll, log, toast }}>
+    <AppContext.Provider value={{ lib, options: rules, roll, log, toast, homebrew }}>
       <div className="app">
         <nav className="topbar">
           <span className="brand">Hearthsheet</span>
-          {(['characters', 'compendium', 'dice', 'settings'] as View[]).map((v) => (
+          {(['characters', 'compendium', 'creator', 'dice', 'settings'] as View[]).map((v) => (
             <button key={v} className={view === v ? 'active' : ''} onClick={() => { if (v !== 'characters' || view === 'characters') setOpenId(null); setView(v); }}>
-              {{ characters: 'Characters', compendium: 'Compendium', dice: 'Dice', settings: 'Settings' }[v]}
+              {{ characters: 'Characters', compendium: 'Compendium', creator: 'Creator', dice: 'Dice', settings: 'Settings' }[v]}
             </button>
           ))}
         </nav>
@@ -157,8 +208,10 @@ export function App() {
             : <CharactersView records={records} onOpen={(r) => setOpenId(r.id)} onCreate={createCharacter} onImport={importCharacters}
                 onExport={exportCharacter} onDelete={deleteCharacter} onDuplicate={duplicate} />)}
           {view === 'compendium' && <CompendiumView files={files} onImport={importCompendiums} onLoadSample={loadSample} onToggle={toggleFile} onRemove={removeFile} />}
+          {view === 'creator' && <CreatorView />}
           {view === 'dice' && <DiceView />}
-          {view === 'settings' && <SettingsView options={options} setOptions={setOpt} theme={theme} setTheme={setTheme} libOptions={libOptions} setLibOptions={setLibOptions} />}
+          {view === 'settings' && <SettingsView options={options} setOptions={setOpt} theme={theme} setTheme={setTheme}
+            fonts={fonts} onImportFont={importFont} onRemoveFont={removeFont} />}
         </main>
         {toastMsg && <div className="toast" role="status">{toastMsg}</div>}
       </div>
@@ -215,7 +268,9 @@ function ColorSetting({ label, hint, value, fallback, onChange, presets, mode }:
   );
 }
 
-function AppearanceSettings({ theme, setTheme }: { theme: Theme; setTheme: (t: Theme) => void }) {
+interface FontProps { fonts: db.StoredFont[]; onImportFont: () => void; onRemoveFont: (f: db.StoredFont) => Promise<void> }
+
+function AppearanceSettings({ theme, setTheme, fonts, onImportFont, onRemoveFont }: { theme: Theme; setTheme: (t: Theme) => void } & FontProps) {
   const dark = effectiveMode(theme.mode) === 'dark';
   return (
     <section className="panel">
@@ -236,9 +291,24 @@ function AppearanceSettings({ theme, setTheme }: { theme: Theme; setTheme: (t: T
         mode={theme.mode} onChange={(v) => setTheme({ ...theme, secondary: v })} />
       <div className="setting-row">
         <div><b>Font</b><div className="muted small">OpenDyslexic is designed to be easier to read for people with dyslexia.</div></div>
-        <div className="row">
-          <label className="radio"><input type="radio" checked={theme.font === 'default'} onChange={() => setTheme({ ...theme, font: 'default' })} />Standard</label>
-          <label className="radio" style={{ fontFamily: 'OpenDyslexic' }}><input type="radio" checked={theme.font === 'dyslexic'} onChange={() => setTheme({ ...theme, font: 'dyslexic' })} />OpenDyslexic</label>
+        <div>
+          <div className="row wrap">
+            <label className="radio"><input type="radio" checked={theme.font === 'default'} onChange={() => setTheme({ ...theme, font: 'default' })} />Standard</label>
+            <label className="radio" style={{ fontFamily: 'OpenDyslexic' }}><input type="radio" checked={theme.font === 'dyslexic'} onChange={() => setTheme({ ...theme, font: 'dyslexic' })} />OpenDyslexic</label>
+            {fonts.map((f) => (
+              <span key={f.id} className="row font-choice">
+                <label className="radio" style={{ fontFamily: `"${customFontFamily(f.id)}"` }}>
+                  <input type="radio" checked={theme.font === `custom:${f.id}`} onChange={() => setTheme({ ...theme, font: `custom:${f.id}` })} />{f.name}
+                </label>
+                <button className="link danger small" aria-label={`Remove font ${f.name}`} onClick={() => {
+                  if (!confirm(`Remove the font “${f.name}”?`)) return;
+                  if (theme.font === `custom:${f.id}`) setTheme({ ...theme, font: 'default' });
+                  void onRemoveFont(f);
+                }}>remove</button>
+              </span>
+            ))}
+          </div>
+          <p><button className="small" onClick={onImportFont}>Import font…</button> <span className="muted small">TTF, OTF, WOFF or WOFF2 files. Fonts are kept on this computer.</span></p>
         </div>
       </div>
       <div className="setting-row">
@@ -262,14 +332,13 @@ function AppearanceSettings({ theme, setTheme }: { theme: Theme; setTheme: (t: T
   );
 }
 
-function SettingsView({ options, setOptions, theme, setTheme, libOptions, setLibOptions }: {
+function SettingsView({ options, setOptions, theme, setTheme, ...fontProps }: {
   options: RulesOptions; setOptions: (o: RulesOptions) => void; theme: Theme; setTheme: (t: Theme) => void;
-  libOptions: LibraryOptions; setLibOptions: (o: LibraryOptions) => void;
-}) {
+} & FontProps) {
   return (
     <div className="settings">
       <h1>Settings</h1>
-      <AppearanceSettings theme={theme} setTheme={setTheme} />
+      <AppearanceSettings theme={theme} setTheme={setTheme} {...fontProps} />
       <section className="panel">
         <h3>Rules</h3>
         <Field label="Multiclass spell slot rounding for half casters">
@@ -278,16 +347,6 @@ function SettingsView({ options, setOptions, theme, setTheme, libOptions, setLib
             <option value="2024">Round up (2024 rules)</option>
           </select>
         </Field>
-      </section>
-      <section className="panel">
-        <h3>Content</h3>
-        <label className="check">
-          <input type="checkbox" checked={!!libOptions.officialOnly} onChange={(e) => setLibOptions({ ...libOptions, officialOnly: e.target.checked })} />
-          {' '}Official content only
-        </label>
-        <p className="muted small">Hides Unearthed Arcana (playtest), Plane Shift, Twitter and livestream rules, third-party and homebrew entries,
-          judged from each entry's name (for example “(UA)” or “(HB)”) and its “Source:” line. Entries without a source line are kept.
-          Characters keep everything they already have.</p>
       </section>
       <section className="panel">
         <h3>About</h3>

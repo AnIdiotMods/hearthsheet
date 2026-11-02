@@ -113,15 +113,11 @@ describe('library sources and duplicates', () => {
     expect(lib.warnings.map((w) => w.message)).toEqual(['feat "Alert" replaces the copy from a.xml']);
   });
 
-  it('detects and filters unofficial content', () => {
+  it('detects unofficial content for tagging', () => {
     expect(sourceOf(lookup(buildLibrary([file('a', xml)]), 'race', 'Kor')!.el)).toBe('Plane Shift: Zendikar');
     expect(isUnofficial('Kor', 'Plane Shift: Zendikar')).toBe(true);
+    expect(isUnofficial('Alert', "Player's Handbook")).toBe(false);
     expect(sourceTag('Fey Teleportation (UA)', '')).toBe('UA');
-    const lib = buildLibrary([file('a', xml)], { officialOnly: true });
-    expect(lib.byKind.race.map((e) => e.name)).toEqual(['Goblin', "Goblin (Guildmasters' Guide to Ravnica)"]);
-    expect(lib.byKind.feat.map((e) => e.name)).toEqual(['Alert']);
-    expect(lib.byKind.class.map((e) => e.name)).toEqual(['Fighter']);
-    expect(classView(lookup(lib, 'class', 'Fighter')!.el).subclasses).toEqual(['Champion']);
   });
 });
 

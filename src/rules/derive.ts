@@ -14,6 +14,8 @@ import { FormulaContext, resolveFormula } from './dice';
 import { SpellLimit, spellLimit } from './spellcount';
 import { ProfLevel, customAbilities, customSkills, isStandardAbility, skillSetting } from '../model/custom';
 import { Movement, OTHER_SPEEDS, OtherSpeed, movementOf } from '../model/movement';
+import { castingSettings } from '../model/casting';
+import { adjustmentOf, applyAdjustment } from '../model/adjustments';
 import { ClassInfo, builtinCounters, classBase, editionOf, martialArtsDie, plainFeature, thirdCasterRow, unarmoredMovement } from './builtin';
 import { optionLimits } from './options';
 
@@ -89,6 +91,7 @@ export interface Sheet {
   ac: number;
   acNotes: string[];
   initiative: number;
+  initiativeNotes: string[];
   speed: number;
   /** Other movement modes in feet (fly, swim, climb, burrow), when the character has them. */
   speeds: Partial<Record<OtherSpeed, number>>;
@@ -477,6 +480,9 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
   }
   const acBonus = bonus('ac');
   if (acBonus) { ac += acBonus; acNotes.push(`Bonuses ${fmt(acBonus)}`); }
+  const acAdj = applyAdjustment(ac, adjustmentOf(c.ch, 'ac'));
+  ac = acAdj.value;
+  acNotes.push(...acAdj.notes);
 
   // ---- speed, initiative, hit points
   const movement = movementOf(c.ch);
@@ -503,7 +509,10 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
   // Alert: +5 initiative (2014); the 2024 feat adds the proficiency bonus.
   const alert = plainFeature(features.filter((f) => f.source === 'Feat'), /^alert$/);
   const alertBonus = alert ? (/\+\s*5\b|bonus of 5|\b5 to initiative/i.test(alert.text) || !/proficiency bonus/i.test(alert.text) ? 5 : pb) : 0;
-  const initiative = mods.dexterity + bonus('initiative') + (joat ? Math.floor(pb / 2) : 0) + alertBonus;
+  const initAdj = applyAdjustment(mods.dexterity + bonus('initiative') + (joat ? Math.floor(pb / 2) : 0) + alertBonus, adjustmentOf(c.ch, 'initiative'));
+  const initiative = initAdj.value;
+  const initiativeNotes = [`Dexterity ${fmt(mods.dexterity)}`, ...(joat ? [`Jack of All Trades +${Math.floor(pb / 2)}`] : []),
+    ...(alertBonus ? [`Alert +${alertBonus}`] : []), ...(bonus('initiative') ? [`Bonuses ${fmt(bonus('initiative'))}`] : []), ...initAdj.notes];
   // Built-in hit point bonuses: Tough (feat), Dwarven Toughness (race), Draconic Resilience (sorcerer levels).
   const tough = has(/^toughness\||, toughness|^toughness$/) ? null : plainFeature(features.filter((f) => f.source === 'Feat'), /^tough$/);
   const dwarven = plainFeature(features, /^dwarven toughness$/);
@@ -518,20 +527,25 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
   const ownSlots: number[][] = [];
   for (const { ce, cv, level: lv, active, names } of classes) {
     const ability = classSpellAbility(ce) ?? cv.spellAbility ?? guessSpellAbility(active);
+    const settings = castingSettings(ce);
     let row = classSlotRow(cv, lv, names);
     if (!row && !cv.slots.length) { const stored = classSlots(ce); if (stored.some((v) => v > 0)) row = stored; }
-    if (!row || !row.some((v) => v > 0)) continue;
-    const kind = !cv.slots.some((r) => r.values.slice(1).some((v) => v > 0)) && thirdCasterRow(lv, names) ? 'third' : cv.slots.length ? casterKind(cv, names) : 'full';
+    // A class the player marked as a spellcaster shows up even without slots (e.g. homebrew or racial casting).
+    if ((!row || !row.some((v) => v > 0)) && (settings.enabled || settings.cantripsMax)) row = Array(10).fill(0);
+    if (!row || !(row.some((v) => v > 0) || settings.enabled || settings.cantripsMax)) continue;
+    if (settings.cantripsMax !== null) row = [settings.cantripsMax, ...row.slice(1)];
+    const kind: CasterKind = !row.slice(1).some((v) => v > 0) ? 'none' : !cv.slots.some((r) => r.values.slice(1).some((v) => v > 0)) && thirdCasterRow(lv, names) ? 'third' : cv.slots.length ? casterKind(cv, names) : 'full';
     const slots = [0, ...Array.from({ length: 9 }, (_, i) => row![i + 1] ?? 0)];
     const ab = ability ?? 'intelligence';
     if (!ability) warnings.push(`${cv.name}: spellcasting ability unknown, assuming Intelligence`);
     spellcasting.push({
       className: cv.name, ability: ab, kind, cantrips: row[0] ?? 0, slots,
-      dc: 8 + pb + mods[ab] + bonus('spell dc'),
-      attack: pb + mods[ab] + bonus('spell attack'),
+      dc: 8 + pb + mods[ab] + bonus('spell dc') + settings.dcBonus,
+      attack: pb + mods[ab] + bonus('spell attack') + settings.attackBonus,
       limit: spellLimit({ ce, className: cv.name, level: lv, features: cv.features, activeNames: names, mods, casterKind: kind, ability: ab }),
       el: ce,
     });
+    if (kind === 'none') continue;
     if (kind === 'pact') {
       const lvl = slots.findIndex((v, i) => i > 0 && v > 0);
       if (lvl > 0) pact = { level: lvl, count: slots[lvl] };
@@ -637,7 +651,7 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
   for (const o of optionLimits(optionNames, classInfo)) if (o.have > o.max) overLimits.push(`${o.title} ${o.have} / ${o.max}`);
 
   return {
-    level, prof: pb, scores, naturalScores: natural, mods, saves, skills, ac, acNotes, initiative, speed, speeds, hover: movement.hover, speedNotes, movement,
+    level, prof: pb, scores, naturalScores: natural, mods, saves, skills, ac, acNotes, initiative, initiativeNotes, speed, speeds, hover: movement.hover, speedNotes, movement,
     overLimits,
     passivePerception: 10 + skill('Perception') + bonus('passive perception') + obs,
     passiveInvestigation: 10 + skill('Investigation') + bonus('passive investigation') + obs,

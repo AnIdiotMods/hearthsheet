@@ -2,7 +2,10 @@
 // Applied as attributes and CSS variables on <html>; stored per computer.
 
 export type ThemeMode = 'system' | 'light' | 'dark';
-export type FontChoice = 'default' | 'dyslexic';
+/** "default", "dyslexic", or "custom:<id>" for a font the user imported. */
+export type FontChoice = 'default' | 'dyslexic' | `custom:${string}`;
+/** CSS font family name an imported font is registered under. */
+export const customFontFamily = (id: string) => `HearthsheetUserFont-${id}`;
 
 export interface Theme {
   mode: ThemeMode;
@@ -57,7 +60,13 @@ export function applyTheme(t: Theme) {
   const root = document.documentElement;
   const mode = effectiveMode(t.mode);
   if (t.mode === 'system') delete root.dataset.theme; else root.dataset.theme = t.mode;
-  root.dataset.font = t.font;
+  if (t.font.startsWith('custom:')) {
+    root.dataset.font = 'custom';
+    root.style.setProperty('--custom-font', `"${customFontFamily(t.font.slice(7))}"`);
+  } else {
+    root.dataset.font = t.font;
+    root.style.removeProperty('--custom-font');
+  }
   const set = (k: string, v: string | null) => (v ? root.style.setProperty(k, v) : root.style.removeProperty(k));
   set('--accent', t.accent);
   set('--accent-ink', t.accent ? readableOn(t.accent) : null);

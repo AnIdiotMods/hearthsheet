@@ -301,3 +301,32 @@ tr.too-high-row td { background: color-mix(in srgb, var(--danger) 6%, transparen
 .choice-group { margin: 4px 0 8px; padding-left: 10px; border-left: 2px solid var(--accent-soft); }
 .choice-group p { margin: 4px 0; }
 .sheet-head .title .tag.too-high { vertical-align: middle; }
+
+/* A font the user imported (Settings → Appearance → Font). */
+:root[data-font="custom"] body, :root[data-font="custom"] button, :root[data-font="custom"] input,
+:root[data-font="custom"] select, :root[data-font="custom"] textarea {
+  font-family: var(--custom-font), "Segoe UI", system-ui, sans-serif;
+}
+
+/* Creator */
+.creator-kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin: 12px 0 16px; }
+.creator-kind { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; padding: 12px; min-height: 84px; }
+.creator-kind b { color: var(--accent); }
+.homebrew-group h4 { margin: 10px 0 4px; }
+.homebrew-list { list-style: none; padding: 0; margin: 0; }
+.homebrew-list li { display: flex; justify-content: space-between; align-items: center; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+.start-options { display: flex; flex-direction: column; gap: 8px; }
+.start-option { display: flex; gap: 8px; align-items: flex-start; padding: 8px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.start-option:hover { border-color: var(--accent); }
+.entry-editor .small-tabs { margin-bottom: 10px; }
+.kind-form .field.wide, .kind-form .wide { grid-column: 1 / -1; display: flex; flex-direction: column; margin-top: 8px; }
+.kind-form textarea, .block-item textarea { width: 100%; box-sizing: border-box; }
+.field-check { align-self: end; padding-bottom: 6px; }
+.block-list { margin-top: 12px; }
+.block-list h4 { margin: 6px 0; }
+.block-item { border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin-bottom: 8px; }
+.block-item .row input:not([type=checkbox]):not(.qty) { flex: 1; }
+.level-row { border-bottom: 1px solid var(--line); padding: 4px 0; }
+.level-row > summary { padding: 4px 0; }
+textarea.xml-edit { width: 100%; box-sizing: border-box; font-family: Consolas, ui-monospace, monospace; font-size: 12px; }
+.font-choice { gap: 2px; }

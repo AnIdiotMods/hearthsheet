@@ -2,7 +2,7 @@ import { useMemo, useReducer, useRef, useState } from 'react';
 import { ABBR, ABILITIES, Ability, ClassFeature, featView, isPlaceholderFeature, itemView, spellView } from '../model/compendium';
 import {
   AppState, COIN_KINDS, Character, CharacterRecord, CoinKind, emptyAppState, classLevel, classSpells, coinKind,
-  containerCarried, customItem, hdCurrent, isAttuned, isEquipped, isPrepared, itemQuantity, setAttuned,
+  containerCarried, hdCurrent, isAttuned, isEquipped, isPrepared, itemQuantity, setAttuned,
   setEquipped, setHdCurrent, setItemQuantity, setPrepared,
 } from '../model/character';
 import { hpMaxOf, setHpCurrent, setHpTemp } from '../model/creature';
@@ -12,7 +12,7 @@ import { Movement, OTHER_SPEEDS, OtherSpeed, setMovement } from '../model/moveme
 import { applyLevelUp, defaultSubclassPicks, levelOptions, removeLevel, subclassFeaturesAt, syncClassSlots, XP_TABLE } from '../rules/level';
 import { cryptoRng, resolveFormula } from '../rules/dice';
 import { OptionItem, grantsExpertise, optionGroups } from '../rules/options';
-import { baseClassName, setCustomLimit } from '../rules/spellcount';
+import { baseClassName } from '../rules/spellcount';
 import { setSkillSetting } from '../model/custom';
 import { XElement, childText, childTexts, elements, setChildText } from '../xml/xml';
 import { EntryDetail } from './CompendiumView';
@@ -25,6 +25,9 @@ import {
   optionContext, subclassOptionLabel,
 } from './Options';
 import { Field, Modal, Mutate, NumberInput, RollChip, TooHighTag, confirmOverLimit, signed, useApp } from './common';
+import { CreateFlow } from './Creator';
+import { AdjustedStat, adjustmentOf, setAdjustment } from '../model/adjustments';
+import { castingSettings, setCastingSettings } from '../model/casting';
 
 
 type Tab = 'main' | 'spells' | 'inventory' | 'features' | 'creatures' | 'notes' | 'xml';
@@ -39,6 +42,8 @@ export function Sheet({ record, onSave, onBack, onExport }: {
   const [tab, setTab] = useState<Tab>('main');
   const [levelUp, setLevelUp] = useState(false);
   const [speedEdit, setSpeedEdit] = useState(false);
+  const [adjust, setAdjust] = useState<AdjustedStat | null>(null);
+  const [xmlEdit, setXmlEdit] = useState<string | null>(null);
   const s = deriveSheet(c, app.current, options);
 
   const mutate: Mutate = (fn) => {
@@ -51,6 +56,26 @@ export function Sheet({ record, onSave, onBack, onExport }: {
     app.current = { ...app.current };
     onSave({ ...record, xml: c.serialize(), app: app.current, updatedAt: Date.now() });
     bump();
+  };
+
+  /** Replace the whole character with edited XML, after checking it parses. */
+  const applyXml = (xml: string) => {
+    let parsed: Character;
+    try {
+      const res = Character.parseAll(xml);
+      if (!res.characters.length) throw new Error('No <character> element found.');
+      if (res.warnings.length && !confirm(`The XML has problems that were repaired:\n${res.warnings.slice(0, 8).join('\n')}\n\nApply anyway?`)) return;
+      parsed = res.characters[0];
+    } catch (e) {
+      alert(`These changes cannot be applied: ${(e as Error).message}`);
+      return;
+    }
+    if (!confirm('Are you sure? This replaces the character with the edited XML.')) return;
+    c.doc = parsed.doc;
+    c.ch = parsed.ch;
+    setXmlEdit(null);
+    mutate(() => {});
+    toast('XML applied');
   };
 
   const rollF = (formula: string, label?: string) => roll(resolveFormula(formula, s.formula), label);
@@ -105,9 +130,16 @@ export function Sheet({ record, onSave, onBack, onExport }: {
       </header>
 
       <div className="vitals">
-        <Stat label="Armor Class" value={s.ac} title={s.acNotes.join('\n')} />
+        <button className="stat stat-button" onClick={() => setAdjust('ac')} title={[...s.acNotes, 'Click to edit'].join('\n')}>
+          <span className="label">Armor Class</span><span className="value">{s.ac}</span>
+          {adjustmentOf(c.ch, 'ac').set !== null || adjustmentOf(c.ch, 'ac').bonus ? <span className="small muted">edited</span> : null}
+        </button>
         <HitPoints c={c} app={app.current} max={s.hpMax} mutate={mutate} />
-        <Stat label="Initiative" value={<RollChip expr={`1d20${signed(s.initiative)}`} label="Initiative">{signed(s.initiative)}</RollChip>} />
+        <div className="stat" title={s.initiativeNotes.join('\n')}>
+          <span className="label">Initiative</span>
+          <span className="value"><RollChip expr={`1d20${signed(s.initiative)}`} label="Initiative">{signed(s.initiative)}</RollChip></span>
+          <button className="link small" onClick={() => setAdjust('initiative')}>edit</button>
+        </div>
         <button className="stat stat-button" onClick={() => setSpeedEdit(true)} title={[...s.speedNotes, 'Click to edit movement'].join('\n')}>
           <span className="label">Speed</span>
           <span className="value">{s.speed} ft</span>
@@ -142,13 +174,26 @@ export function Sheet({ record, onSave, onBack, onExport }: {
       {tab === 'notes' && <NotesTab c={c} mutate={mutate} />}
       {tab === 'xml' && (
         <section className="panel">
-          <p className="muted small">The character file exactly as it will be exported. Elements this app does not recognise are kept as they are.</p>
-          <pre className="xml">{c.serialize()}</pre>
+          <div className="row between">
+            <p className="muted small">The character file exactly as it will be exported. Elements this app does not recognise are kept as they are.</p>
+            {xmlEdit === null
+              ? <button onClick={() => {
+                if (confirm('Are you sure you want to edit the XML directly?\n\nA mistake here can break the character or lose information. Consider exporting a backup first. Changes only take effect when you click “Apply changes”.')) setXmlEdit(c.serialize());
+              }}>Edit XML…</button>
+              : <span className="row">
+                <button onClick={() => setXmlEdit(null)}>Cancel</button>
+                <button className="primary" onClick={() => applyXml(xmlEdit)}>Apply changes</button>
+              </span>}
+          </div>
+          {xmlEdit === null
+            ? <pre className="xml">{c.serialize()}</pre>
+            : <textarea className="xml-edit" rows={30} spellCheck={false} value={xmlEdit} onChange={(e) => setXmlEdit(e.target.value)} aria-label="Character XML" />}
         </section>
       )}
 
       {levelUp && <LevelUpModal c={c} onClose={() => setLevelUp(false)} mutate={mutate} />}
       {speedEdit && <SpeedEditor c={c} sheet={s} onClose={() => setSpeedEdit(false)} mutate={mutate} />}
+      {adjust && <AdjustEditor c={c} sheet={s} stat={adjust} onClose={() => setAdjust(null)} mutate={mutate} />}
     </div>
   );
 }
@@ -184,6 +229,81 @@ function SpeedEditor({ c, sheet, onClose, mutate }: { c: Character; sheet: Sheet
       <p className="muted small">Feature, feat and item bonuses (e.g. Mobile, Unarmored Movement, boots) still apply on top. Stored in the character file under a &lt;movement&gt; element, which other apps ignore.</p>
       <footer className="modal-actions">
         <button onClick={() => mutate((ch) => setMovement(ch.ch, { walk: null, bonus: 0, other: { fly: null, swim: null, climb: null, burrow: null }, hover: false }, (e) => { ch.insert(e); }))}>Reset</button>
+        <span className="spacer" />
+        <button className="primary" onClick={onClose}>Done</button>
+      </footer>
+    </Modal>
+  );
+}
+
+/** Spellcasting ability, bonuses and limits for one class. */
+function SpellcastingEditor({ ce, sheet, onClose, mutate }: { ce: XElement; sheet: SheetData; onClose: () => void; mutate: Mutate }) {
+  const cur = castingSettings(ce);
+  const sc = sheet.spellcasting.find((x) => x.el === ce);
+  const save = (patch: Partial<typeof cur>) => mutate(() => setCastingSettings(ce, { ...cur, ...patch }));
+  const num = (v: string) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : null; };
+  const name = childText(ce, 'name');
+  return (
+    <Modal title={`${name} spellcasting`} onClose={onClose}>
+      <div className="grid2">
+        <Field label="Spellcasting ability">
+          <select value={cur.ability ?? ''} onChange={(e) => save({ ability: (e.target.value || null) as Ability | null })} aria-label="Spellcasting ability">
+            <option value="">(class default)</option>
+            {ABILITIES.map((a) => <option key={a} value={a}>{a[0].toUpperCase() + a.slice(1)} ({signed(sheet.mods[a])})</option>)}
+          </select>
+        </Field>
+        <Field label="Bonus to spell save DC">
+          <input type="number" value={cur.dcBonus || ''} placeholder="0" onChange={(e) => save({ dcBonus: num(e.target.value) ?? 0 })} aria-label="Spell save DC bonus" />
+        </Field>
+        <Field label="Bonus to spell attacks">
+          <input type="number" value={cur.attackBonus || ''} placeholder="0" onChange={(e) => save({ attackBonus: num(e.target.value) ?? 0 })} aria-label="Spell attack bonus" />
+        </Field>
+        <Field label={`Spells ${sc?.limit.mode === 'prepared' ? 'prepared' : 'known'} (empty: ${sc && sc.limit.max !== null && sc.limit.source !== 'custom' ? `rules say ${sc.limit.max}` : 'class rule'})`}>
+          <input type="number" min={0} value={cur.spellsMax ?? ''} placeholder={sc && sc.limit.source !== 'custom' && sc.limit.max !== null ? String(sc.limit.max) : ''}
+            onChange={(e) => save({ spellsMax: num(e.target.value) })} aria-label="Spells known or prepared" />
+        </Field>
+        <Field label="Cantrips known (empty: class table)">
+          <input type="number" min={0} value={cur.cantripsMax ?? ''} placeholder={sc && cur.cantripsMax === null ? String(sc.cantrips) : ''}
+            onChange={(e) => save({ cantripsMax: num(e.target.value) })} aria-label="Cantrips known" />
+        </Field>
+        <label className="check"><input type="checkbox" checked={cur.enabled} onChange={(e) => save({ enabled: e.target.checked })} /> Show as a spellcaster even without spell slots</label>
+      </div>
+      {sc
+        ? <p>Now: <b>{ABBR[sc.ability]}</b> · save DC <b>{sc.dc}</b> · spell attack <b>{signed(sc.attack)}</b> · {sc.limit.mode === 'prepared' ? 'prepared' : 'known'} <b>{sc.limit.count}{sc.limit.max !== null ? ` / ${sc.limit.max}` : ''}</b> · cantrips <b>{sc.limit.cantrips} / {sc.cantrips}</b></p>
+        : <p className="muted">{name} has no spell slots, so it is not shown as a spellcaster. Tick the box above, or set cantrips known, to show it.</p>}
+      <p className="muted small">Stored on the class in the character file. The ability uses the standard field; the bonuses and limits are Hearthsheet additions that other apps ignore.</p>
+      <footer className="modal-actions">
+        <button onClick={() => mutate(() => setCastingSettings(ce, { ability: cur.ability, dcBonus: 0, attackBonus: 0, spellsMax: null, cantripsMax: null, enabled: false }))}>Reset bonuses and limits</button>
+        <span className="spacer" />
+        <button className="primary" onClick={onClose}>Done</button>
+      </footer>
+    </Modal>
+  );
+}
+
+/** Set Armor Class or Initiative by hand, or add a bonus to the calculated value. */
+function AdjustEditor({ c, sheet, stat, onClose, mutate }: { c: Character; sheet: SheetData; stat: AdjustedStat; onClose: () => void; mutate: Mutate }) {
+  const adj = adjustmentOf(c.ch, stat);
+  const label = stat === 'ac' ? 'Armor Class' : 'Initiative';
+  const save = (patch: Partial<typeof adj>) => mutate((ch) => setAdjustment(ch.ch, stat, { ...adj, ...patch }, (e) => { ch.insert(e); }));
+  const num = (v: string) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : null; };
+  const value = stat === 'ac' ? sheet.ac : sheet.initiative;
+  const notes = stat === 'ac' ? sheet.acNotes : sheet.initiativeNotes;
+  return (
+    <Modal title={label} onClose={onClose}>
+      <div className="grid2">
+        <Field label={`Set ${label} to (empty: calculated)`}>
+          <input type="number" value={adj.set ?? ''} placeholder="calculated" onChange={(e) => save({ set: num(e.target.value) })} aria-label={`Set ${label}`} />
+        </Field>
+        <Field label="Extra bonus (+ or −)">
+          <input type="number" value={adj.bonus || ''} placeholder="0" onChange={(e) => save({ bonus: num(e.target.value) ?? 0 })} aria-label={`${label} bonus`} />
+        </Field>
+      </div>
+      <p>{label} now: <b>{stat === 'ac' ? value : signed(value)}</b></p>
+      <ul className="small muted">{notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
+      <p className="muted small">Stored in the character file under an &lt;adjustments&gt; element, which other apps ignore.</p>
+      <footer className="modal-actions">
+        <button onClick={() => mutate((ch) => setAdjustment(ch.ch, stat, { set: null, bonus: 0 }, (e) => { ch.insert(e); }))}>Use the calculated value</button>
         <span className="spacer" />
         <button className="primary" onClick={onClose}>Done</button>
       </footer>
@@ -230,6 +350,8 @@ function HitPoints({ c, app, max, mutate }: { c: Character; app: AppState; max: 
 
 function SpellsTab({ c, app, sheet, mutate, rollF }: { c: Character; app: AppState; sheet: SheetData; mutate: Mutate; rollF: (f: string, l?: string) => unknown }) {
   const [adding, setAdding] = useState<XElement | null>(null);
+  const [creating, setCreating] = useState<XElement | null>(null);
+  const [castingEdit, setCastingEdit] = useState<XElement | null>(null);
   const [open, setOpen] = useState<XElement | null>(null);
   const groups = c.classes.map((ce) => ({
     ce, name: childText(ce, 'name'),
@@ -290,13 +412,7 @@ function SpellsTab({ c, app, sheet, mutate, rollF }: { c: Character; app: AppSta
               {sc.cantrips > 0 && <Count label="Cantrips" have={sc.limit.cantrips} max={sc.cantrips} title="Cantrips known, from the class table" />}
               <Count label={sc.limit.mode === 'prepared' || sc.limit.edition === '2024' ? 'Prepared' : 'Spells known'} have={sc.limit.count} max={sc.limit.max}
                 title={sc.limit.max === null ? 'No limit found for this class. Click edit to set one.' : `Limit: ${sc.limit.basis}`} />
-              <button className="link small" title="Set your own limit, or clear it to use the class's"
-                onClick={() => {
-                  const v = prompt(`How many spells can ${sc.className} have ${sc.limit.mode === 'prepared' ? 'prepared' : 'known'}? Leave empty to use ${sc.limit.source === 'custom' ? 'the class rule' : 'the current rule'}.`, sc.limit.source === 'custom' ? String(sc.limit.max) : '');
-                  if (v === null) return;
-                  const n = parseInt(v, 10);
-                  mutate(() => setCustomLimit(sc.el, v.trim() === '' || !Number.isFinite(n) ? null : n));
-                }}>edit</button>
+              <button className="link small" title="Spellcasting ability, bonuses, and how many spells and cantrips" onClick={() => setCastingEdit(sc.el)}>edit</button>
             </div>
           ))}
         </div>
@@ -322,8 +438,14 @@ function SpellsTab({ c, app, sheet, mutate, rollF }: { c: Character; app: AppSta
             )}
           </div>
         )}
-        <div className="row">
-          {c.classes.map((ce) => <button key={childText(ce, 'name')} onClick={() => setAdding(ce)}>Add {childText(ce, 'name')} spells…</button>)}
+        <div className="row wrap">
+          {c.classes.map((ce) => (
+            <span key={childText(ce, 'name')} className="row">
+              <button onClick={() => setAdding(ce)}>Add {childText(ce, 'name')} spells…</button>
+              <button onClick={() => setCreating(ce)} title="Make your own spell (it is also kept in My homebrew)">Create custom spell…</button>
+              {!sheet.spellcasting.some((sc) => sc.el === ce) && <button className="link small" onClick={() => setCastingEdit(ce)}>{childText(ce, 'name')} spellcasting settings…</button>}
+            </span>
+          ))}
         </div>
       </section>
       {groups.filter((g) => g.spells.length).map((g) => (
@@ -352,6 +474,11 @@ function SpellsTab({ c, app, sheet, mutate, rollF }: { c: Character; app: AppSta
           <EntryDetail entry={{ kind: 'spell', name: childText(open, 'name'), el: open, fileId: '' }} />
         </Modal>
       )}
+      {creating && (
+        <CreateFlow kind="spell" addLabel={`Add to ${childText(creating, 'name')}`} onClose={() => setCreating(null)}
+          onCreated={(e) => { if (allowAdd(creating, e)) mutate((ch) => { ch.addSpell(creating, e); }); }} />
+      )}
+      {castingEdit && <SpellcastingEditor ce={castingEdit} sheet={sheet} onClose={() => setCastingEdit(null)} mutate={mutate} />}
       {adding && (
         <Picker kind="spell" onClose={() => setAdding(null)}
           filterHint={[childText(adding, 'name')]} subclasses={sheet.classes.find((k) => k.el === adding)?.subclasses ?? []}
@@ -411,6 +538,7 @@ const ordinal = (n: number) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 
 
 function InventoryTab({ c, sheet, mutate, rollF }: { c: Character; sheet: SheetData; mutate: Mutate; rollF: (f: string, l?: string) => unknown }) {
   const [adding, setAdding] = useState(false);
+  const [creatingItem, setCreatingItem] = useState(false);
   const [open, setOpen] = useState<XElement | null>(null);
   const items = c.items.filter((el) => !coinKind(el)).map((el) => ({ el, v: itemView(el), qty: itemQuantity(el), eq: isEquipped(el), att: isAttuned(el) }));
   return (
@@ -451,7 +579,7 @@ function InventoryTab({ c, sheet, mutate, rollF }: { c: Character; sheet: SheetD
         </table>
         <div className="row">
           <button onClick={() => setAdding(true)}>Add items…</button>
-          <button onClick={() => { const name = prompt('Custom item name'); if (name) mutate((ch) => { ch.insert(customItem(name)); }); }}>Custom item…</button>
+          <button onClick={() => setCreatingItem(true)} title="Make your own item (it is also kept in My homebrew)">Create custom item…</button>
         </div>
       </section>
       {c.containers.map((ct, i) => (
@@ -466,6 +594,10 @@ function InventoryTab({ c, sheet, mutate, rollF }: { c: Character; sheet: SheetD
         </section>
       ))}
       {open && <ItemEditor el={open} onClose={() => setOpen(null)} mutate={mutate} />}
+      {creatingItem && (
+        <CreateFlow kind="item" addLabel="Add to inventory" onClose={() => setCreatingItem(false)}
+          onCreated={(e) => mutate((ch) => { ch.addItem(e); })} />
+      )}
       {adding && (
         <Picker kind="item" onClose={() => setAdding(false)} has={() => false}
           onPick={(e) => mutate((ch) => { ch.addItem(e.el); })} />

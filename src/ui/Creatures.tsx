@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react';
 import { ABBR, ABILITIES, SIZES } from '../model/compendium';
 import { Character } from '../model/character';
 import {
-  ABILITY_TAGS, BLOCK_LABEL, BLOCK_TAGS, BlockTag, CREATURE_ROLES, addBlockEntry, blankCreature, blockEntries,
+  ABILITY_TAGS, BLOCK_LABEL, BLOCK_TAGS, BlockTag, CREATURE_ROLES, addBlockEntry, blockEntries,
   creatureFromMonster, creatureNotes, creatureRole, damageCreature, healCreature, hitDiceOf, hpCurrentOf, hpMaxOf,
   hpTempOf, parseBonusList, setField, setHp, setHpCurrent, setHpTemp, sumExpression, updateBlockEntry,
 } from '../model/creature';
@@ -11,9 +11,11 @@ import { isRollable, resolveFormula } from '../rules/dice';
 import { XElement, childText, cloneEl, removeChild } from '../xml/xml';
 import { Field, Modal, Mutate, NumberInput, RichText, RollChip, signed } from './common';
 import { Picker } from './Picker';
+import { CreateFlow } from './Creator';
 
 export function CreaturesTab({ c, sheet, mutate }: { c: Character; sheet: SheetData; mutate: Mutate }) {
   const [picking, setPicking] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<XElement | null>(null);
   const [collapsed, setCollapsed] = useState<Set<XElement>>(new Set());
   const toggle = (e: XElement) => { const n = new Set(collapsed); if (n.has(e)) n.delete(e); else n.add(e); setCollapsed(n); };
@@ -25,10 +27,7 @@ export function CreaturesTab({ c, sheet, mutate }: { c: Character; sheet: SheetD
           <p className="muted small">Pets, familiars, summons, mounts, hirelings and wild shapes. Start from a compendium creature or a blank stat block, then edit anything.</p>
           <div className="row">
             <button onClick={() => setPicking(true)}>Add from compendium…</button>
-            <button onClick={() => {
-              const name = prompt('Creature name');
-              if (name?.trim()) mutate((ch) => { setEditing(ch.addCreature(blankCreature(name.trim()))); });
-            }}>Add blank creature…</button>
+            <button onClick={() => setCreating(true)} title="Make your own creature from a preset, from scratch or from a copy">Create custom creature…</button>
           </div>
         </div>
         {c.creatures.length === 0 && <p className="muted">No creatures yet.</p>}
@@ -48,6 +47,10 @@ export function CreaturesTab({ c, sheet, mutate }: { c: Character; sheet: SheetD
       {picking && (
         <Picker kind="monster" onClose={() => setPicking(false)} has={() => false}
           onPick={(e) => mutate((ch) => { ch.addCreature(creatureFromMonster(e.el, 'Pet')); })} />
+      )}
+      {creating && (
+        <CreateFlow kind="monster" addLabel="Add to this character" onClose={() => setCreating(false)}
+          onCreated={(e) => mutate((ch) => { ch.addCreature(creatureFromMonster(e, 'Pet')); })} />
       )}
       {editing && <CreatureEditor cr={editing} mutate={mutate} onClose={() => setEditing(null)} />}
     </div>

@@ -5,7 +5,7 @@ import type { CompendiumFile } from '../model/compendium';
 import { CharacterRecord, emptyAppState } from '../model/character';
 
 const DB_NAME = 'hearthsheet';
-const VERSION = 1;
+const VERSION = 2;
 
 let dbp: Promise<IDBDatabase> | null = null;
 function open(): Promise<IDBDatabase> {
@@ -16,6 +16,7 @@ function open(): Promise<IDBDatabase> {
         const db = req.result;
         if (!db.objectStoreNames.contains('files')) db.createObjectStore('files', { keyPath: 'id' });
         if (!db.objectStoreNames.contains('characters')) db.createObjectStore('characters', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('fonts')) db.createObjectStore('fonts', { keyPath: 'id' });
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
@@ -48,6 +49,15 @@ export async function listCharacters(): Promise<CharacterRecord[]> {
   const all = await tx<CharacterRecord[]>('characters', 'readonly', (s) => s.getAll());
   return all.map((r) => ({ ...r, app: { ...emptyAppState(), ...r.app } })).sort((a, b) => b.updatedAt - a.updatedAt);
 }
+/** A font file the user imported (TTF, OTF, WOFF or WOFF2). */
+export interface StoredFont { id: string; name: string; fileName: string; data: ArrayBuffer; addedAt: number }
+export async function listFonts(): Promise<StoredFont[]> {
+  const all = await tx<StoredFont[]>('fonts', 'readonly', (s) => s.getAll());
+  return all.sort((a, b) => a.addedAt - b.addedAt);
+}
+export const putFont = (f: StoredFont) => tx('fonts', 'readwrite', (s) => s.put(f));
+export const deleteFont = (id: string) => tx('fonts', 'readwrite', (s) => s.delete(id));
+
 export const putCharacter = (r: CharacterRecord) => tx('characters', 'readwrite', (s) => s.put(r));
 export const deleteCharacter = (id: string) => tx('characters', 'readwrite', (s) => s.delete(id));
 
@@ -72,6 +82,20 @@ export async function readFiles(accept: string, multiple = true): Promise<{ name
     input.onchange = async () => {
       const files = [...(input.files ?? [])];
       resolve(await Promise.all(files.map(async (f) => ({ name: f.name, text: await f.text() }))));
+    };
+    input.click();
+  });
+}
+
+export async function readBinaryFiles(accept: string, multiple = true): Promise<{ name: string; data: ArrayBuffer }[]> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    input.multiple = multiple;
+    input.onchange = async () => {
+      const files = [...(input.files ?? [])];
+      resolve(await Promise.all(files.map(async (f) => ({ name: f.name, data: await f.arrayBuffer() }))));
     };
     input.click();
   });

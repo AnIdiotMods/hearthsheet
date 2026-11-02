@@ -8,8 +8,8 @@ attribution in the app's Settings → About and in the sample file).
 
 ## Run it
 
-- **Windows:** run `release/Hearthsheet 0.2.0.exe` (portable, no install), or unzip
-  `release/Hearthsheet-0.2.0-win.zip` and run `Hearthsheet.exe`. The build is unsigned, so
+- **Windows:** run `release/Hearthsheet 0.3.0.exe` (portable, no install), or unzip
+  `release/Hearthsheet-0.3.0-win.zip` and run `Hearthsheet.exe`. The build is unsigned, so
   Windows SmartScreen will warn on first launch ("More info" → "Run anyway").
 - **From source:** `npm install`, then `npm run build && npm run electron`. `npm run dev` runs it
   in a browser. `npm run dist:win` rebuilds the Windows packages (works from Linux too).
@@ -17,7 +17,7 @@ attribution in the app's Settings → About and in the sample file).
 
 Data is stored locally (IndexedDB in the app profile). Export characters and compendiums to back them up.
 
-## Features (v0.2)
+## Features (v0.3)
 
 - **Compendium:** import any number of XML files, enable or disable each file, browse and search
   races, classes, backgrounds, feats, spells, items and monsters, and export the merged library.
@@ -75,10 +75,23 @@ Data is stored locally (IndexedDB in the app profile). Export characters and com
   speeds (or “same as walking”), plus hover.
 - **Spells:** the picker shows spell levels and, by default, only levels you can cast; cantrip damage
   shows the die for your level; the wizard's list is labelled as a spellbook.
-- **Content filter:** Settings → “Official content only” hides playtest, Plane Shift, social-media,
-  third-party and homebrew entries; unofficial options and subclasses are tagged. Two different entries
+- **Sources:** unofficial options, subclasses, races and picker entries (playtest, Plane Shift,
+  social-media, third-party, homebrew) are tagged. Two different entries
   with the same name in one file (e.g. a race printed in two books) are both kept, the second named
   after its source. Two printings of one subclass merged into a class become “Subclass (version 2)”.
+- **Creator:** make classes, subclasses, races, spells, feats, backgrounds, items and creatures. Start
+  from a preset framework (e.g. martial class, full or half caster, damage cantrip, healing spell,
+  magic item, beast companion), from scratch, or from a copy of an existing entry; edit with a form,
+  check the preview, or edit the XML directly. Everything is saved in the compendium file “My
+  homebrew”, so it appears in character creation, level-ups and every picker, and can be exported.
+  Subclasses can be made for your own classes or for any class in your compendiums.
+- **Custom content on the sheet:** create a custom spell, item or creature straight from the Spells,
+  Inventory and Creatures tabs (optionally also kept in My homebrew).
+- **Hand edits:** spellcasting ability, save DC and attack bonuses, spells known or prepared, and cantrips
+  known per class (any class can also be marked as a spellcaster); Armor Class and Initiative can be set
+  by hand or given a bonus; the character's XML can be edited directly (with a warning first, and checked
+  before it is applied).
+- **Fonts:** import your own fonts (TTF, OTF, WOFF, WOFF2) in Settings → Appearance.
 - **Dice:** `2d6+3`, `1d20+5 adv`, `4d6kh3`, `d%`; every number on the sheet can be clicked to
   roll, and compendium formulas with placeholders (`%0`, `SPELL`, `PROF`, …) are resolved.
 
@@ -163,6 +176,9 @@ the iOS app (character `<version>38</version>`). The relevant facts, all verifie
   carry over normally.
 - Custom ability scores, custom skills and per-skill settings are stored as `<customAbility>`,
   `<customSkill>` and `<skillSetting>` elements, with the same caveat.
+- Hand edits are stored as `<adjustments>` (Armor Class, Initiative) and, on a class, `<spellDcBonus>`,
+  `<spellAttackBonus>`, `<preparedMax>`, `<cantripsMax>` and `<customCasting>`; the spellcasting ability
+  uses the standard `<spellAbility>` element.
 - Movement settings are stored as a `<movement>` element and always-prepared subclass spells carry
   `<grantedBy>`; a chosen dragon ancestor is written into the feature's text and a `<choice>` element.
   Same caveat.
