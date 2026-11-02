@@ -61,7 +61,7 @@ export interface CharacterRecord {
 }
 
 const TOP_ORDER = ['version', 'uid', 'name', 'race', 'class', 'background', 'feat', 'unarmed', 'money', 'slots',
-  'slotsCurrent', 'item', 'container', 'abilities', 'hpMax', 'hpCurrent', 'xp', 'note', 'companion'];
+  'slotsCurrent', 'item', 'container', 'abilities', 'hpMax', 'hpCurrent', 'xp', 'tracker', 'note', 'companion'];
 const CLASS_ORDER = ['id', 'name', 'level', 'hd', 'hdCurrent', 'wealth', 'proficiency', 'numClassSkills', 'armor',
   'weapons', 'tools', 'slots', 'slotsCurrent', 'feat', 'autolevel', 'spellAbility', 'spell'];
 
@@ -174,6 +174,8 @@ export class Character {
   get notes() { return elements(this.ch, 'note'); }
   /** Pets, familiars, summons and other creatures (a Hearthsheet extension, see creature.ts). */
   get creatures() { return elements(this.ch, 'companion'); }
+  /** Custom trackers (see tracker.ts). */
+  get trackers() { return elements(this.ch, 'tracker'); }
 
   get totalLevel() { return this.classes.reduce((s, c) => s + classLevel(c), 0); }
 

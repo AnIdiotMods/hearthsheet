@@ -212,3 +212,12 @@ pre.xml { font: 12px/1.4 Consolas, ui-monospace, monospace; white-space: pre-wra
 .block-edit { border-left: 3px solid var(--line); padding: 4px 0 8px 10px; margin-bottom: 8px; }
 .block-edit input.grow { flex: 1; min-width: 160px; }
 .block-edit input.narrow { width: 110px; }
+
+/* trackers */
+.tracker { padding: 6px 0; border-bottom: 1px solid var(--line); }
+.tracker:last-child { border-bottom: none; }
+.tracker-name { font-weight: 500; }
+input.tracker-value { width: 64px; text-align: center; }
+.pips { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+.pip { width: 16px; height: 16px; border-radius: 50%; padding: 0; border: 2px solid var(--accent); background: transparent; }
+.pip.on { background: var(--accent); }

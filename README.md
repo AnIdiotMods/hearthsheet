@@ -28,6 +28,9 @@ Data is stored locally (IndexedDB in the app profile). Export characters and com
   passives, attacks, conditions, exhaustion, death saves, short/long rests, class resources,
   spells with slots (including multiclass and pact slots), inventory with equip/attune/quantity/
   coins/weight/containers, custom items, notes, and a raw XML view.
+- **Trackers:** custom counters on the Abilities & Skills page (luck points, ki, arrows, charges, …)
+  with a maximum that can be a number or a formula (`PROF`, `1+CHA`, `LVL`, `2*PROF`) and that
+  refill on a short rest, a long rest, or only by hand.
 - **Class features:** add features from the class's own list (any level, any option), write your
   own with optional modifiers (e.g. `ac +1`, `speed +10`, `stealth +2`), edit any feature's name,
   text and modifiers, remove features, and restore missing ones. Feats can be added, edited and
@@ -103,6 +106,8 @@ the iOS app (character `<version>38</version>`). The relevant facts, all verifie
   extension; the official apps have no known equivalent and should ignore it, but may drop it if
   the character is re-saved there. Custom class features use the app's own `<feat>` shape and
   carry over normally.
+- Custom trackers are stored as `<tracker>` elements (`<name>`, `<max>`, `<value>`, `<reset>`), also a
+  Hearthsheet extension with the same caveat.
 
 To check any of these, export a character containing the feature in question and compare it with
 Hearthsheet's export of the same character; `tests/local/characters.test.ts` shows how such a file

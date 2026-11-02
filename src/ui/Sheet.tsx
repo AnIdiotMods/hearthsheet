@@ -6,6 +6,7 @@ import {
   setEquipped, setHdCurrent, setItemQuantity, setPrepared,
 } from '../model/character';
 import { hpMaxOf, setHpCurrent, setHpTemp } from '../model/creature';
+import { restTrackers } from '../model/tracker';
 import { Sheet as SheetData, deriveSheet, mod } from '../rules/derive';
 import { applyLevelUp, levelOptions, removeLevel, subclassFeaturesAt, syncClassSlots, XP_TABLE } from '../rules/level';
 import { cryptoRng, resolveFormula } from '../rules/dice';
@@ -14,6 +15,7 @@ import { EntryDetail } from './CompendiumView';
 import { CreaturesTab } from './Creatures';
 import { FeaturesTab } from './Features';
 import { Picker } from './Picker';
+import { TrackersPanel } from './Trackers';
 import { Field, Modal, Mutate, NumberInput, RollChip, signed, useApp } from './common';
 
 const CONDITIONS = ['Blinded', 'Charmed', 'Deafened', 'Frightened', 'Grappled', 'Incapacitated', 'Invisible',
@@ -51,6 +53,7 @@ export function Sheet({ record, onSave, onBack, onExport }: {
   const shortRest = () => mutate((_, a) => {
     for (const ct of s.counters) if (/^s/i.test(ct.reset)) delete a.countersUsed[ct.name];
     a.pactUsed = 0;
+    restTrackers(c.trackers, 'short');
     toast('Short rest: short-rest resources restored. Spend hit dice from the Hit Dice panel.');
   });
   const longRest = () => mutate((ch, a) => {
@@ -63,6 +66,7 @@ export function Sheet({ record, onSave, onBack, onExport }: {
     a.deathSaves = { success: 0, failure: 0 };
     a.exhaustion = Math.max(0, a.exhaustion - 1);
     for (const cr of ch.creatures) { setHpCurrent(cr, hpMaxOf(cr)); setHpTemp(cr, 0); }
+    restTrackers(ch.trackers, 'long');
     let regain = Math.max(1, Math.floor(s.level / 2));
     for (const ce of ch.classes) {
       const missing = classLevel(ce) - hdCurrent(ce);
@@ -193,6 +197,7 @@ export function Sheet({ record, onSave, onBack, onExport }: {
               {s.proficiencies.other.length > 0 && <><dt>Other</dt><dd>{s.proficiencies.other.join(', ')}</dd></>}
             </dl>
           </section>
+          <TrackersPanel c={c} sheet={s} mutate={mutate} />
           <section className="panel">
             <h3>Conditions</h3>
             <div className="checks">
