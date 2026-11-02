@@ -7,7 +7,7 @@ import {
 } from '../model/compendium';
 import {
   AppState, Character, chosenSubclasses, classFeats, classHitDie, classLevel, classSlots,
-  classSpellAbility, containerCarried, hdCurrent, isAttuned, isEquipped, itemQuantity,
+  classSpellAbility, containerCarried, hasEmbeddedProgression, hdCurrent, isAttuned, isEquipped, itemQuantity,
 } from '../model/character';
 import { XElement, childText, elements } from '../xml/xml';
 import { FormulaContext, resolveFormula } from './dice';
@@ -153,7 +153,7 @@ export function progressionOf(ce: XElement, opts: RulesOptions): CV {
 /** Active features of a class: its <feat> list, or (older files) the non-optional progression up to its level. */
 export function activeClassFeatures(ce: XElement, cv: CV): Trait[] {
   const feats = classFeats(ce);
-  if (feats.length) return feats;
+  if (feats.length || hasEmbeddedProgression(ce)) return feats;
   const level = classLevel(ce);
   return cv.features.filter((f) => !f.optional && f.level <= level).map((f) => ({
     name: f.name, text: f.text, modifiers: f.modifiers, special: f.special, proficiencies: f.proficiencies, rolls: f.rolls, el: f.el,

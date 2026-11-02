@@ -534,12 +534,13 @@ export function itemView(e: XElement) {
   };
 }
 
-export interface MonsterAttack { name: string; bonus: number | null; damage: string }
+export interface MonsterAttack { name: string; bonus: number | null; bonusRaw: string; damage: string }
 export const parseAttack = (s: string): MonsterAttack | null => {
   const parts = s.split('|');
   if (parts.length < 2) return null;
   const b = parts[1].trim();
-  return { name: parts[0].trim(), bonus: b === '' ? null : parseInt(b, 10), damage: (parts[2] ?? '').trim() };
+  const n = /^[+-]?\d+$/.test(b) ? parseInt(b, 10) : null;
+  return { name: parts[0].trim(), bonus: n, bonusRaw: b, damage: (parts[2] ?? '').trim() };
 };
 
 export function monsterView(e: XElement) {

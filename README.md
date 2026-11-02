@@ -28,6 +28,15 @@ Data is stored locally (IndexedDB in the app profile). Export characters and com
   passives, attacks, conditions, exhaustion, death saves, short/long rests, class resources,
   spells with slots (including multiclass and pact slots), inventory with equip/attune/quantity/
   coins/weight/containers, custom items, notes, and a raw XML view.
+- **Class features:** add features from the class's own list (any level, any option), write your
+  own with optional modifiers (e.g. `ac +1`, `speed +10`, `stealth +2`), edit any feature's name,
+  text and modifiers, remove features, and restore missing ones. Feats can be added, edited and
+  removed the same way.
+- **Creatures:** pets, familiars, summons, mounts, hirelings and wild shapes under the character.
+  Start from a compendium monster or a blank stat block; edit every field, traits, actions,
+  bonus actions, reactions and legendary actions; track hit points and temporary hit points; roll
+  checks, saves, attacks and damage. Attack formulas can use the owner's numbers (`SPELL+PROF`,
+  `1d8+3+SPELL`) for summons that scale. A long rest heals creatures.
 - **Dice:** `2d6+3`, `1d20+5 adv`, `4d6kh3`, `d%`; every number on the sheet can be clicked to
   roll, and compendium formulas with placeholders (`%0`, `SPELL`, `PROF`, …) are resolved.
 
@@ -89,6 +98,11 @@ the iOS app (character `<version>38</version>`). The relevant facts, all verifie
   non-ability modifiers, attunement) is written under its compendium element names, which other
   apps ignore.
 - Android exports, other character versions than 38, and Game Master 5e files have not been seen.
+- Creatures are stored as `<companion>` elements inside `<character>`, using the compendium
+  `<monster>` fields plus `<role>`, `<hpCurrent>`, `<hpTemp>` and `<notes>`. This is a Hearthsheet
+  extension; the official apps have no known equivalent and should ignore it, but may drop it if
+  the character is re-saved there. Custom class features use the app's own `<feat>` shape and
+  carry over normally.
 
 To check any of these, export a character containing the feature in question and compare it with
 Hearthsheet's export of the same character; `tests/local/characters.test.ts` shows how such a file

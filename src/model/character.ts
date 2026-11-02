@@ -61,7 +61,7 @@ export interface CharacterRecord {
 }
 
 const TOP_ORDER = ['version', 'uid', 'name', 'race', 'class', 'background', 'feat', 'unarmed', 'money', 'slots',
-  'slotsCurrent', 'item', 'container', 'abilities', 'hpMax', 'hpCurrent', 'xp'];
+  'slotsCurrent', 'item', 'container', 'abilities', 'hpMax', 'hpCurrent', 'xp', 'note', 'companion'];
 const CLASS_ORDER = ['id', 'name', 'level', 'hd', 'hdCurrent', 'wealth', 'proficiency', 'numClassSkills', 'armor',
   'weapons', 'tools', 'slots', 'slotsCurrent', 'feat', 'autolevel', 'spellAbility', 'spell'];
 
@@ -172,6 +172,8 @@ export class Character {
   get items() { return elements(this.ch, 'item'); }
   get containers() { return elements(this.ch, 'container'); }
   get notes() { return elements(this.ch, 'note'); }
+  /** Pets, familiars, summons and other creatures (a Hearthsheet extension, see creature.ts). */
+  get creatures() { return elements(this.ch, 'companion'); }
 
   get totalLevel() { return this.classes.reduce((s, c) => s + classLevel(c), 0); }
 
@@ -191,6 +193,7 @@ export class Character {
   addClass(src: XElement): XElement { return this.insert(classFromCompendium(src)); }
   addItem(src: XElement, quantity = 1): XElement { return this.insert(itemFromCompendium(src, quantity)); }
   addFeat(src: XElement): XElement { return this.insert(featFromCompendium(src)); }
+  addCreature(e: XElement): XElement { return this.insert(e); }
   addNote(name: string, text: string): XElement {
     const n = el('note');
     n.children.push(el('name', name), el('text', text));
@@ -444,6 +447,46 @@ export function addClassFeat(c: XElement, f: ClassFeature) {
 export function removeClassFeat(c: XElement, name: string) {
   for (const f of elements(c, 'feat')) if (childText(f, 'name') === name) removeChild(c, f);
 }
+
+/** A modifier as edited in the app: category plus "target +N" text. */
+export interface ModifierInput { category: string; text: string }
+
+/** Add a feature the user wrote, in the same compiled shape as the app's own features. */
+export function addCustomClassFeat(c: XElement, name: string, text: string, modifiers: ModifierInput[] = []): XElement {
+  const fe = el('feat');
+  fe.children.push(el('name', name), el('text', text));
+  for (const m of modifiers) if (m.text.trim()) fe.children.push(el('modifier', m.text.trim(), [['category', m.category]]));
+  fe.children.push(el('expanded', '0'));
+  return insertOrdered(c, fe, CLASS_ORDER);
+}
+
+/** Edit a feature in place; children this app does not edit (rolls, special markers, ...) are kept. */
+export function updateFeat(fe: XElement, patch: { name?: string; text?: string; modifiers?: ModifierInput[] }) {
+  if (patch.name !== undefined) setChildText(fe, 'name', patch.name);
+  if (patch.text !== undefined) {
+    const texts = elements(fe, 'text');
+    if (texts.length) {
+      texts[0].children = patch.text ? [{ type: 'text', value: patch.text }] : [];
+      for (const t of texts.slice(1)) removeChild(fe, t);
+    } else if (patch.text) {
+      const at = fe.children.findIndex((x) => x.type === 'el' && x.name === 'name');
+      fe.children.splice(at + 1, 0, el('text', patch.text));
+    }
+  }
+  if (patch.modifiers) {
+    const old = elements(fe, 'modifier');
+    const at = old.length ? fe.children.indexOf(old[0]) : fe.children.findIndex((x) => x.type === 'el' && x.name === 'expanded');
+    for (const m of old) removeChild(fe, m);
+    const fresh = patch.modifiers.filter((m) => m.text.trim()).map((m) => el('modifier', m.text.trim(), [['category', m.category]]));
+    fe.children.splice(at >= 0 ? Math.min(at, fe.children.length) : fe.children.length, 0, ...fresh);
+  }
+}
+
+export const featModifiers = (fe: XElement): ModifierInput[] =>
+  elements(fe, 'modifier').map((m) => ({ category: m.attrs.find(([k]) => k === 'category')?.[1] ?? 'bonus', text: textOf(m).trim() }));
+
+/** Does this class carry its own progression? Then its <feat> list is authoritative, even when empty. */
+export const hasEmbeddedProgression = (c: XElement) => elements(c, 'autolevel').length > 0;
 
 /** Subclasses the character has chosen in this class, inferred from its optional features. */
 export function chosenSubclasses(c: XElement): string[] {

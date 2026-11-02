@@ -198,3 +198,17 @@ pre.xml { font: 12px/1.4 Consolas, ui-monospace, monospace; white-space: pre-wra
 .modal header h2 { margin: 0; }
 .modal-body { padding: 14px 16px; overflow: auto; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+/* features and creatures */
+.feature-actions { float: right; }
+.feature-pick li { align-items: flex-start; }
+.feature-pick li > div { flex: 1; }
+.creature header h2 { margin: 0; }
+.vitals.compact { margin: 10px 0; }
+.vitals.compact .stat { min-width: 90px; }
+.small-value { font-size: 15px !important; font-weight: 500 !important; }
+.creature-block { margin-bottom: 6px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 14px; }
+.block-edit { border-left: 3px solid var(--line); padding: 4px 0 8px 10px; margin-bottom: 8px; }
+.block-edit input.grow { flex: 1; min-width: 160px; }
+.block-edit input.narrow { width: 110px; }

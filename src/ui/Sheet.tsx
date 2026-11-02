@@ -1,24 +1,25 @@
 import { useMemo, useReducer, useRef, useState } from 'react';
+import { ABBR, ABILITIES, Ability, ClassFeature, featView, itemView, spellView } from '../model/compendium';
 import {
-  ABBR, ABILITIES, Ability, ClassFeature, Entry, KIND_LABEL, Kind, featView, itemView, spellClassMatches, spellView,
-} from '../model/compendium';
-import {
-  AppState, COIN_KINDS, Character, CharacterRecord, CoinKind, classFeatNames, classLevel, classSpells, coinKind,
-  containerCarried, customItem, hdCurrent, isAttuned, isEquipped, isPrepared, itemQuantity, removeClassFeat, setAttuned,
+  AppState, COIN_KINDS, Character, CharacterRecord, CoinKind, classLevel, classSpells, coinKind,
+  containerCarried, customItem, hdCurrent, isAttuned, isEquipped, isPrepared, itemQuantity, setAttuned,
   setEquipped, setHdCurrent, setItemQuantity, setPrepared,
 } from '../model/character';
+import { hpMaxOf, setHpCurrent, setHpTemp } from '../model/creature';
 import { Sheet as SheetData, deriveSheet, mod } from '../rules/derive';
 import { applyLevelUp, levelOptions, removeLevel, subclassFeaturesAt, syncClassSlots, XP_TABLE } from '../rules/level';
-import { cryptoRng, isRollable, resolveFormula } from '../rules/dice';
+import { cryptoRng, resolveFormula } from '../rules/dice';
 import { XElement, childText, childTexts, elements, setChildText } from '../xml/xml';
 import { EntryDetail } from './CompendiumView';
-import { Field, Modal, NumberInput, RichText, RollChip, signed, useApp } from './common';
+import { CreaturesTab } from './Creatures';
+import { FeaturesTab } from './Features';
+import { Picker } from './Picker';
+import { Field, Modal, Mutate, NumberInput, RollChip, signed, useApp } from './common';
 
 const CONDITIONS = ['Blinded', 'Charmed', 'Deafened', 'Frightened', 'Grappled', 'Incapacitated', 'Invisible',
   'Paralyzed', 'Petrified', 'Poisoned', 'Prone', 'Restrained', 'Stunned', 'Unconscious'];
 
-type Tab = 'main' | 'spells' | 'inventory' | 'features' | 'notes' | 'xml';
-type Mutate = (fn: (c: Character, a: AppState) => void) => void;
+type Tab = 'main' | 'spells' | 'inventory' | 'features' | 'creatures' | 'notes' | 'xml';
 
 export function Sheet({ record, onSave, onBack, onExport }: {
   record: CharacterRecord; onSave: (r: CharacterRecord) => void; onBack: () => void; onExport: (r: CharacterRecord) => void;
@@ -61,6 +62,7 @@ export function Sheet({ record, onSave, onBack, onExport }: {
     a.countersUsed = {};
     a.deathSaves = { success: 0, failure: 0 };
     a.exhaustion = Math.max(0, a.exhaustion - 1);
+    for (const cr of ch.creatures) { setHpCurrent(cr, hpMaxOf(cr)); setHpTemp(cr, 0); }
     let regain = Math.max(1, Math.floor(s.level / 2));
     for (const ce of ch.classes) {
       const missing = classLevel(ce) - hdCurrent(ce);
@@ -68,7 +70,7 @@ export function Sheet({ record, onSave, onBack, onExport }: {
       if (r > 0) setHdCurrent(ce, hdCurrent(ce) + r);
       regain -= r;
     }
-    toast('Long rest: hit points, spell slots and resources restored.');
+    toast(`Long rest: hit points, spell slots and resources restored${ch.creatures.length ? ', creatures healed' : ''}.`);
   });
 
   return (
@@ -106,9 +108,9 @@ export function Sheet({ record, onSave, onBack, onExport }: {
       {s.warnings.length > 0 && <ul className="warnings compact">{s.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>}
 
       <nav className="tabs">
-        {(['main', 'spells', 'inventory', 'features', 'notes', 'xml'] as Tab[]).map((t) => (
+        {(['main', 'spells', 'inventory', 'features', 'creatures', 'notes', 'xml'] as Tab[]).map((t) => (
           <button key={t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>
-            {{ main: 'Abilities & Skills', spells: 'Spells', inventory: 'Inventory', features: 'Features', notes: 'Notes', xml: 'XML' }[t]}
+            {{ main: 'Abilities & Skills', spells: 'Spells', inventory: 'Inventory', features: 'Features', creatures: `Creatures${c.creatures.length ? ` (${c.creatures.length})` : ''}`, notes: 'Notes', xml: 'XML' }[t]}
           </button>
         ))}
       </nav>
@@ -228,6 +230,7 @@ export function Sheet({ record, onSave, onBack, onExport }: {
       {tab === 'spells' && <SpellsTab c={c} app={app.current} sheet={s} mutate={mutate} rollF={rollF} />}
       {tab === 'inventory' && <InventoryTab c={c} sheet={s} mutate={mutate} rollF={rollF} />}
       {tab === 'features' && <FeaturesTab c={c} sheet={s} app={app.current} mutate={mutate} rollF={rollF} />}
+      {tab === 'creatures' && <CreaturesTab c={c} sheet={s} mutate={mutate} />}
       {tab === 'notes' && <NotesTab c={c} mutate={mutate} />}
       {tab === 'xml' && (
         <section className="panel">
@@ -460,58 +463,6 @@ function ItemEditor({ el, onClose, mutate }: { el: XElement; onClose: () => void
   );
 }
 
-// ---------------------------------------------------------------- features
-
-function FeaturesTab({ c, sheet, app, mutate, rollF }: { c: Character; sheet: SheetData; app: AppState; mutate: Mutate; rollF: (f: string, l?: string) => unknown }) {
-  const groups = new Map<string, typeof sheet.features>();
-  for (const f of sheet.features) groups.set(f.source, [...(groups.get(f.source) ?? []), f]);
-  const classEl = (source: string) => c.classes.find((ce) => childText(ce, 'name') === source);
-  return (
-    <div className="features">
-      {sheet.counters.length > 0 && (
-        <section className="panel">
-          <h3>Resources</h3>
-          {sheet.counters.map((ct) => {
-            const used = app.countersUsed[ct.name] ?? 0;
-            return (
-              <div key={ct.name} className="row">
-                <span className="counter-name">{ct.name}</span>
-                {Array.from({ length: Math.min(ct.value, 30) }, (_, j) => (
-                  <input key={j} type="checkbox" checked={j < used}
-                    onChange={(e) => mutate((_, a) => { a.countersUsed = { ...a.countersUsed, [ct.name]: e.target.checked ? j + 1 : j }; })} />
-                ))}
-                <span className="muted small">{ct.value - used}/{ct.value} · {/^s/i.test(ct.reset) ? 'short rest' : /^l/i.test(ct.reset) ? 'long rest' : ct.reset}</span>
-              </div>
-            );
-          })}
-        </section>
-      )}
-      {[...groups].map(([source, list]) => (
-        <section key={source} className="panel">
-          <h3>{source}</h3>
-          {list.map((f, i) => (
-            <details key={i}>
-              <summary>{f.name}{f.level ? <span className="muted small"> · level {f.level}</span> : null}
-                {classEl(source) && classFeatNames(classEl(source)!).includes(f.name) && (
-                  <button className="link danger small" onClick={(e) => { e.preventDefault(); if (confirm(`Remove the feature "${f.name}"?`)) mutate(() => removeClassFeat(classEl(source)!, f.name)); }}>remove</button>
-                )}
-              </summary>
-              <RichText text={f.text} label={f.name} />
-              {f.rolls.length > 0 && <p>{f.rolls.map((r, j) => <button key={j} className="roll" title={r.description} onClick={() => rollF(r.formula, f.name)}>{r.description ? `${r.description}: ` : ''}{resolveFormula(r.formula, sheet.formula)}</button>)}</p>}
-            </details>
-          ))}
-        </section>
-      ))}
-      {sheet.modifiers.length > 0 && (
-        <section className="panel">
-          <h3>Active modifiers</h3>
-          <ul className="small">{sheet.modifiers.map((m, i) => <li key={i}>{m.source}: <code>{m.category}</code> {m.raw}</li>)}</ul>
-        </section>
-      )}
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------- notes
 
 function NotesTab({ c, mutate }: { c: Character; mutate: Mutate }) {
@@ -669,42 +620,3 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
   );
 }
 
-// ---------------------------------------------------------------- picker
-
-function Picker({ kind, onClose, onPick, has, filterHint, subclasses = [] }: {
-  kind: Kind; onClose: () => void; onPick: (e: Entry) => void; has: (name: string) => boolean; filterHint?: string[]; subclasses?: string[];
-}) {
-  const { lib, toast } = useApp();
-  const [q, setQ] = useState('');
-  const [onlyMine, setOnlyMine] = useState(!!filterHint?.length);
-  const [sel, setSel] = useState<Entry | null>(null);
-  const list = lib.byKind[kind].filter((e) => {
-    if (q && !e.name.toLowerCase().includes(q.toLowerCase())) return false;
-    if (onlyMine && kind === 'spell' && filterHint?.length) {
-      return spellView(e.el).classes.some((x) => filterHint.some((h) => spellClassMatches(x, h, subclasses)));
-    }
-    return true;
-  });
-  return (
-    <Modal title={`Add ${KIND_LABEL[kind].toLowerCase()}`} onClose={onClose} wide>
-      <div className="row">
-        <input type="search" autoFocus placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
-        {filterHint && filterHint.length > 0 && <label><input type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} /> Only {filterHint.join(' / ')} spells</label>}
-      </div>
-      <div className="split picker">
-        <ul className="entry-list">
-          {list.slice(0, 1000).map((e) => (
-            <li key={e.name} className={sel === e ? 'active' : ''} onClick={() => setSel(e)}>
-              <span>{e.name}</span>
-              <button className="small" disabled={kind === 'spell' && has(e.name)}
-                onClick={(ev) => { ev.stopPropagation(); onPick(e); toast(`Added ${e.name}`); }}>{kind === 'spell' && has(e.name) ? 'Added' : 'Add'}</button>
-            </li>
-          ))}
-        </ul>
-        <div className="detail-pane">{sel ? <EntryDetail entry={sel} /> : <p className="muted">Select an entry to preview.</p>}</div>
-      </div>
-    </Modal>
-  );
-}
-
-export { isRollable };

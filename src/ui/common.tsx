@@ -1,5 +1,6 @@
 import { createContext, ReactNode, useContext, useEffect } from 'react';
 import type { Library } from '../model/compendium';
+import type { AppState, Character } from '../model/character';
 import type { RulesOptions } from '../rules/derive';
 import { isRollable, RollResult } from '../rules/dice';
 
@@ -11,6 +12,9 @@ export interface Ctx {
   toast: (msg: string) => void;
 }
 export const AppContext = createContext<Ctx>(null!);
+
+/** Apply an edit to the open character and save it. */
+export type Mutate = (fn: (c: Character, a: AppState) => void) => void;
 export const useApp = () => useContext(AppContext);
 
 export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
