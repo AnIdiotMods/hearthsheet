@@ -11,6 +11,7 @@ import { Sheet as SheetData, deriveSheet, mod } from '../rules/derive';
 import { applyLevelUp, levelOptions, removeLevel, subclassFeaturesAt, syncClassSlots, XP_TABLE } from '../rules/level';
 import { cryptoRng, resolveFormula } from '../rules/dice';
 import { OptionItem, grantsExpertise, optionGroups } from '../rules/options';
+import { setCustomLimit } from '../rules/spellcount';
 import { setSkillSetting } from '../model/custom';
 import { XElement, childText, childTexts, elements, setChildText } from '../xml/xml';
 import { EntryDetail } from './CompendiumView';
@@ -185,6 +186,7 @@ function SpellsTab({ c, app, sheet, mutate, rollF }: { c: Character; app: AppSta
       .sort((a, b) => a.v.level - b.v.level || a.v.name.localeCompare(b.v.name)),
   }));
   const maxSlot = sheet.slots.reduce((m, v, i) => (v > 0 ? i : m), 0);
+  const modeOf = (ce: XElement) => sheet.spellcasting.find((sc) => sc.el === ce)?.limit.mode ?? 'prepared';
   const setUsed = (l: number, n: number) => mutate((ch) => {
     const cur = sheet.slots.map((t, i) => (i === 0 ? t : Math.max(0, t - (i === l ? n : sheet.slotsUsed[i]))));
     ch.setSlots(sheet.slots, cur);
@@ -208,7 +210,16 @@ function SpellsTab({ c, app, sheet, mutate, rollF }: { c: Character; app: AppSta
               <b>{sc.className}</b> <span className="muted">({ABBR[sc.ability]})</span>
               <span>Save DC <b>{sc.dc}</b></span>
               <span>Attack <RollChip expr={`1d20${signed(sc.attack)}`} label={`${sc.className} spell attack`}>{signed(sc.attack)}</RollChip></span>
-              {sc.cantrips > 0 && <span className="muted">Cantrips known {sc.cantrips}</span>}
+              {sc.cantrips > 0 && <Count label="Cantrips" have={sc.limit.cantrips} max={sc.cantrips} title="Cantrips known, from the class table" />}
+              <Count label={sc.limit.mode === 'prepared' || sc.limit.edition === '2024' ? 'Prepared' : 'Spells known'} have={sc.limit.count} max={sc.limit.max}
+                title={sc.limit.max === null ? 'No limit found for this class. Click edit to set one.' : `Limit: ${sc.limit.basis}`} />
+              <button className="link small" title="Set your own limit, or clear it to use the class's"
+                onClick={() => {
+                  const v = prompt(`How many spells can ${sc.className} have ${sc.limit.mode === 'prepared' ? 'prepared' : 'known'}? Leave empty to use ${sc.limit.source === 'custom' ? 'the class rule' : 'the current rule'}.`, sc.limit.source === 'custom' ? String(sc.limit.max) : '');
+                  if (v === null) return;
+                  const n = parseInt(v, 10);
+                  mutate(() => setCustomLimit(sc.el, v.trim() === '' || !Number.isFinite(n) ? null : n));
+                }}>edit</button>
             </div>
           ))}
         </div>
@@ -240,12 +251,12 @@ function SpellsTab({ c, app, sheet, mutate, rollF }: { c: Character; app: AppSta
       </section>
       {groups.filter((g) => g.spells.length).map((g) => (
         <section key={g.name} className="panel">
-          <h3>{g.name} spells</h3>
+          <h3>{g.name} spells{(() => { const sc = sheet.spellcasting.find((x) => x.el === g.ce); return sc ? <span className="muted small"> · {sc.limit.mode === 'prepared' ? 'tick the spells you have prepared' : `every spell here counts as ${sc.limit.edition === '2024' ? 'prepared' : 'known'}`}</span> : null; })()}</h3>
           <table className="spell-table">
             <tbody>
               {g.spells.map(({ el, v, prepared }) => (
                 <tr key={v.name}>
-                  <td>{v.level > 0 && <input type="checkbox" title="Prepared" checked={prepared} onChange={(e) => mutate(() => setPrepared(el, e.target.checked))} />}</td>
+                  <td>{v.level > 0 && modeOf(g.ce) === 'prepared' && <input type="checkbox" title="Prepared" checked={prepared} onChange={(e) => mutate(() => setPrepared(el, e.target.checked))} />}</td>
                   <td><button className="link" onClick={() => setOpen(el)}>{v.name}</button>
                     <div className="muted small">{[v.level ? ordinal(v.level) : 'Cantrip', v.time, v.range, v.duration, v.ritual && 'ritual'].filter(Boolean).join(' · ')}</div></td>
                   <td>{v.rolls.slice(0, 2).map((r, i) => <button key={i} className="roll" title={r.description} onClick={() => rollF(r.formula, v.name)}>{resolveFormula(r.formula, sheet.formula)}</button>)}</td>
@@ -269,6 +280,15 @@ function SpellsTab({ c, app, sheet, mutate, rollF }: { c: Character; app: AppSta
           onPick={(e) => mutate((ch) => { ch.addSpell(adding, e.el); })} />
       )}
     </div>
+  );
+}
+
+function Count({ label, have, max, title }: { label: string; have: number; max: number | null; title: string }) {
+  const over = max !== null && have > max;
+  return (
+    <span className={`count-pill ${over ? 'over' : max !== null && have === max ? 'full' : ''}`} title={title}>
+      {label} <b>{have}</b>{max !== null ? <> / {max}</> : null}
+    </span>
   );
 }
 

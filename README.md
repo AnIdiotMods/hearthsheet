@@ -41,6 +41,10 @@ Data is stored locally (IndexedDB in the app profile). Export characters and com
   maneuvers, Arcane Shots, Runes, Elemental Disciplines, Artificer infusions and similar lists
   (including homebrew ones) are offered whenever the class grants them, at level up, at character
   creation and from the Features tab, with prerequisites checked. Expertise lets you pick the skills.
+- **Prepared and known spells:** each casting class shows how many spells it can have prepared (or
+  known) and how many it has, plus cantrips: from the class text's formula in 2014 files
+  (e.g. Wisdom modifier + Cleric level), otherwise the standard SRD 5.1/5.2 tables, or a limit you
+  set yourself.
 - **Class features:** add features from the class's own list (any level, any option), write your
   own with optional modifiers (e.g. `ac +1`, `speed +10`, `stealth +2`), edit any feature's name,
   text and modifiers, remove features, and restore missing ones. Feats can be added, edited and
@@ -86,6 +90,11 @@ the iOS app (character `<version>38</version>`). The relevant facts, all verifie
   `Additional Invocation`, `Battle Master: Maneuvers`), or describes it near the start of its text
   when no feature is named after it. `Metamagic Options` (Tasha's) is merged into `Metamagic`.
   Chosen option feats are stored as character-level `<feat>` elements.
+- 2024-rules files prefix feature names with their level (`Level 3: Warlock Subclass`,
+  `Level 3: Healing Light (Celestial Patron)`); the prefix is ignored when matching features,
+  subclasses and option lists. Current community files also write class options as level-0
+  `<spell>` entries whose `<classes>` names the granting feature (`Eldritch Invocations`); these
+  are offered as options (never as spells), with the prerequisite read from the text.
 - Subclass features are matched to their subclass by name prefix (`Thief: Fast Hands`), suffix
   (`Improved Critical (Champion)`), or short suffix (`Rite of the Dawn (Ghostslayer)` for
   *Order of the Ghostslayer*), including UA subclasses that introduce themselves

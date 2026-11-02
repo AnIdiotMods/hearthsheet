@@ -113,3 +113,58 @@ describe('class option lists', () => {
     expect(parseXml(c.serialize()).warnings).toEqual([]);
   });
 });
+
+describe('2024-style files', () => {
+  const X = `<compendium>
+    <class><name>Warlock [5.5e]</name><hd>8</hd><spellAbility>Charisma</spellAbility>
+      <autolevel level="1"><feature><name>Level 1: Eldritch Invocations</name><text>You gain one invocation.</text></feature>
+        <feature optional="YES"><name>Becoming A Warlock As A Level 1 Character</name><text>.</text></feature><slots>2,1</slots></autolevel>
+      <autolevel level="3"><feature><name>Level 3: Warlock Subclass</name><text>Choose a patron.</text></feature>
+        <feature optional="YES"><name>Warlock Subclass: Fiend Patron</name><text>.</text></feature>
+        <feature optional="YES"><name>Level 3: Dark One's Blessing (Fiend Patron)</name><text>.</text></feature>
+        <feature optional="YES"><name>Warlock Subclass: Archfey Patron</name><text>.</text></feature>
+        <feature optional="YES"><name>Level 3: Steps of the Fey (Archfey Patron)</name><text>.</text></feature>
+        <feature optional="YES"><name>Otherworldly Patron: The Undying (Legacy)</name><text>.</text></feature>
+        <feature optional="YES"><name>Otherworldly Patron: The Genie (Legacy)</name><text>.</text></feature>
+        <feature optional="YES"><name>Among the Dead (The Undying (Legacy))</name><text>.</text></feature>
+        <feature optional="YES"><name>Genie's Vessel (The Genie (Legacy))</name><text>.</text></feature></autolevel>
+      <autolevel level="6"><feature optional="YES"><name>Level 6: Dark One's Own Luck (Fiend Patron)</name><text>.</text></feature>
+        <feature optional="YES"><name>Level 6: Misty Escape (Archfey Patron)</name><text>.</text></feature>
+        <feature optional="YES"><name>Defy Death (The Undying (Legacy))</name><text>.</text></feature>
+        <feature optional="YES"><name>Elemental Gift (The Genie (Legacy))</name><text>.</text></feature></autolevel>
+    </class>
+    <class><name>Ranger</name><hd>10</hd>
+      <autolevel level="1"><feature optional="YES"><name>Deft Explorer</name><text>.</text></feature><feature optional="YES"><name>Deft Explorer: Canny</name><text>.</text></feature></autolevel>
+      <autolevel level="6"><feature optional="YES"><name>Deft Explorer: Roving</name><text>.</text></feature></autolevel>
+      <autolevel level="3"><feature><name>Ranger Archetype</name><text>.</text></feature>
+        <feature optional="YES"><name>Ranger Archetype: Hunter</name><text>.</text></feature><feature optional="YES"><name>Hunter: Hunter's Prey</name><text>.</text></feature></autolevel>
+    </class>
+    <spell><name>Invocation: Armor of Shadows [5.5e]</name><level>0</level><classes>Eldritch Invocations [5.5e]</classes><text>You can cast Mage Armor at will.</text></spell>
+    <spell><name>Invocation: Agonizing Blast [5.5e]</name><level>0</level><classes>Eldritch Invocations [5.5e]</classes><text>Prerequisite: Level 2+ Warlock, a Warlock Cantrip That Deals Damage
+
+Add your Charisma modifier.</text></spell>
+    <spell><name>Hex [5.5e]</name><level>1</level><classes>Warlock [5.5e]</classes><text>.</text></spell>
+  </compendium>`;
+  const lib2 = buildLibrary([file('x', X)]);
+  const w = classView(lookup(lib2, 'class', 'Warlock [5.5e]')!.el);
+
+  it('"Level N:" prefixes and legacy headings are not patrons', () => {
+    expect(w.subclasses.sort()).toEqual(['Archfey Patron', 'Fiend Patron', 'The Genie (Legacy)', 'The Undying (Legacy)']);
+    expect(w.subclassLabel).toBe('Warlock Subclass');
+    expect(w.subclassLevels.get('Fiend Patron')).toBe(3);
+    expect(classView(lookup(lib2, 'class', 'Ranger')!.el).subclasses).toEqual(['Hunter']);
+  });
+
+  it('invocations written as spells are offered, with the prerequisite read from the text', () => {
+    const ctx2 = (level: number): OptionContext => ({
+      lib: lib2, cv: w, level, classFeatures: w.features.filter((f) => !f.optional && f.level <= level).map((f) => ({ name: f.name, text: f.text, level: f.level })),
+      known: new Set(), spells: new Set(), characterLevel: level, subclasses: [],
+    });
+    const g1 = optionGroups(ctx2(1));
+    expect(g1.map((g) => [g.family, g.now])).toEqual([['Invocation', true]]);
+    expect(g1[0].options.map((o) => [o.label, o.prereqMet])).toEqual([['Armor of Shadows', true], ['Agonizing Blast', false]]);
+    expect(g1[0].options[1]).toMatchObject({ prerequisite: 'Level 2+ Warlock, a Warlock Cantrip That Deals Damage' });
+    expect(optionGroups(ctx2(2))[0].options.find((o) => o.label === 'Agonizing Blast')!.prereqMet).toBe(true);
+    expect(g1[0].options.map((o) => o.name)).not.toContain('Hex [5.5e]');
+  });
+});

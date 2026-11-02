@@ -3,7 +3,7 @@
 
 import {
   ABBR, ABILITIES, Ability, ClassFeature, Counter, Modifier, SKILLS, Trait, backgroundView, canonicalSkill, classView,
-  isSkill, itemView, proficiencyNames, raceView, traitsOf,
+  isSkill, itemView, proficiencyNames, raceView, stripLevelPrefix, traitsOf,
 } from '../model/compendium';
 import {
   AppState, Character, chosenSubclasses, classFeats, classHitDie, classLevel, classSlots,
@@ -11,6 +11,7 @@ import {
 } from '../model/character';
 import { XElement, childText, elements } from '../xml/xml';
 import { FormulaContext, resolveFormula } from './dice';
+import { SpellLimit, spellLimit } from './spellcount';
 import { ProfLevel, customAbilities, customSkills, isStandardAbility, skillSetting } from '../model/custom';
 
 export interface RulesOptions {
@@ -38,6 +39,9 @@ export interface Spellcasting {
   cantrips: number;
   kind: CasterKind;
   slots: number[]; // the class's own slot row (index 1..9)
+  /** How many spells may be prepared or known, and how many are. */
+  limit: SpellLimit;
+  el: XElement;
 }
 
 export interface Attack {
@@ -120,7 +124,7 @@ const CASTING_FEATURE = /(^|: |\()(spellcasting|pact magic)(\)|$| \()/i;
 
 /** Optional slot rows apply once a subclass casting feature has been chosen. */
 export const subclassCastingActive = (activeNames: string[]) =>
-  activeNames.some((n) => CASTING_FEATURE.test(n) && !/^(spellcasting|pact magic)$/i.test(n.trim()));
+  activeNames.map(stripLevelPrefix).some((n) => CASTING_FEATURE.test(n) && !/^(spellcasting|pact magic)$/i.test(n.trim()));
 
 /**
  * The slot row that applies at `level`: the highest non-optional row at or
@@ -142,7 +146,7 @@ export function casterKind(cv: CV, activeNames: string[] = []): CasterKind {
   const highestOf = (v: number[]) => v.slice(1).reduce((h, n, i) => (n > 0 ? i + 1 : h), 0);
   const casting = rows.filter((r) => highestOf(r.values) > 0);
   if (!casting.length) return 'none';
-  if (activeNames.some((n) => /pact magic/i.test(n)) || cv.features.some((f) => /^pact magic$/i.test(f.name))) return 'pact';
+  if (activeNames.some((n) => /pact magic/i.test(n)) || cv.features.some((f) => /^pact magic$/i.test(stripLevelPrefix(f.name)))) return 'pact';
   if (casting.every((r) => r.values.slice(1).filter((n) => n > 0).length === 1) && casting.some((r) => highestOf(r.values) > 1)) return 'pact';
   // Closest standard progression; ties go to the kind whose casting starts at the first row's level
   // (full 1, half 2, third 3), and optional rows (subclass casting) favour third casters.
@@ -450,6 +454,8 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
       className: cv.name, ability: ab, kind, cantrips: row[0] ?? 0, slots,
       dc: 8 + pb + mods[ab] + bonus('spell dc'),
       attack: pb + mods[ab] + bonus('spell attack'),
+      limit: spellLimit({ ce, className: cv.name, level: lv, features: cv.features, activeNames: names, mods, casterKind: kind, ability: ab }),
+      el: ce,
     });
     if (kind === 'pact') {
       const lvl = slots.findIndex((v, i) => i > 0 && v > 0);

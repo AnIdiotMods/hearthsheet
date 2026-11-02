@@ -44,7 +44,7 @@ export interface LevelOptions {
   chosenSubclasses: string[];
 }
 
-const NOISE = /^(starting |multiclass )/i;
+const NOISE = /^(starting |multiclass |becoming a)/i;
 
 /** What a class offers when reaching `level`. */
 export function levelOptions(classEl: XElement, level: number, opts: RulesOptions = defaultOptions): LevelOptions {

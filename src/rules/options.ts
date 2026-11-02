@@ -14,7 +14,7 @@
 // chosen subclass feature) mentions it by name, e.g. "Eldritch Invocations"
 // mentions "Invocation" and "Combat Superiority" mentions "maneuvers".
 
-import { ClassFeature, Entry, Library, featView, subclassOwner } from '../model/compendium';
+import { ClassFeature, Entry, Library, featView, spellView, stripLevelPrefix, subclassOwner } from '../model/compendium';
 import type { CV } from './derive';
 
 export interface OptionItem {
@@ -60,7 +60,10 @@ export interface OptionContext {
   subclasses: string[];
 }
 
-const rawFamily = (name: string) => { const i = name.indexOf(':'); return i > 0 ? name.slice(0, i).trim() : ''; };
+const rawFamily = (name: string) => { const n = stripLevelPrefix(name); const i = n.indexOf(':'); return i > 0 ? n.slice(0, i).trim() : ''; };
+/** "Agonizing Blast [5.5e]" → "Agonizing Blast" */
+const cleanLabel = (s: string) => s.replace(/\s*\[(5\.5e|5e|legacy|2024|2014)\]\s*$/i, '').trim();
+const optionLabel = (name: string) => { const n = stripLevelPrefix(name); return cleanLabel(n.slice(rawFamily(name).length + 1)); };
 /** "Metamagic Options" (Tasha's additions) is the same list as "Metamagic". */
 const familyOf = (name: string) => rawFamily(name).replace(/\s+options?$/i, '');
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -79,7 +82,7 @@ export function mentions(text: string, family: string): boolean {
 const TEXT_WINDOW = 300;
 
 /** Option families that are really subclasses or noise, never offered as option lists. */
-const NOT_OPTIONS = /^(starting|multiclass|ability score improvement)/i;
+const NOT_OPTIONS = /^(starting|multiclass|becoming a|ability score improvement)/i;
 
 export function checkPrerequisite(prereq: string, ctx: OptionContext): { met: boolean | null; note: string } {
   const p = prereq.trim();
@@ -91,12 +94,12 @@ export function checkPrerequisite(prereq: string, ctx: OptionContext): { met: bo
   const hasFeature = (needle: string) => knownLower.some((k) => k.includes(needle.toLowerCase()));
   for (const part of parts) {
     let m: RegExpExecArray | null;
-    if ((m = /^(\d+)(st|nd|rd|th) level$/i.exec(part))) {
+    if ((m = /^(\d+)(st|nd|rd|th) level( [a-z][\w ]*)?$/i.exec(part)) || (m = /^level (\d+)\+?( [a-z][\w ]*)?$/i.exec(part))) {
       if (ctx.level < +m[1]) unmet.push(`${part} (${ctx.cv.name} ${ctx.level})`);
     } else if ((m = /^(.+?) cantrip$/i.exec(part)) || (m = /^(?:the ability to cast )?(.+?) spell$/i.exec(part))) {
       const names = m[1].split(/\s+or\s+|\//).map((x) => x.trim().toLowerCase());
       if (!names.some((n) => ctx.spells.has(n))) unmet.push(part);
-    } else if ((m = /^(pact of the \w+)( feature)?$/i.exec(part))) {
+    } else if ((m = /^(pact of the \w+)( feature| invocation| boon)?$/i.exec(part))) {
       if (!hasFeature(m[1])) unmet.push(part);
     } else if ((m = /^the (.+?) patron$/i.exec(part))) {
       if (!ctx.subclasses.some((s) => s.toLowerCase().includes(m![1].toLowerCase()))) unmet.push(part);
@@ -110,6 +113,20 @@ export function checkPrerequisite(prereq: string, ctx: OptionContext): { met: bo
   }
   if (unmet.length) return { met: false, note: `Requires ${unmet.join(', ')}` };
   return { met: unknown ? null : true, note: '' };
+}
+
+/** A spell entry that is really a class option: named "Family: Option" and assigned to no real class. */
+export function isOptionSpell(e: Entry): boolean {
+  if (!rawFamily(e.name)) return false;
+  const v = spellView(e.el);
+  return v.level === 0 && v.classes.length > 0 && v.classes.every((c) => !/^(artificer|barbarian|bard|cleric|druid|fighter|monk|paladin|ranger|rogue|sorcerer|warlock|wizard)( \[[^\]]*\])?$/i.test(c.trim()));
+}
+
+/** Prerequisite of an option spell is the "Prerequisite: ..." line at the start of its text. */
+function optionSpellView(e: Entry): { text: string; prerequisite: string } {
+  const text = spellView(e.el).text;
+  const m = /^\s*prerequisites?:\s*(.+)$/im.exec(text.split('\n').slice(0, 3).join('\n'));
+  return { text: m ? text.replace(m[0], '').trim() : text, prerequisite: m ? m[1].trim() : '' };
 }
 
 /** All option groups a class offers at `ctx.level`. */
@@ -137,22 +154,24 @@ export function optionGroups(ctx: OptionContext): OptionGroup[] {
 
   // 1. Options inside the class, at or below the current level.
   for (const f of ctx.cv.features) {
-    if (!f.optional || f.level > ctx.level || NOT_OPTIONS.test(f.name)) continue;
+    if (!f.optional || f.level > ctx.level || NOT_OPTIONS.test(stripLevelPrefix(f.name))) continue;
     const family = familyOf(f.name);
     if (!family || subclassFamilies.has(family.toLowerCase()) || family.toLowerCase() === label || subclassOwner(f, ctx.cv.subclasses)) continue;
     const g = ensure(family, grantedAt(family)[0]?.name ?? family);
     if (g.options.some((o) => o.name === f.name)) continue;
     g.options.push({
-      name: f.name, label: f.name.slice(rawFamily(f.name).length + 1).trim(), text: f.text, prerequisite: '', prereqMet: true, prereqNote: '',
+      name: f.name, label: optionLabel(f.name), text: f.text, prerequisite: '', prereqMet: true, prereqNote: '',
       taken: ctx.known.has(f.name), level: f.level, feature: f,
     });
     if (f.level === ctx.level) g.now = true;
   }
 
-  // 2. Option feats from the compendium whose family the class mentions.
+  // 2. Option feats from the compendium whose family the class mentions, and option "spells"
+  //    (current community files write invocations, maneuvers, ... as <spell> entries whose
+  //    <classes> names the granting feature, e.g. "Eldritch Invocations").
   if (ctx.lib) {
     const byFamily = new Map<string, Entry[]>();
-    for (const e of ctx.lib.byKind.feat) {
+    for (const e of [...ctx.lib.byKind.feat, ...ctx.lib.byKind.spell.filter(isOptionSpell)]) {
       const family = familyOf(e.name);
       if (!family) continue;
       byFamily.set(family, [...(byFamily.get(family) ?? []), e]);
@@ -164,10 +183,10 @@ export function optionGroups(ctx: OptionContext): OptionGroup[] {
       const g = ensure(family, by[0].name);
       for (const e of entries) {
         if (g.options.some((o) => o.name.toLowerCase() === e.name.toLowerCase())) continue;
-        const v = featView(e.el);
+        const v = e.kind === 'spell' ? optionSpellView(e) : featView(e.el);
         const pre = checkPrerequisite(v.prerequisite, ctx);
         g.options.push({
-          name: e.name, label: e.name.slice(rawFamily(e.name).length + 1).trim(), text: v.text, prerequisite: v.prerequisite,
+          name: e.name, label: optionLabel(e.name), text: v.text, prerequisite: v.prerequisite,
           prereqMet: pre.met, prereqNote: pre.note, taken: ctx.known.has(e.name), feat: e,
         });
       }

@@ -341,6 +341,21 @@ export function featView(e: XElement) {
   };
 }
 
+/** 2024-rules files prefix feature names with their level ("Level 3: Warlock Subclass"); compare without it. */
+export const stripLevelPrefix = (name: string) => name.replace(/^\s*level\s+\d+\s*:\s*/i, '').trim();
+
+/** Inner text of a trailing parenthetical, allowing nesting: "Among the Dead (The Undying (Legacy))" → "The Undying (Legacy)". */
+export function trailingParen(name: string): string | null {
+  const t = name.trim();
+  if (!t.endsWith(')')) return null;
+  let depth = 0;
+  for (let i = t.length - 1; i >= 0; i--) {
+    if (t[i] === ')') depth++;
+    else if (t[i] === '(' && --depth === 0) return i > 0 ? t.slice(i + 1, -1).trim() : null;
+  }
+  return null;
+}
+
 export interface ClassFeature {
   name: string; text: string; optional: boolean; level: number; modifiers: Modifier[];
   special: string; proficiencies: string[]; rolls: Roll[]; subclass: string; el: XElement;
@@ -391,13 +406,17 @@ export function classView(e: XElement) {
   const subclasses = subclassNames(features, counters);
   const subclassLevels = new Map<string, number>();
   let subclassLabel = '';
+  let labelIsFixed = false;
   for (const f of features) {
     if (!f.optional) continue;
     const owner = subclassOwner(f, subclasses);
     if (!owner) continue;
     subclassLevels.set(owner, Math.min(subclassLevels.get(owner) ?? 99, f.level));
-    const m = /^([^:]+):\s*(.+)$/.exec(f.name);
-    if (!subclassLabel && m && m[2].trim().toLowerCase() === owner.toLowerCase() && !subclasses.some((x) => x.toLowerCase() === m[1].trim().toLowerCase())) subclassLabel = m[1].trim();
+    const m = /^([^:]+):\s*(.+)$/.exec(stripLevelPrefix(f.name));
+    if (m && m[2].trim().toLowerCase() === owner.toLowerCase() && !subclasses.some((x) => x.toLowerCase() === m[1].trim().toLowerCase())) {
+      const isFixed = features.some((g) => !g.optional && stripLevelPrefix(g.name).toLowerCase() === m[1].trim().toLowerCase());
+      if (!subclassLabel || (isFixed && !labelIsFixed)) { subclassLabel = m[1].trim(); labelIsFixed = isFixed; }
+    }
   }
   return {
     name: childText(e, 'name'),
@@ -417,7 +436,7 @@ export function classView(e: XElement) {
 }
 
 /** Option families that use the "Family: Option" naming but are not subclasses. */
-const OPTION_FAMILIES = /^(fighting style|metamagic|eldritch invocations?|invocations?|maneuvers?|pact boon|totem spirit|hunter'?s prey|defensive tactics|multiattack|superior hunter'?s defense|arcane shot( options)?|infusions?|elemental disciplines?|runes?|psionic power|favou?red enemy|natural explorer|expertise|ability score improvement|starting|multiclass|artificer infusions?|maneuver options?|blessings?|elemental attunement|forms?|mystic arcanum.*|channel divinity.*|wild shape.*|optional class features?|dragon ancestor|totem.*|aspect of the beast|beast.*)$/i;
+const OPTION_FAMILIES = /^(becoming a.*|fighting style|metamagic|eldritch invocations?|invocations?|maneuvers?|pact boon|totem spirit|hunter'?s prey|defensive tactics|multiattack|superior hunter'?s defense|arcane shot( options)?|infusions?|elemental disciplines?|runes?|psionic power|favou?red enemy|natural explorer|expertise|ability score improvement|starting|multiclass|artificer infusions?|maneuver options?|blessings?|elemental attunement|forms?|mystic arcanum.*|channel divinity.*|wild shape.*|optional class features?|dragon ancestor|totem.*|aspect of the beast|beast.*)$/i;
 
 /**
  * Subclasses are not a dedicated element. Features belonging to a subclass are
@@ -425,8 +444,10 @@ const OPTION_FAMILIES = /^(fighting style|metamagic|eldritch invocations?|invoca
  * "Feature (Subclass)" (newer files), and the subclass is introduced by an
  * optional feature named "Family: Subclass" ("Martial Archetype: Champion").
  */
-export function subclassNames(features: ClassFeature[], counters: Counter[] = []): string[] {
+export function subclassNames(rawFeatures: ClassFeature[], counters: Counter[] = []): string[] {
+  const features = rawFeatures.map((f) => ({ ...f, name: stripLevelPrefix(f.name) }));
   const names = new Set<string>();
+  const headingNames = new Set<string>();
   const nonOptional = new Set(features.filter((f) => !f.optional).map((f) => f.name.toLowerCase().trim()));
   for (const c of counters) if (c.subclass) names.add(c.subclass);
   for (const f of features) if (f.subclass) names.add(f.subclass);
@@ -437,8 +458,8 @@ export function subclassNames(features: ClassFeature[], counters: Counter[] = []
       const n = g.name.toLowerCase();
       if (n.startsWith(low + ': ') && n.length > low.length + 2) return true;
       // "Rite of the Dawn (Ghostslayer)" belongs to "Order of the Ghostslayer".
-      const paren = /\(([^()]+)\)\s*$/.exec(n);
-      return !!paren && (paren[1] === low || (paren[1].length >= 4 && low.endsWith(' ' + paren[1])));
+      const paren = trailingParen(n);
+      return !!paren && (paren === low || (paren.length >= 4 && low.endsWith(' ' + paren)));
     });
   };
   // Introductions: "Family: Subclass" where Family is itself a (non-optional) feature.
@@ -456,16 +477,33 @@ export function subclassNames(features: ClassFeature[], counters: Counter[] = []
     const m = /^([^:]+):\s*(.+)$/.exec(f.name);
     if (m) prefixCount.set(m[1].trim(), (prefixCount.get(m[1].trim()) ?? 0) + 1);
   }
-  for (const [prefix, count] of prefixCount) {
-    if (count < 2 || names.has(prefix)) continue;
+  // A prefix that is itself the name of a feature ("Deft Explorer" with "Deft Explorer: Canny") is a
+  // feature with sub-options, not a subclass.
+  const featureNames = new Set(features.map((f) => f.name.toLowerCase().trim()));
+  const candidates = [...prefixCount].filter(([prefix, count]) => {
     const low = prefix.toLowerCase();
-    if (nonOptional.has(low) || nonOptional.has(low + 's') || OPTION_FAMILIES.test(prefix)) continue;
-    // Skip family prefixes that introduce several known subclasses ("Divine Domain: X", "Divine Domain: Y");
-    // a single match is a subclass introducing itself ("The Celestial (UA): The Celestial").
-    if ([...names].filter((n) => optional.some((g) => g.name === `${prefix}: ${n}`)).length >= 2) continue;
-    names.add(prefix);
+    return count >= 2 && !names.has(prefix) && !nonOptional.has(low) && !nonOptional.has(low + 's') && !featureNames.has(low) && !OPTION_FAMILIES.test(prefix);
+  }).map(([prefix]) => prefix);
+  // A prefix whose entries name two or more other subclasses is a heading that introduces them
+  // ("Divine Domain: X", or "Otherworldly Patron: X" in files merged from another rules edition).
+  // A heading names two or more known subclasses, or names at least one with all its entries at one level
+  // (a real subclass has features spread over several levels).
+  const known = new Set([...names, ...candidates].map((n) => n.toLowerCase()));
+  const entriesOf = (prefix: string) => optional.filter((g) => g.name.startsWith(prefix + ':'));
+  const suffix = (prefix: string, g: { name: string }) => g.name.slice(prefix.length + 1).trim();
+  const headings = new Set(candidates.filter((prefix) => {
+    const entries = entriesOf(prefix);
+    const isSubclass = (x: string) => x.toLowerCase() !== prefix.toLowerCase() && (known.has(x.toLowerCase()) || hasMembers(x));
+    const knownCount = entries.filter((g) => isSubclass(suffix(prefix, g))).length;
+    return knownCount >= 2 || (knownCount >= 1 && new Set(entries.map((g) => g.level)).size === 1);
+  }));
+  for (const prefix of candidates) if (!headings.has(prefix)) names.add(prefix);
+  for (const h of headings) {
+    headingNames.add(h.toLowerCase());
+    for (const g of entriesOf(h)) { const sub = suffix(h, g); if (hasMembers(sub)) names.add(sub); }
   }
-  return [...names];
+  // A subclass is never an option list ("Eldritch Invocations") or one of the class's fixed features.
+  return [...names].filter((n) => !OPTION_FAMILIES.test(n) && !nonOptional.has(n.toLowerCase()) && !headingNames.has(n.toLowerCase()) && !/^level\s+\d+$/i.test(n));
 }
 
 /**
@@ -475,16 +513,16 @@ export function subclassNames(features: ClassFeature[], counters: Counter[] = []
  */
 export function subclassOwner(f: { name: string; subclass?: string }, subclasses: string[]): string | null {
   if (f.subclass) return subclasses.find((s) => s.toLowerCase() === f.subclass!.toLowerCase()) ?? f.subclass;
-  const n = f.name.trim();
+  const n = stripLevelPrefix(f.name);
   const byLength = [...subclasses].sort((a, b) => b.length - a.length);
   const find = (x: string) => byLength.find((s) => s.toLowerCase() === x.trim().toLowerCase()) ?? null;
   const colon = n.indexOf(':');
   if (colon > 0) { const hit = find(n.slice(0, colon)); if (hit) return hit; }
-  const paren = /\(([^()]+)\)\s*$/.exec(n);
+  const paren = trailingParen(n);
   if (paren) {
-    const hit = find(paren[1]);
+    const hit = find(paren);
     if (hit) return hit;
-    const p = paren[1].trim().toLowerCase();
+    const p = paren.toLowerCase();
     const bySuffix = p.length >= 4 ? byLength.filter((s) => s.toLowerCase().endsWith(' ' + p)) : [];
     if (bySuffix.length === 1) return bySuffix[0];
   }

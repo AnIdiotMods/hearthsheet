@@ -286,3 +286,8 @@ input[type="color"] { width: 40px; height: 30px; padding: 2px; }
 .option-list li.unmet > label span { color: var(--muted); }
 .option-list .rich { margin: 4px 0 4px 24px; font-size: 13px; }
 .more-options > summary { cursor: pointer; margin: 6px 0; }
+
+/* prepared / known spell counts */
+.count-pill { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 0 8px; font-size: 12px; }
+.count-pill.full { border-color: var(--accent); }
+.count-pill.over { border-color: var(--danger); color: var(--danger); }
