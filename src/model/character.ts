@@ -61,7 +61,7 @@ export interface CharacterRecord {
 }
 
 const TOP_ORDER = ['version', 'uid', 'name', 'race', 'class', 'background', 'feat', 'unarmed', 'money', 'slots',
-  'slotsCurrent', 'item', 'container', 'abilities', 'hpMax', 'hpCurrent', 'xp', 'customAbility', 'customSkill', 'skillSetting', 'tracker', 'note', 'companion'];
+  'slotsCurrent', 'item', 'container', 'abilities', 'hpMax', 'hpCurrent', 'xp', 'movement', 'customAbility', 'customSkill', 'skillSetting', 'tracker', 'note', 'companion'];
 const CLASS_ORDER = ['id', 'name', 'level', 'hd', 'hdCurrent', 'wealth', 'proficiency', 'numClassSkills', 'armor',
   'weapons', 'tools', 'slots', 'slotsCurrent', 'feat', 'autolevel', 'spellAbility', 'spell'];
 
@@ -203,8 +203,15 @@ export class Character {
   }
 
   /** Spells live under the class that knows them. */
-  addSpell(classEl: XElement, src: XElement): XElement {
-    return insertOrdered(classEl, spellFromCompendium(src), CLASS_ORDER);
+  addSpell(classEl: XElement, src: XElement, grantedBy?: string): XElement {
+    const sp = spellFromCompendium(src);
+    if (grantedBy) { setChildText(sp, 'prepared', '1'); setChildText(sp, 'grantedBy', grantedBy); }
+    return insertOrdered(classEl, sp, CLASS_ORDER);
+  }
+  /** A racial ability score increase chosen by the player (Variant Human, Half-Elf), stored like the race's own. */
+  addRaceAbilityBonus(a: Ability, value: number) {
+    const r = this.race;
+    if (r) r.children.push(abilityMod(a, value));
   }
 
   /** All coins (type $ or the app's "Gold (gp)" style items) → gp total. */
@@ -499,6 +506,15 @@ export function chosenSubclasses(c: XElement): string[] {
     if (!f.optional || !chosen.has(f.name)) continue;
     const owner = subclassOwner(f, cv.subclasses);
     if (owner) out.add(owner);
+  }
+  // Two versions of one subclass share feature names (their introduction, usually): keep the version
+  // with more chosen features of its own.
+  for (const [name, v] of cv.variants) {
+    if (!out.has(name) || !out.has(v.base)) continue;
+    const own = (sub: string) => new Set(cv.features.filter((f) => f.level === v.level && subclassOwner(f, cv.subclasses) === sub).map((f) => f.name));
+    const a = own(v.base), b = own(name);
+    const unique = (x: Set<string>, y: Set<string>) => [...x].filter((n) => !y.has(n) && chosen.has(n)).length;
+    out.delete(unique(b, a) > unique(a, b) ? v.base : name);
   }
   return [...out];
 }

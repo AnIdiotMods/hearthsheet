@@ -44,6 +44,11 @@ export interface Library {
 
 export const entryKey = (kind: string, name: string) => `${kind}:${name.trim().toLowerCase()}`;
 
+export interface LibraryOptions {
+  /** Leave out playtest (Unearthed Arcana), Plane Shift, social-media, third-party and homebrew content. */
+  officialOnly?: boolean;
+}
+
 /**
  * Merge enabled files in import order, the way the community build tools do:
  * - classes with the same name are merged: the copy with <hd> is the base and
@@ -51,26 +56,32 @@ export const entryKey = (kind: string, name: string) => `${kind}:${name.trim().t
  *   files extend a class);
  * - spells with the same name merge their <classes> lists; the copy with
  *   <level> provides the rest;
- * - any other duplicate replaces the earlier entry, with a warning.
+ * - another file's entry with the same name replaces the earlier one, with a
+ *   warning (that is how a homebrew file overrides an entry);
+ * - two different entries with the same name inside one file (e.g. a race
+ *   printed in two books) are both kept, the later one named after its source.
  */
-export function buildLibrary(files: CompendiumFile[]): Library {
+export function buildLibrary(files: CompendiumFile[], opts: LibraryOptions = {}): Library {
   const lib: Library = { entries: new Map(), byKind: emptyByKind(), others: [], warnings: [] };
   for (const f of files) {
     if (!f.enabled) continue;
+    const sameName = new Map<string, string[]>();
     const { doc, warnings } = parseXml(f.xml);
     for (const w of warnings) lib.warnings.push({ fileId: f.id, message: w });
     if (doc.root.name !== 'compendium') {
       lib.warnings.push({ fileId: f.id, message: `root element is <${doc.root.name}>, expected <compendium>` });
     }
-    for (const e of elements(doc.root)) {
-      const kind = (KINDS as readonly string[]).includes(e.name) ? (e.name as Kind) : null;
-      if (!kind) { lib.others.push({ fileId: f.id, el: e }); continue; }
-      const name = childText(e, 'name');
+    for (const raw of elements(doc.root)) {
+      const kind = (KINDS as readonly string[]).includes(raw.name) ? (raw.name as Kind) : null;
+      if (!kind) { lib.others.push({ fileId: f.id, el: raw }); continue; }
+      let e = raw;
+      let name = childText(e, 'name');
       if (!name) {
         lib.warnings.push({ fileId: f.id, message: `<${e.name}> without a <name> skipped` });
         continue;
       }
-      const key = entryKey(kind, name);
+      if (opts.officialOnly && kind !== 'class' && isUnofficial(name, sourceOf(e))) continue;
+      let key = entryKey(kind, name);
       const prev = lib.entries.get(key);
       if (!prev) { lib.entries.set(key, { kind, name, el: e, fileId: f.id }); continue; }
       if (kind === 'class') {
@@ -81,14 +92,116 @@ export function buildLibrary(files: CompendiumFile[]): Library {
         lib.entries.set(key, { kind, name, el: mergeSpell(prev.el, e), fileId: child(e, 'level') ? f.id : prev.fileId });
         continue;
       }
+      if (prev.fileId === f.id) {
+        // Same file: an exact copy is dropped; a different entry is kept under a distinct name.
+        const text = canonicalText(e);
+        const seen = sameName.get(key) ?? [canonicalText(prev.el)];
+        if (seen.includes(text)) continue;
+        sameName.set(key, [...seen, text]);
+        const src = shortSource(sourceOf(e));
+        const prevSrc = shortSource(sourceOf(prev.el));
+        let alt = src && src !== prevSrc ? `${name} (${src})` : `${name} (2)`;
+        for (let n = 3; lib.entries.has(entryKey(kind, alt)); n++) alt = `${name} (${n})`;
+        e = cloneEl(e);
+        const ne = child(e, 'name');
+        if (ne) ne.children = [{ type: 'text', value: alt }];
+        name = alt;
+        key = entryKey(kind, alt);
+        lib.entries.set(key, { kind, name, el: e, fileId: f.id });
+        continue;
+      }
       const prevFile = files.find((x) => x.id === prev.fileId)?.fileName ?? '?';
       lib.warnings.push({ fileId: f.id, message: `${kind} "${name}" replaces the copy from ${prevFile}` });
       lib.entries.set(key, { kind, name, el: e, fileId: f.id });
     }
   }
+  if (opts.officialOnly) {
+    for (const [key, e] of lib.entries) {
+      if (e.kind !== 'class') continue;
+      const kept = officialClass(e.el);
+      if (kept) lib.entries.set(key, { ...e, el: kept });
+      else lib.entries.delete(key);
+    }
+  }
   for (const e of lib.entries.values()) lib.byKind[e.kind].push(e);
   for (const k of KINDS) lib.byKind[k].sort((a, b) => a.name.localeCompare(b.name));
   return lib;
+}
+
+const canonicalText = (e: XElement) => serializeXml({ prolog: [], root: e, epilog: [] }).replace(/\s+/g, ' ');
+
+// ---------------------------------------------------------------- sources
+
+/** The "Source: Book p. 12" line of an entry (searched in its text, traits and features), without the page. */
+const sourceCache = new WeakMap<XElement, string>();
+export function sourceOf(e: XElement): string {
+  const hit = sourceCache.get(e);
+  if (hit !== undefined) return hit;
+  const s = findSource(e);
+  sourceCache.set(e, s);
+  return s;
+}
+function findSource(e: XElement): string {
+  const direct = childText(e, 'source');
+  if (direct) return cleanSource(direct);
+  const stack: XElement[] = [e];
+  while (stack.length) {
+    const x = stack.shift()!;
+    for (const c of x.children) {
+      if (c.type === 'text' || c.type === 'cdata') {
+        const m = /source:\s*([^\n]+)/i.exec(c.value);
+        if (m) return cleanSource(m[1]);
+      } else if (c.type === 'el' && c.name !== 'autolevel') stack.push(c);
+    }
+  }
+  return '';
+}
+const cleanSource = (s: string) => s.replace(/\s*,?\s*p(age|\.)?\s*-?\d+.*$/i, '').replace(/[,;.\s]+$/, '').trim();
+/** "Unearthed Arcana: Artificer Revisited" → "Unearthed Arcana"; long book names are kept. */
+const shortSource = (s: string) => s.replace(/^(unearthed arcana|plane shift|adventurers league|essentials kit)\b.*$/i, '$1').trim();
+
+const UNOFFICIAL_NAME = /\((UA|HB|TP|3pp|homebrew|playtest|PS[A-Z])\)|\[(UA|HB|homebrew)\]/i;
+const UNOFFICIAL_SOURCE = /unearthed arcana|plane shift|twitter|livestream|\(3pp\)|ccodex|matthew mercer|homebrew|third[- ]party|dragon magazine|critical role|tal'?dorei|blood hunter|playtest|\bUA\b/i;
+
+/** Well-known classes not published by Wizards of the Coast, often shipped without source lines. */
+const UNOFFICIAL_CLASS = /^(blood hunter|gunslinger|witch|shaman|warden|craftsman|alchemist|psion|monster hunter)\b/i;
+
+/** Playtest, Plane Shift, social media, third-party or homebrew content, judged from the name and source line. */
+export const isUnofficial = (name: string, source: string) => UNOFFICIAL_NAME.test(name) || (!!source && UNOFFICIAL_SOURCE.test(source));
+
+/** Short tag for unofficial content, e.g. "UA", "Plane Shift", "Homebrew"; empty for official content. */
+export function sourceTag(name: string, source: string): string {
+  if (!isUnofficial(name, source)) return '';
+  const s = `${name} ${source}`;
+  if (/unearthed arcana|\(UA\)|\[UA\]|playtest|\bUA\b/i.test(s)) return 'UA';
+  if (/plane shift|\(PS[A-Z]\)/i.test(s)) return 'Plane Shift';
+  if (/twitter|livestream/i.test(s)) return 'Unofficial';
+  if (/3pp|third|\(TP\)|ccodex/i.test(s)) return 'Third party';
+  return 'Homebrew';
+}
+
+/**
+ * A class with its unofficial parts removed: features whose name or source is unofficial (and their
+ * slot rows' subclass casting stays, since rows carry no source). Null when the class itself is unofficial.
+ */
+function officialClass(e: XElement): XElement | null {
+  const name = childText(e, 'name');
+  if (UNOFFICIAL_NAME.test(name) || UNOFFICIAL_CLASS.test(name)) return null;
+  const out = cloneEl(e);
+  const kept: { official: number; unofficial: number } = { official: 0, unofficial: 0 };
+  for (const al of elements(out, 'autolevel')) {
+    al.children = al.children.filter((c) => {
+      if (c.type !== 'el' || (c.name !== 'feature' && c.name !== 'feat')) return true;
+      const optional = yes(attr(c, 'optional')) || yes(childText(c, 'optional'));
+      const bad = isUnofficial(childText(c, 'name'), sourceOf(c));
+      if (!optional) kept[bad ? 'unofficial' : 'official']++;
+      return !bad;
+    });
+  }
+  // A class whose own (non-optional) features are mostly unofficial is an unofficial class (e.g. a homebrew class).
+  if (kept.unofficial > kept.official) return null;
+  // Drop subclasses left without features other than their introduction? They have none by construction.
+  return out;
 }
 
 function mergeClass(a: XElement, b: XElement): XElement {
@@ -404,6 +517,7 @@ export function classView(e: XElement) {
   }
   const prof = proficiencyNames(e);
   const subclasses = subclassNames(features, counters);
+  const variants = splitSubclassVersions(features, subclasses);
   const subclassLevels = new Map<string, number>();
   let subclassLabel = '';
   let labelIsFixed = false;
@@ -431,12 +545,80 @@ export function classView(e: XElement) {
     spellAbility: parseAbility(childText(e, 'spellAbility')),
     slotsReset: childText(e, 'slotsReset'),
     features, slots, counters, asiLevels,
-    subclasses, subclassLevels, subclassLabel: subclassLabel || 'Subclass',
+    subclasses, subclassLevels, subclassLabel: subclassLabel || 'Subclass', variants,
   };
 }
 
+export interface SubclassVersion { base: string; level: number }
+
+/** An introduction feature "Family: Subclass" (e.g. "Artificer Specialist: Artillerist"). */
+function introOf(f: ClassFeature, subclasses: string[]): string | null {
+  if (!f.optional) return null;
+  const owner = subclassOwner(f, subclasses);
+  const m = owner && /^([^:]+):\s*(.+)$/.exec(stripLevelPrefix(f.name));
+  if (!owner || !m || m[2].trim().toLowerCase() !== owner.toLowerCase()) return null;
+  return subclasses.some((s) => s.toLowerCase() === m[1].trim().toLowerCase()) ? null : owner;
+}
+
+/**
+ * Two introductions of one subclass at the same level mean two printings were merged into one class
+ * (e.g. the Tasha's Artillerist and the older Eberron one). The features that follow the second
+ * introduction become "<Subclass> (version 2)", so picking one does not grant both. Features at other
+ * levels exist once in such files and are shared by both versions (see ownsFeature).
+ */
+function splitSubclassVersions(features: ClassFeature[], subclasses: string[]): Map<string, SubclassVersion> {
+  const variants = new Map<string, SubclassVersion>();
+  const intros = new Map<string, number[]>();
+  features.forEach((f, i) => {
+    const owner = introOf(f, subclasses);
+    if (!owner) return;
+    const k = `${owner}\u0000${f.level}`;
+    intros.set(k, [...(intros.get(k) ?? []), i]);
+  });
+  const original = [...subclasses];
+  for (const [k, idx] of intros) {
+    if (idx.length < 2) continue;
+    const [owner, lvlText] = k.split('\u0000');
+    const lvl = +lvlText;
+    idx.slice(1).forEach((start, n) => {
+      const name = `${owner} (version ${n + 2})`;
+      variants.set(name, { base: owner, level: lvl });
+      for (let j = start; j < features.length; j++) {
+        const g = features[j];
+        if (j > start && (introOf(g, original) || g.level !== lvl || !g.optional || subclassOwner(g, original) !== owner)) break;
+        features[j] = { ...g, subclass: name };
+      }
+      subclasses.splice(subclasses.indexOf(owner) + 1 + n, 0, name);
+    });
+  }
+  return variants;
+}
+
+/** Does `sub` own this feature? A later version of a subclass also owns the base's features at other levels. */
+export function ownsFeature(cv: { subclasses: string[]; variants?: Map<string, SubclassVersion> }, f: ClassFeature, sub: string): boolean {
+  const owner = subclassOwner(f, cv.subclasses);
+  if (!owner) return false;
+  if (owner.toLowerCase() === sub.toLowerCase()) return true;
+  const v = cv.variants?.get(sub);
+  return !!v && owner === v.base && f.level !== v.level;
+}
+
+/**
+ * Tasha's optional class features: their text starts "3rd-level barbarian optional class features".
+ * They are the player's (and DM's) choice, never granted automatically.
+ */
+export const isOptionalRule = (f: { text: string }) => /^\s*\d+(st|nd|rd|th)-level [\w' ]+ optional class features?\b/i.test(f.text);
+
+/**
+ * Placeholder entries such as "Path Feature" or "Divine Domain feature" ("At 6th level, you gain a feature
+ * from your Primal Path."): they carry no rules of their own.
+ */
+export const isPlaceholderFeature = (f: { name: string; text: string }) =>
+  /^[\w' ]+ feature$/i.test(stripLevelPrefix(f.name).trim()) && !/:/.test(f.name)
+  && /you gain (a|another) feature (from|granted by) your/i.test(f.text) && f.text.replace(/source:.*$/im, '').trim().length < 200;
+
 /** Option families that use the "Family: Option" naming but are not subclasses. */
-const OPTION_FAMILIES = /^(becoming a.*|fighting style|metamagic|eldritch invocations?|invocations?|maneuvers?|pact boon|totem spirit|hunter'?s prey|defensive tactics|multiattack|superior hunter'?s defense|arcane shot( options)?|infusions?|elemental disciplines?|runes?|psionic power|favou?red enemy|natural explorer|expertise|ability score improvement|starting|multiclass|artificer infusions?|maneuver options?|blessings?|elemental attunement|forms?|mystic arcanum.*|channel divinity.*|wild shape.*|optional class features?|dragon ancestor|totem.*|aspect of the beast|beast.*)$/i;
+const OPTION_FAMILIES = /^(becoming a.*|fighting style|metamagic|eldritch invocations?|invocations?|maneuvers?|pact boon|totem spirit|hunter'?s prey|defensive tactics|multiattack|superior hunter'?s defense|arcane shot( options)?|infusions?|elemental disciplines?|runes?|psionic power|favou?red enemy|natural explorer|expertise|ability score improvement|starting|multiclass|artificer infusions?|maneuver options?|blessings?|elemental attunement|forms?|mystic arcanum.*|channel divinity.*|wild shape.*|optional class features?|dragon ancestor|aspect of the beast)$/i;
 
 /**
  * Subclasses are not a dedicated element. Features belonging to a subclass are

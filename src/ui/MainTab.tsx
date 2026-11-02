@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { ABBR, ABILITIES } from '../model/compendium';
+import { ABBR, ABILITIES, Ability } from '../model/compendium';
 import { AppState, Character, setHdCurrent } from '../model/character';
 import {
   PROF_LABEL, ProfLevel, abilityOptions, newCustomAbility, newCustomSkill, removeCustomAbility, setSkillSetting,
   updateCustomAbility, updateCustomSkill,
 } from '../model/custom';
-import { CustomAbilityResult, Sheet as SheetData, SkillResult } from '../rules/derive';
-import { Field, Modal, Mutate, NumberInput, RollChip, signed, useApp } from './common';
+import { CustomAbilityResult, Sheet as SheetData, SkillResult, deriveSheet } from '../rules/derive';
+import { Field, Modal, Mutate, NumberInput, RollChip, confirmOverLimit, signed, useApp } from './common';
 import { TrackersPanel } from './Trackers';
 
 const CONDITIONS = ['Blinded', 'Charmed', 'Deafened', 'Frightened', 'Grappled', 'Incapacitated', 'Invisible',
@@ -14,7 +14,24 @@ const CONDITIONS = ['Blinded', 'Charmed', 'Deafened', 'Frightened', 'Grappled', 
 const PROF_MARK: Record<ProfLevel, string> = { 0: '○', 1: '●', 2: '◆' };
 
 export function MainTab({ c, app, sheet: s, mutate }: { c: Character; app: AppState; sheet: SheetData; mutate: Mutate }) {
-  const { roll } = useApp();
+  const { roll, options: rules, toast } = useApp();
+  /** Edit a base score: warn before the total passes 20, and keep the hit point maximum in step with Constitution. */
+  const setBase = (a: Ability, n: number) => {
+    const total = s.naturalScores[a] + (n - c.abilities[a]);
+    if (total > 20 && s.naturalScores[a] <= 20 && n > c.abilities[a]
+      && !confirmOverLimit(`${ABBR[a]} would be ${total}, above the usual maximum of 20.`)) return;
+    mutate((ch, st) => {
+      const before = a === 'constitution' ? deriveSheet(ch, st, rules).mods.constitution : 0;
+      ch.abilities = { ...ch.abilities, [a]: n };
+      if (a !== 'constitution' || s.level < 1) return;
+      const delta = (deriveSheet(ch, st, rules).mods.constitution - before) * s.level;
+      if (delta) {
+        ch.hpMax = ch.hpMax + delta;
+        ch.hpCurrent = Math.max(0, ch.hpCurrent + delta);
+        toast(`Hit point maximum ${delta > 0 ? '+' : ''}${delta} (Constitution modifier changed)`);
+      }
+    });
+  };
   const [abilityEdit, setAbilityEdit] = useState<CustomAbilityResult | 'new' | null>(null);
   const [skillEdit, setSkillEdit] = useState<SkillResult | 'new' | null>(null);
   const options = abilityOptions(c.ch);
@@ -46,8 +63,7 @@ export function MainTab({ c, app, sheet: s, mutate }: { c: Character; app: AppSt
                   <RollChip expr={`1d20${signed(s.mods[a])}`} label={`${ABBR[a]} check`}><span className="big">{signed(s.mods[a])}</span></RollChip>
                   <span className="muted small">{s.scores[a]}</span>
                   <span className="small">Save <RollChip expr={`1d20${signed(save.bonus)}`} label={`${ABBR[a]} save`}>{signed(save.bonus)}</RollChip>{save.proficient && ' ●'}</span>
-                  <NumberInput className="base" value={c.abilities[a]} min={1} max={30}
-                    onChange={(n) => mutate((ch) => { ch.abilities = { ...ch.abilities, [a]: n }; })} />
+                  <NumberInput className="base" value={c.abilities[a]} min={1} max={30} onChange={(n) => setBase(a, n)} />
                 </div>
               );
             })}

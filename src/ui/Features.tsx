@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ClassFeature, Trait } from '../model/compendium';
+import { ClassFeature, Trait, isOptionalRule, isPlaceholderFeature } from '../model/compendium';
 import {
   AppState, Character, ModifierInput, addClassFeat, addCustomClassFeat, classFeats, classLevel, featModifiers,
   hasEmbeddedProgression, updateFeat,
@@ -7,7 +7,7 @@ import {
 import { CV, Sheet as SheetData, progressionOf } from '../rules/derive';
 import { resolveFormula } from '../rules/dice';
 import { XElement, childText, removeChild } from '../xml/xml';
-import { Field, Modal, Mutate, RichText, useApp } from './common';
+import { Field, Modal, Mutate, NumberInput, RichText, useApp } from './common';
 import { OptionGroupsPicker, familyTitle, optionContext } from './Options';
 import { Picker } from './Picker';
 import { OptionGroup, OptionItem, optionGroups } from '../rules/options';
@@ -39,11 +39,14 @@ export function FeaturesTab({ c, sheet, app, mutate, rollF }: { c: Character; sh
             return (
               <div key={ct.name} className="row">
                 <span className="counter-name">{ct.name}</span>
-                {Array.from({ length: Math.min(ct.value, 30) }, (_, j) => (
-                  <input key={j} type="checkbox" checked={j < used}
+                {ct.unlimited ? <b>Unlimited</b> : ct.value <= 12 ? Array.from({ length: ct.value }, (_, j) => (
+                  <input key={j} type="checkbox" checked={j < used} aria-label={`${ct.name} used ${j + 1}`}
                     onChange={(e) => mutate((_, a) => { a.countersUsed = { ...a.countersUsed, [ct.name]: e.target.checked ? j + 1 : j }; })} />
-                ))}
-                <span className="muted small">{ct.value - used}/{ct.value} · {/^s/i.test(ct.reset) ? 'short rest' : /^l/i.test(ct.reset) ? 'long rest' : ct.reset}</span>
+                )) : (
+                  <label className="small">Used <NumberInput className="qty" value={used} min={0} max={ct.value}
+                    onChange={(n) => mutate((_, a) => { a.countersUsed = { ...a.countersUsed, [ct.name]: Math.max(0, Math.min(ct.value, n)) }; })} /></label>
+                )}
+                <span className="muted small">{ct.unlimited ? '' : `${ct.value - used}/${ct.value} · `}{/^s/i.test(ct.reset) ? 'short rest' : /^l/i.test(ct.reset) ? 'long rest' : ct.reset}{ct.builtin ? ' · built-in rule' : ''}</span>
               </div>
             );
           })}
@@ -55,7 +58,7 @@ export function FeaturesTab({ c, sheet, app, mutate, rollF }: { c: Character; sh
         const level = classLevel(ce);
         const feats = classFeats(ce);
         const known = new Map([...cv.features].reverse().map((f) => [f.name, f] as const)); // first occurrence wins
-        const missing = cv.features.filter((f) => !f.optional && f.level <= level && !feats.some((x) => x.name === f.name));
+        const missing = cv.features.filter((f) => !f.optional && !isOptionalRule(f) && !isPlaceholderFeature(f) && f.level <= level && !feats.some((x) => x.name === f.name));
         const fallback = !feats.length && !hasEmbeddedProgression(ce);
         return (
           <section key={ci} className="panel">
@@ -74,15 +77,15 @@ export function FeaturesTab({ c, sheet, app, mutate, rollF }: { c: Character; sh
               <details key={i}><summary>{f.name}{f.level ? <span className="muted small"> · level {f.level}</span> : null}</summary><RichText text={f.text} label={f.name} /></details>
             ))}
             {!fallback && feats.length === 0 && <p className="muted small">No features. Use “Add feature…” or “Restore missing”.</p>}
-            {feats.map((f, i) => {
+            {feats.filter((f) => !isPlaceholderFeature(f)).map((f, i) => {
               const src = known.get(f.name);
               return (
                 <details key={i}>
                   <summary>
                     {f.name}
-                    {src ? <span className="muted small"> · level {src.level}</span> : <span className="tag">custom</span>}
-                    {src?.optional && <span className="tag">option</span>}
-                    {f.modifiers.length > 0 && <span className="tag" title={f.modifiers.map((m) => m.raw).join('; ')}>modifiers</span>}
+                    {src ? <span className="muted small"> · level {src.level}</span> : <>{' '}<span className="tag">custom</span></>}
+                    {src?.optional && <>{' '}<span className="tag">option</span></>}
+                    {f.modifiers.length > 0 && <>{' '}<span className="tag" title={f.modifiers.map((m) => m.raw).join('; ')}>modifiers</span></>}
                     <span className="feature-actions">
                       <button className="link small" onClick={(e) => { e.preventDefault(); setEditing({ fe: f.el }); }}>edit</button>
                       <button className="link danger small" onClick={(e) => {
@@ -113,7 +116,7 @@ export function FeaturesTab({ c, sheet, app, mutate, rollF }: { c: Character; sh
           <details key={i}>
             <summary>
               {childText(fe, 'name').includes(':') ? childText(fe, 'name').slice(childText(fe, 'name').indexOf(':') + 1).trim() : childText(fe, 'name')}
-              {childText(fe, 'name').includes(':') && <span className="tag">{familyTitle(childText(fe, 'name').split(':')[0].trim())}</span>}
+              {childText(fe, 'name').includes(':') && <>{' '}<span className="tag">{familyTitle(childText(fe, 'name').split(':')[0].trim())}</span></>}
               <span className="feature-actions">
                 <button className="link small" onClick={(e) => { e.preventDefault(); setEditing({ fe }); }}>edit</button>
                 <button className="link danger small" onClick={(e) => { e.preventDefault(); if (confirm(`Remove the feat “${childText(fe, 'name')}”?`)) mutate((ch) => ch.remove(fe)); }}>remove</button>

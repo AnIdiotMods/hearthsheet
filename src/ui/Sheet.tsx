@@ -1,5 +1,5 @@
 import { useMemo, useReducer, useRef, useState } from 'react';
-import { ABBR, ABILITIES, Ability, ClassFeature, featView, itemView, spellView } from '../model/compendium';
+import { ABBR, ABILITIES, Ability, ClassFeature, featView, isPlaceholderFeature, itemView, spellView } from '../model/compendium';
 import {
   AppState, COIN_KINDS, Character, CharacterRecord, CoinKind, emptyAppState, classLevel, classSpells, coinKind,
   containerCarried, customItem, hdCurrent, isAttuned, isEquipped, isPrepared, itemQuantity, setAttuned,
@@ -7,11 +7,12 @@ import {
 } from '../model/character';
 import { hpMaxOf, setHpCurrent, setHpTemp } from '../model/creature';
 import { restTrackers } from '../model/tracker';
-import { Sheet as SheetData, deriveSheet, mod } from '../rules/derive';
-import { applyLevelUp, levelOptions, removeLevel, subclassFeaturesAt, syncClassSlots, XP_TABLE } from '../rules/level';
+import { Sheet as SheetData, deriveSheet } from '../rules/derive';
+import { Movement, OTHER_SPEEDS, OtherSpeed, setMovement } from '../model/movement';
+import { applyLevelUp, defaultSubclassPicks, levelOptions, removeLevel, subclassFeaturesAt, syncClassSlots, XP_TABLE } from '../rules/level';
 import { cryptoRng, resolveFormula } from '../rules/dice';
 import { OptionItem, grantsExpertise, optionGroups } from '../rules/options';
-import { setCustomLimit } from '../rules/spellcount';
+import { baseClassName, setCustomLimit } from '../rules/spellcount';
 import { setSkillSetting } from '../model/custom';
 import { XElement, childText, childTexts, elements, setChildText } from '../xml/xml';
 import { EntryDetail } from './CompendiumView';
@@ -19,8 +20,11 @@ import { CreaturesTab } from './Creatures';
 import { FeaturesTab } from './Features';
 import { Picker } from './Picker';
 import { MainTab } from './MainTab';
-import { ExpertisePicker, OptionGroupsPicker, optionContext } from './Options';
-import { Field, Modal, Mutate, NumberInput, RollChip, signed, useApp } from './common';
+import {
+  ExpertisePicker, ExtraChoicesPicker, ExtraValues, OptionGroupsPicker, SubclassFeatures, applyExtraChoices, emptyExtras, extraNeeds,
+  optionContext, subclassOptionLabel,
+} from './Options';
+import { Field, Modal, Mutate, NumberInput, RollChip, TooHighTag, confirmOverLimit, signed, useApp } from './common';
 
 
 type Tab = 'main' | 'spells' | 'inventory' | 'features' | 'creatures' | 'notes' | 'xml';
@@ -34,6 +38,7 @@ export function Sheet({ record, onSave, onBack, onExport }: {
   const [, bump] = useReducer((x: number) => x + 1, 0);
   const [tab, setTab] = useState<Tab>('main');
   const [levelUp, setLevelUp] = useState(false);
+  const [speedEdit, setSpeedEdit] = useState(false);
   const s = deriveSheet(c, app.current, options);
 
   const mutate: Mutate = (fn) => {
@@ -85,6 +90,7 @@ export function Sheet({ record, onSave, onBack, onExport }: {
         <button className="link" onClick={onBack}>← Characters</button>
         <div className="title">
           <input className="name-input" value={c.name} onChange={(e) => mutate((ch) => { ch.name = e.target.value; })} aria-label="Character name" />
+          <TooHighTag items={s.overLimits} />
           <div className="muted">{[c.race && childText(c.race, 'name'), classesLine, c.background && childText(c.background, 'name')].filter(Boolean).join(' · ')}</div>
         </div>
         <div className="row">
@@ -102,7 +108,13 @@ export function Sheet({ record, onSave, onBack, onExport }: {
         <Stat label="Armor Class" value={s.ac} title={s.acNotes.join('\n')} />
         <HitPoints c={c} app={app.current} max={s.hpMax} mutate={mutate} />
         <Stat label="Initiative" value={<RollChip expr={`1d20${signed(s.initiative)}`} label="Initiative">{signed(s.initiative)}</RollChip>} />
-        <Stat label="Speed" value={`${s.speed} ft`} />
+        <button className="stat stat-button" onClick={() => setSpeedEdit(true)} title={[...s.speedNotes, 'Click to edit movement'].join('\n')}>
+          <span className="label">Speed</span>
+          <span className="value">{s.speed} ft</span>
+          {(Object.keys(s.speeds) as OtherSpeed[]).length > 0 && (
+            <span className="small muted">{(Object.entries(s.speeds) as [OtherSpeed, number][]).map(([k, v]) => `${k} ${v}${k === 'fly' && s.hover ? ' (hover)' : ''}`).join(' · ')}</span>
+          )}
+        </button>
         <Stat label="Proficiency" value={signed(s.prof)} />
         <Stat label="Passive Perception" value={s.passivePerception} />
         <div className="stat">
@@ -136,7 +148,46 @@ export function Sheet({ record, onSave, onBack, onExport }: {
       )}
 
       {levelUp && <LevelUpModal c={c} onClose={() => setLevelUp(false)} mutate={mutate} />}
+      {speedEdit && <SpeedEditor c={c} sheet={s} onClose={() => setSpeedEdit(false)} mutate={mutate} />}
     </div>
+  );
+}
+
+function SpeedEditor({ c, sheet, onClose, mutate }: { c: Character; sheet: SheetData; onClose: () => void; mutate: Mutate }) {
+  const mv = sheet.movement;
+  const raceSpeed = c.race ? parseInt(childText(c.race, 'speed'), 10) || 30 : 30;
+  const save = (patch: Partial<Movement>) => mutate((ch) => setMovement(ch.ch, { ...mv, ...patch, other: { ...mv.other, ...(patch.other ?? {}) } }, (e) => { ch.insert(e); }));
+  const num = (v: string) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : null; };
+  return (
+    <Modal title="Movement" onClose={onClose}>
+      <div className="grid2">
+        <Field label={`Walking speed (race: ${raceSpeed} ft; empty uses it)`}>
+          <input type="number" min={0} value={mv.walk ?? ''} placeholder={String(raceSpeed)} onChange={(e) => save({ walk: num(e.target.value) })} />
+        </Field>
+        <Field label="Extra bonus (+ or −)">
+          <input type="number" value={mv.bonus || ''} placeholder="0" onChange={(e) => save({ bonus: num(e.target.value) ?? 0 })} />
+        </Field>
+        {OTHER_SPEEDS.map((k) => (
+          <Field key={k} label={`${k[0].toUpperCase()}${k.slice(1)} speed`}>
+            <div className="row">
+              <input type="number" min={0} disabled={mv.other[k] === 'walk'} value={typeof mv.other[k] === 'number' ? (mv.other[k] as number) : ''}
+                placeholder="none" onChange={(e) => save({ other: { [k]: num(e.target.value) } as Movement['other'] })} />
+              <label className="check small"><input type="checkbox" checked={mv.other[k] === 'walk'}
+                onChange={(e) => save({ other: { [k]: e.target.checked ? 'walk' : null } as Movement['other'] })} /> same as walking</label>
+            </div>
+          </Field>
+        ))}
+        <label className="check"><input type="checkbox" checked={mv.hover} onChange={(e) => save({ hover: e.target.checked })} /> Can hover</label>
+      </div>
+      <p>Walking speed now: <b>{sheet.speed} ft</b>{Object.keys(sheet.speeds).length > 0 && <> · {Object.entries(sheet.speeds).map(([k, v]) => `${k} ${v} ft`).join(' · ')}</>}</p>
+      {sheet.speedNotes.length > 0 && <ul className="small muted">{sheet.speedNotes.map((n, i) => <li key={i}>{n}</li>)}</ul>}
+      <p className="muted small">Feature, feat and item bonuses (e.g. Mobile, Unarmored Movement, boots) still apply on top. Stored in the character file under a &lt;movement&gt; element, which other apps ignore.</p>
+      <footer className="modal-actions">
+        <button onClick={() => mutate((ch) => setMovement(ch.ch, { walk: null, bonus: 0, other: { fly: null, swim: null, climb: null, burrow: null }, hover: false }, (e) => { ch.insert(e); }))}>Reset</button>
+        <span className="spacer" />
+        <button className="primary" onClick={onClose}>Done</button>
+      </footer>
+    </Modal>
   );
 }
 
@@ -187,6 +238,32 @@ function SpellsTab({ c, app, sheet, mutate, rollF }: { c: Character; app: AppSta
   }));
   const maxSlot = sheet.slots.reduce((m, v, i) => (v > 0 ? i : m), 0);
   const modeOf = (ce: XElement) => sheet.spellcasting.find((sc) => sc.el === ce)?.limit.mode ?? 'prepared';
+  /** Highest spell level a class can cast: its own slots, pact slots, or Mystic Arcanum. */
+  const castableOf = (ce: XElement) => {
+    const sc = sheet.spellcasting.find((x) => x.el === ce);
+    if (!sc) return 9;
+    const own = sc.kind === 'pact' ? sheet.pact?.level ?? 0 : sc.slots.reduce((m, v, i) => (i > 0 && v > 0 ? i : m), 0);
+    const arcanum = sheet.counters.filter((ct) => /mystic arcanum \((\d)/i.test(ct.name)).map((ct) => +/\((\d)/.exec(ct.name)![1]);
+    return Math.max(own, ...arcanum);
+  };
+  const togglePrepared = (ce: XElement, el: XElement, on: boolean) => {
+    const sc = sheet.spellcasting.find((x) => x.el === ce);
+    if (on && sc && sc.limit.max !== null && sc.limit.count >= sc.limit.max
+      && !confirmOverLimit(`${sc.className} can have ${sc.limit.max} spells prepared (${sc.limit.basis}), and this would make ${sc.limit.count + 1}.`)) return;
+    mutate(() => setPrepared(el, on));
+  };
+  /** Before adding a spell from the picker: warn about levels above what can be cast and about full lists. */
+  const allowAdd = (ce: XElement, src: XElement) => {
+    const v = spellView(src);
+    const sc = sheet.spellcasting.find((x) => x.el === ce);
+    const castable = castableOf(ce);
+    if (v.level > castable && !confirmOverLimit(`${v.name} is a ${ordinal(v.level)}-level spell; ${childText(ce, 'name')} can cast up to ${castable ? `${ordinal(castable)} level` : 'cantrips only'} right now.`)) return false;
+    if (!sc) return true;
+    if (v.level === 0 && sc.cantrips > 0 && sc.limit.cantrips >= sc.cantrips && !confirmOverLimit(`${sc.className} knows ${sc.cantrips} cantrips, and this would make ${sc.limit.cantrips + 1}.`)) return false;
+    if (v.level > 0 && sc.limit.mode === 'known' && sc.limit.max !== null && sc.limit.count >= sc.limit.max
+      && !confirmOverLimit(`${sc.className} can know ${sc.limit.max} spells (${sc.limit.basis}), and this would make ${sc.limit.count + 1}.`)) return false;
+    return true;
+  };
   const setUsed = (l: number, n: number) => mutate((ch) => {
     const cur = sheet.slots.map((t, i) => (i === 0 ? t : Math.max(0, t - (i === l ? n : sheet.slotsUsed[i]))));
     ch.setSlots(sheet.slots, cur);
@@ -251,15 +328,17 @@ function SpellsTab({ c, app, sheet, mutate, rollF }: { c: Character; app: AppSta
       </section>
       {groups.filter((g) => g.spells.length).map((g) => (
         <section key={g.name} className="panel">
-          <h3>{g.name} spells{(() => { const sc = sheet.spellcasting.find((x) => x.el === g.ce); return sc ? <span className="muted small"> · {sc.limit.mode === 'prepared' ? 'tick the spells you have prepared' : `every spell here counts as ${sc.limit.edition === '2024' ? 'prepared' : 'known'}`}</span> : null; })()}</h3>
+          <h3>{baseClassName(g.name) === 'wizard' ? `${g.name} spellbook` : `${g.name} spells`}{(() => { const sc = sheet.spellcasting.find((x) => x.el === g.ce); return sc ? <span className="muted small"> · {sc.limit.mode === 'prepared' ? (baseClassName(g.name) === 'wizard' ? 'the spells you have copied; tick the ones you have prepared' : 'tick the spells you have prepared') : `every spell here counts as ${sc.limit.edition === '2024' ? 'prepared' : 'known'}`}</span> : null; })()}</h3>
           <table className="spell-table">
             <tbody>
               {g.spells.map(({ el, v, prepared }) => (
-                <tr key={v.name}>
-                  <td>{v.level > 0 && modeOf(g.ce) === 'prepared' && <input type="checkbox" title="Prepared" checked={prepared} onChange={(e) => mutate(() => setPrepared(el, e.target.checked))} />}</td>
+                <tr key={v.name} className={v.level > castableOf(g.ce) && !childText(el, 'grantedBy') ? 'too-high-row' : ''}>
+                  <td>{v.level > 0 && modeOf(g.ce) === 'prepared' && !childText(el, 'grantedBy') && <input type="checkbox" title="Prepared" checked={prepared} onChange={(e) => togglePrepared(g.ce, el, e.target.checked)} />}</td>
                   <td><button className="link" onClick={() => setOpen(el)}>{v.name}</button>
+                    {childText(el, 'grantedBy') && <>{' '}<span className="tag" title="Does not count against your limits">always prepared · {childText(el, 'grantedBy')}</span></>}
+                    {v.level > castableOf(g.ce) && !childText(el, 'grantedBy') && <>{' '}<span className="tag too-high" title="Above the highest level you can cast">too high</span></>}
                     <div className="muted small">{[v.level ? ordinal(v.level) : 'Cantrip', v.time, v.range, v.duration, v.ritual && 'ritual'].filter(Boolean).join(' · ')}</div></td>
-                  <td>{v.rolls.slice(0, 2).map((r, i) => <button key={i} className="roll" title={r.description} onClick={() => rollF(r.formula, v.name)}>{resolveFormula(r.formula, sheet.formula)}</button>)}</td>
+                  <td>{spellRolls(v, sheet.level).map((r, i) => <button key={i} className="roll" title={r.title} onClick={() => rollF(r.formula, v.name)}>{resolveFormula(r.formula, sheet.formula)}</button>)}</td>
                   <td>{v.level > 0 && <button onClick={() => cast(v.level)}>Cast</button>}</td>
                   <td><button className="link danger" onClick={() => mutate(() => { const i = g.ce.children.indexOf(el); if (i >= 0) g.ce.children.splice(i, 1); })}>Remove</button></td>
                 </tr>
@@ -276,7 +355,9 @@ function SpellsTab({ c, app, sheet, mutate, rollF }: { c: Character; app: AppSta
       {adding && (
         <Picker kind="spell" onClose={() => setAdding(null)}
           filterHint={[childText(adding, 'name')]} subclasses={sheet.classes.find((k) => k.el === adding)?.subclasses ?? []}
+          maxSpellLevel={castableOf(adding)}
           has={(n) => classSpells(adding).some((sp) => childText(sp, 'name').toLowerCase() === n.toLowerCase())}
+          beforePick={(e) => allowAdd(adding, e.el)}
           onPick={(e) => mutate((ch) => { ch.addSpell(adding, e.el); })} />
       )}
     </div>
@@ -290,6 +371,38 @@ function Count({ label, have, max, title }: { label: string; have: number; max: 
       {label} <b>{have}</b>{max !== null ? <> / {max}</> : null}
     </span>
   );
+}
+
+/**
+ * The damage or healing rolls worth showing for a spell. Cantrips list one roll per tier (1d8, 2d8, 3d8,
+ * 4d8, or pairs like Toll the Dead's 1d8/1d12): show the tier for the character's level (5th, 11th, 17th).
+ * Leveled spells with one roll per slot level show the base roll, with the upcast rolls in the tooltip.
+ */
+export function spellRolls(v: { level: number; rolls: { formula: string; description: string; level: number | null }[] }, characterLevel: number) {
+  const out = (rs: typeof v.rolls, title?: (r: typeof v.rolls[number]) => string) => rs.map((r) => ({ formula: r.formula, title: title ? title(r) : r.description }));
+  const rolls = v.rolls;
+  if (!rolls.length) return [];
+  const tier = characterLevel >= 17 ? 3 : characterLevel >= 11 ? 2 : characterLevel >= 5 ? 1 : 0;
+  if (v.level === 0) {
+    if (rolls.some((r) => r.level !== null)) {
+      const byDesc = new Map<string, typeof rolls>();
+      for (const r of rolls) byDesc.set(r.description, [...(byDesc.get(r.description) ?? []), r]);
+      return out([...byDesc.values()].map((rs) => rs.filter((r) => (r.level ?? 0) <= characterLevel).pop() ?? rs[0]));
+    }
+    if (rolls.length >= 4 && rolls.length % 4 === 0) {
+      const per = rolls.length / 4;
+      return out(rolls.slice(tier * per, tier * per + per), (r) => `${r.description ? `${r.description} · ` : ''}damage at character level ${characterLevel}`);
+    }
+    return out(rolls.slice(0, 2));
+  }
+  if (rolls.every((r) => r.level !== null)) {
+    const base = rolls.filter((r) => r.level === Math.min(...rolls.map((x) => x.level!)));
+    return out(base, (r) => `${r.description ? `${r.description} · ` : ''}at higher levels: ${rolls.filter((x) => x.level! > r.level!).map((x) => `${ordinal(x.level!)} ${x.formula}`).join(', ')}`);
+  }
+  if (rolls.length === 10 - v.level) {
+    return out(rolls.slice(0, 1), () => `at higher levels: ${rolls.slice(1).map((x, i) => `${ordinal(v.level + i + 1)} ${x.formula}`).join(', ')}`);
+  }
+  return out(rolls.slice(0, 2));
 }
 
 const ordinal = (n: number) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'}`;
@@ -320,7 +433,11 @@ function InventoryTab({ c, sheet, mutate, rollF }: { c: Character; sheet: SheetD
             {items.map(({ el, v, qty, eq, att }, i) => (
               <tr key={i}>
                 <td><input type="checkbox" checked={eq} onChange={(e) => mutate(() => setEquipped(el, e.target.checked))} /></td>
-                <td>{(v.magic || v.attunement) && <input type="checkbox" checked={att} onChange={(e) => mutate(() => setAttuned(el, e.target.checked))} />}</td>
+                <td>{(v.magic || v.attunement) && <input type="checkbox" checked={att} onChange={(e) => {
+                  const n = items.filter((x) => x.att).length;
+                  if (e.target.checked && n >= 3 && !confirmOverLimit(`You can normally be attuned to 3 items at once, and this would make ${n + 1}.`)) return;
+                  mutate(() => setAttuned(el, e.target.checked));
+                }} />}</td>
                 <td><button className="link" onClick={() => setOpen(el)}>{v.name}</button> <span className="muted small">{v.typeLabel}</span></td>
                 <td><NumberInput className="qty" value={qty} min={0} onChange={(n) => mutate(() => setItemQuantity(el, n))} /></td>
                 <td>{v.weight ? Math.round(v.weight * qty * 100) / 100 : ''}</td>
@@ -401,7 +518,7 @@ function NotesTab({ c, mutate }: { c: Character; mutate: Mutate }) {
 // ---------------------------------------------------------------- level up
 
 function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => void; mutate: Mutate }) {
-  const { lib, options } = useApp();
+  const { lib, options, toast } = useApp();
   const existing = c.classes;
   const [target, setTarget] = useState<string>(existing[0] ? 'existing:0' : lib.byKind.class[0] ? `new:${lib.byKind.class[0].name}` : '');
   const [hp, setHp] = useState<'average' | 'roll' | 'manual'>('average');
@@ -415,6 +532,7 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
   const [feat, setFeat] = useState('');
   const [optionFeats, setOptionFeats] = useState<OptionItem[]>([]);
   const [expertise, setExpertise] = useState<string[]>([]);
+  const [extras, setExtras] = useState<ExtraValues>(emptyExtras());
   const sheet = deriveSheet(c, emptyAppState(), options);
 
   const existingEl = target.startsWith('existing:') ? existing[+target.split(':')[1]] : undefined;
@@ -422,9 +540,10 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
   const classEl = existingEl ?? newEl;
   const nextLevel = existingEl ? classLevel(existingEl) + 1 : 1;
   const lo = classEl ? levelOptions(classEl, nextLevel, options) : null;
-  const picked = choices ?? lo?.subclassFeatures.map((f) => f.name) ?? [];
+  const picked = choices ?? (lo ? lo.chosenSubclasses.flatMap((sub) => defaultSubclassPicks(lo.cv, sub, nextLevel)).map((f) => f.name) : []);
+  const setPicked = (v: string[]) => setChoices(v);
   const toggle = (name: string, on: boolean) => setChoices(on ? [...picked, name] : picked.filter((x) => x !== name));
-  const incoming = lo ? [...lo.gained, ...lo.cv.features.filter((f) => picked.includes(f.name))] : [];
+  const incoming = lo ? [...lo.gained, ...lo.cv.features.filter((f) => f.level === nextLevel && picked.includes(f.name))] : [];
   const groups = lo && classEl ? optionGroups(optionContext({
     lib, cv: lo.cv, level: nextLevel, c, classEl: existingEl, sheet, incoming, subclass: subclass || undefined,
   })) : [];
@@ -434,28 +553,42 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
     else setOptionFeats(on ? [...optionFeats, o] : optionFeats.filter((x) => x.name !== o.name));
   };
   const needsExpertise = grantsExpertise(incoming);
+  const needs = extraNeeds(incoming, lo?.cv.skillChoices);
   const subclassPick = (sub: string) => {
     setSubclass(sub);
     const dropped = new Set(lo ? lo.subclassChoices.flatMap((x) => subclassFeaturesAt(lo.cv, x, nextLevel).map((f) => f.name)) : []);
     const base = picked.filter((n) => !dropped.has(n));
     if (!sub || !lo) { setChoices(base); return; }
-    setChoices([...base, ...subclassFeaturesAt(lo.cv, sub, nextLevel).map((f) => f.name)]);
+    setChoices([...base, ...defaultSubclassPicks(lo.cv, sub, nextLevel).map((f) => f.name)]);
   };
+  const asiIncrease: Partial<Record<Ability, number>> | undefined = lo?.asi && asiMode !== 'feat'
+    ? (asiMode === 'two' ? { [asiA]: 2 } : { [asiA]: 1, [asiB]: 1 }) : undefined;
+  const natural = sheet.naturalScores;
+  const asiOver = Object.entries(asiIncrease ?? {}).filter(([a, v]) => natural[a as Ability] + (v ?? 0) > 20)
+    .map(([a, v]) => `${ABBR[a as Ability]} ${natural[a as Ability]} → ${natural[a as Ability] + (v ?? 0)}`);
 
   const apply = () => {
     if (!classEl || c.totalLevel >= 20 || !lo) return;
-    const asi: Partial<Record<Ability, number>> | undefined = lo.asi && asiMode !== 'feat'
-      ? (asiMode === 'two' ? { [asiA]: 2 } : { [asiA]: 1, [asiB]: 1 }) : undefined;
+    let allowOverMax = false;
+    if (asiOver.length) {
+      allowOverMax = confirmOverLimit(`This Ability Score Improvement raises ${asiOver.join(', ')}, above the usual maximum of 20.`);
+      if (!allowOverMax && !window.confirm('Apply the level anyway, with the increase stopped at 20?')) return;
+    }
     const featEl = lo.asi && asiMode === 'feat' && feat ? lib.byKind.feat.find((f) => f.name === feat)?.el : undefined;
+    let granted: string[] = [];
     mutate((ch) => {
-      applyLevelUp(ch, {
+      const before = new Set(ch.classes.flatMap((k) => classSpells(k).map((sp) => childText(sp, 'name'))));
+      const ce = applyLevelUp(ch, {
         existing: existingEl, newClass: newEl,
         hp: hp === 'manual' ? { method: 'manual', value: manualHp } : { method: hp },
-        choices: picked, asi, feat: featEl,
+        choices: picked, asi: asiIncrease, feat: featEl, subclass: subclass || undefined, allowOverMax,
       }, cryptoRng, options);
+      granted = classSpells(ce).map((sp) => childText(sp, 'name')).filter((n) => !before.has(n));
       for (const o of optionFeats) if (o.feat) ch.addFeat(o.feat.el);
       for (const name of needsExpertise ? expertise : []) setSkillSetting(ch.ch, name, { prof: 2 }, (e) => ch.insert(e));
+      applyExtraChoices(ch, ce, needs, extras);
     });
+    if (granted.length) toast(`Always prepared: ${granted.join(', ')}`);
     onClose();
   };
 
@@ -464,12 +597,14 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
       <input type="checkbox" checked={picked.includes(f.name)} onChange={(e) => toggle(f.name, e.target.checked)} /> {f.name}
     </label>
   );
+  const shownGained = lo ? lo.gained.filter((f) => !isPlaceholderFeature(f)) : [];
+  const plainOptions = lo ? lo.other.filter((f) => !f.name.includes(':')) : [];
 
   return (
     <Modal title="Level up" onClose={onClose} wide>
       {c.totalLevel >= 20 && <p className="danger">This character is already level 20.</p>}
       <Field label="Class">
-        <select value={target} onChange={(e) => { setTarget(e.target.value); setSubclass(''); setChoices(null); setOptionFeats([]); setExpertise([]); }}>
+        <select value={target} onChange={(e) => { setTarget(e.target.value); setSubclass(''); setChoices(null); setOptionFeats([]); setExpertise([]); setExtras(emptyExtras()); }}>
           {existing.map((ce, i) => <option key={i} value={`existing:${i}`}>{childText(ce, 'name')} → {classLevel(ce) + 1}</option>)}
           {lib.byKind.class.filter((e) => !existing.some((ce) => childText(ce, 'name').toLowerCase() === e.name.toLowerCase()))
             .map((e) => <option key={e.name} value={`new:${e.name}`}>{e.name} (new class, multiclass)</option>)}
@@ -480,34 +615,44 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
         <>
           {c.totalLevel > 0 && (
             <div className="row">
-              <span>Hit points (d{lo.cv.hd} {signed(mod(c.abilities.constitution))} Con):</span>
+              <span>Hit points (d{lo.cv.hd} {signed(sheet.mods.constitution)} Con):</span>
               {(['average', 'roll', 'manual'] as const).map((m) => (
                 <label key={m} className="radio"><input type="radio" checked={hp === m} onChange={() => setHp(m)} />{m === 'average' ? `Average (${Math.floor(lo.cv.hd / 2) + 1})` : m === 'roll' ? 'Roll' : 'Enter roll'}</label>
               ))}
               {hp === 'manual' && <NumberInput value={manualHp} min={1} max={lo.cv.hd} onChange={setManualHp} />}
             </div>
           )}
-          {lo.gained.length > 0 && <><h3>New features</h3><ul>{lo.gained.map((f) => <li key={f.name} title={f.text.slice(0, 400)}>{f.name}</li>)}</ul></>}
+          {shownGained.length > 0 && <><h3>New features</h3><ul>{shownGained.map((f) => <li key={f.name} title={f.text.slice(0, 400)}>{f.name}</li>)}</ul></>}
           {lo.subclassChoices.length > 0 && (
             <Field label={lo.subclassLabel}>
               <select value={subclass} onChange={(e) => subclassPick(e.target.value)}>
                 <option value="">(choose)</option>
-                {lo.subclassChoices.map((sub) => <option key={sub} value={sub}>{sub}</option>)}
+                {lo.subclassChoices.map((sub) => <option key={sub} value={sub}>{subclassOptionLabel(lo.cv, sub)}</option>)}
               </select>
             </Field>
           )}
-          {subclass && lo && subclassFeaturesAt(lo.cv, subclass, nextLevel).length > 0 && (
-            <><h3>{subclass} features</h3><div className="checks">{subclassFeaturesAt(lo.cv, subclass, nextLevel).map((f) => <FeatureCheck key={f.name} f={f} />)}</div></>
+          {subclass && <SubclassFeatures cv={lo.cv} subclass={subclass} level={nextLevel} picked={picked} setPicked={setPicked} />}
+          {lo.chosenSubclasses.map((sub) => <SubclassFeatures key={sub} cv={lo.cv} subclass={sub} level={nextLevel} picked={picked} setPicked={setPicked} />)}
+          {plainOptions.length > 0 && (
+            <><h3>Options</h3><div className="checks">{plainOptions.map((f) => <FeatureCheck key={f.name} f={f} />)}</div></>
           )}
-          {lo.subclassFeatures.length > 0 && (
-            <><h3>{lo.chosenSubclasses.join(', ')} features</h3><div className="checks">{lo.subclassFeatures.map((f) => <FeatureCheck key={f.name} f={f} />)}</div></>
-          )}
-          {lo.other.filter((f) => !f.name.includes(':')).length > 0 && (
-            <><h3>Options</h3><div className="checks">{lo.other.filter((f) => !f.name.includes(':')).map((f) => <FeatureCheck key={f.name} f={f} />)}</div></>
+          {lo.optionalRules.length > 0 && (
+            <>
+              <h3>Optional class features <span className="muted small">Tasha's Cauldron of Everything · ask your DM</span></h3>
+              <div className="checks">
+                {lo.optionalRules.map((f) => (
+                  <label key={f.name} title={f.text.slice(0, 600)}>
+                    <input type="checkbox" checked={picked.includes(f.name)} onChange={(e) => toggle(f.name, e.target.checked)} /> {f.name}
+                    {/replaces? the ([\w' ]+?) feature/i.exec(f.text) && <span className="muted small"> · replaces {/replaces? the ([\w' ]+?) feature/i.exec(f.text)![1]}</span>}
+                  </label>
+                ))}
+              </div>
+            </>
           )}
           <OptionGroupsPicker groups={groups} picked={pickedOptions} onToggle={toggleOption}
             intro={groups.some((g) => g.now) ? 'Your class lets you choose from these lists at this level. Already known options are ticked.' : undefined} />
           {needsExpertise && <ExpertisePicker skills={sheet.skills} picked={expertise} onChange={setExpertise} />}
+          <ExtraChoicesPicker needs={needs} value={extras} onChange={setExtras} proficient={sheet.skills.filter((sk) => sk.proficient).map((sk) => sk.name)} />
           {lo.otherSubclassFeatures.length > 0 && (
             <p><button className="link" onClick={() => setShowAll(!showAll)}>{showAll ? 'Hide' : 'Show'} features of other subclasses ({lo.otherSubclassFeatures.length})</button></p>
           )}
@@ -522,8 +667,9 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
               </div>
               {asiMode !== 'feat' && (
                 <div className="row">
-                  <select value={asiA} onChange={(e) => setAsiA(e.target.value as Ability)}>{ABILITIES.map((a) => <option key={a} value={a}>{ABBR[a]} ({c.abilities[a]})</option>)}</select>
-                  {asiMode === 'split' && <select value={asiB} onChange={(e) => setAsiB(e.target.value as Ability)}>{ABILITIES.filter((a) => a !== asiA).map((a) => <option key={a} value={a}>{ABBR[a]} ({c.abilities[a]})</option>)}</select>}
+                  <select value={asiA} onChange={(e) => setAsiA(e.target.value as Ability)}>{ABILITIES.map((a) => <option key={a} value={a}>{ABBR[a]} ({sheet.scores[a]})</option>)}</select>
+                  {asiMode === 'split' && <select value={asiB} onChange={(e) => setAsiB(e.target.value as Ability)}>{ABILITIES.filter((a) => a !== asiA).map((a) => <option key={a} value={a}>{ABBR[a]} ({sheet.scores[a]})</option>)}</select>}
+                  {asiOver.length > 0 && <span className="danger small">Above 20: {asiOver.join(', ')} (you will be asked to confirm)</span>}
                 </div>
               )}
               {asiMode === 'feat' && (
@@ -551,4 +697,3 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
     </Modal>
   );
 }
-

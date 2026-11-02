@@ -70,7 +70,11 @@ describe('class option lists', () => {
     const at10 = optionGroups(ctx('Sorcerer', 10, { known: new Set(['Metamagic: Careful Spell', 'Metamagic: Twinned Spell']) }));
     expect(at10[0].now).toBe(true);
     expect(at10[0].options.filter((o) => !o.taken).map((o) => o.label)).toEqual(['Quickened Spell']);
-    expect(optionGroups(ctx('Sorcerer', 6))[0].now).toBe(false); // still available, just not new
+    // At 6 nothing new is granted: the list is only prompted while fewer are known than allowed (2).
+    const known2 = new Set(['Metamagic: Careful Spell', 'Metamagic: Twinned Spell']);
+    expect(optionGroups(ctx('Sorcerer', 6, { known: known2 }))[0]).toMatchObject({ now: false, max: 2, known: 2 });
+    expect(optionGroups(ctx('Sorcerer', 6))[0]).toMatchObject({ now: true, max: 2, known: 0 });
+    expect(at10[0]).toMatchObject({ max: 3, known: 2 });
   });
 
   it('keeps class-internal options (Pact Boon) and ignores plain feats', () => {

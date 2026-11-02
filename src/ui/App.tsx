@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PRESET_ACCENTS, Theme, ThemeMode, applyTheme, defaultTheme, effectiveMode, textContrast } from './theme';
-import { buildLibrary, CompendiumFile, lookup } from '../model/compendium';
+import { buildLibrary, CompendiumFile, LibraryOptions, lookup } from '../model/compendium';
 import { Character, CharacterRecord } from '../model/character';
 import { defaultOptions, RulesOptions } from '../rules/derive';
 import { naturalD20, roll as rollDice, RollResult } from '../rules/dice';
@@ -40,8 +40,14 @@ export function App() {
     return () => mq.removeEventListener('change', onChange);
   }, [theme]);
 
-  const lib = useMemo(() => buildLibrary(files), [files]);
-  const rules = useMemo<RulesOptions>(() => ({ ...options, classLookup: (n: string) => lookup(lib, 'class', n)?.el }), [options, lib]);
+  const [libOptions, setLibOptionsState] = useState<LibraryOptions>(() => db.loadSetting('library', { officialOnly: false }));
+  const setLibOptions = (o: LibraryOptions) => { setLibOptionsState(o); db.saveSetting('library', o); };
+  const lib = useMemo(() => buildLibrary(files, libOptions), [files, libOptions]);
+  const rules = useMemo<RulesOptions>(() => ({
+    ...options,
+    classLookup: (n: string) => lookup(lib, 'class', n)?.el,
+    spellLookup: (n: string) => lookup(lib, 'spell', n)?.el,
+  }), [options, lib]);
 
   const toast = useCallback((msg: string) => {
     setToastMsg(msg);
@@ -131,7 +137,7 @@ export function App() {
   };
 
   const openRecord = records.find((r) => r.id === openId);
-  const setOpt = (o: RulesOptions) => { const { classLookup: _unused, ...plain } = o; void _unused; setOptions(plain); db.saveSetting('rules', plain); };
+  const setOpt = (o: RulesOptions) => { const { classLookup: _a, spellLookup: _b, ...plain } = o; void _a; void _b; setOptions(plain); db.saveSetting('rules', plain); };
 
   return (
     <AppContext.Provider value={{ lib, options: rules, roll, log, toast }}>
@@ -152,7 +158,7 @@ export function App() {
                 onExport={exportCharacter} onDelete={deleteCharacter} onDuplicate={duplicate} />)}
           {view === 'compendium' && <CompendiumView files={files} onImport={importCompendiums} onLoadSample={loadSample} onToggle={toggleFile} onRemove={removeFile} />}
           {view === 'dice' && <DiceView />}
-          {view === 'settings' && <SettingsView options={options} setOptions={setOpt} theme={theme} setTheme={setTheme} />}
+          {view === 'settings' && <SettingsView options={options} setOptions={setOpt} theme={theme} setTheme={setTheme} libOptions={libOptions} setLibOptions={setLibOptions} />}
         </main>
         {toastMsg && <div className="toast" role="status">{toastMsg}</div>}
       </div>
@@ -256,7 +262,10 @@ function AppearanceSettings({ theme, setTheme }: { theme: Theme; setTheme: (t: T
   );
 }
 
-function SettingsView({ options, setOptions, theme, setTheme }: { options: RulesOptions; setOptions: (o: RulesOptions) => void; theme: Theme; setTheme: (t: Theme) => void }) {
+function SettingsView({ options, setOptions, theme, setTheme, libOptions, setLibOptions }: {
+  options: RulesOptions; setOptions: (o: RulesOptions) => void; theme: Theme; setTheme: (t: Theme) => void;
+  libOptions: LibraryOptions; setLibOptions: (o: LibraryOptions) => void;
+}) {
   return (
     <div className="settings">
       <h1>Settings</h1>
@@ -269,6 +278,16 @@ function SettingsView({ options, setOptions, theme, setTheme }: { options: Rules
             <option value="2024">Round up (2024 rules)</option>
           </select>
         </Field>
+      </section>
+      <section className="panel">
+        <h3>Content</h3>
+        <label className="check">
+          <input type="checkbox" checked={!!libOptions.officialOnly} onChange={(e) => setLibOptions({ ...libOptions, officialOnly: e.target.checked })} />
+          {' '}Official content only
+        </label>
+        <p className="muted small">Hides Unearthed Arcana (playtest), Plane Shift, Twitter and livestream rules, third-party and homebrew entries,
+          judged from each entry's name (for example “(UA)” or “(HB)”) and its “Source:” line. Entries without a source line are kept.
+          Characters keep everything they already have.</p>
       </section>
       <section className="panel">
         <h3>About</h3>

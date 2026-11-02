@@ -8,8 +8,8 @@ attribution in the app's Settings → About and in the sample file).
 
 ## Run it
 
-- **Windows:** run `release/Hearthsheet 0.1.0.exe` (portable, no install), or unzip
-  `release/Hearthsheet-0.1.0-win.zip` and run `Hearthsheet.exe`. The build is unsigned, so
+- **Windows:** run `release/Hearthsheet 0.2.0.exe` (portable, no install), or unzip
+  `release/Hearthsheet-0.2.0-win.zip` and run `Hearthsheet.exe`. The build is unsigned, so
   Windows SmartScreen will warn on first launch ("More info" → "Run anyway").
 - **From source:** `npm install`, then `npm run build && npm run electron`. `npm run dev` runs it
   in a browser. `npm run dist:win` rebuilds the Windows packages (works from Linux too).
@@ -17,7 +17,7 @@ attribution in the app's Settings → About and in the sample file).
 
 Data is stored locally (IndexedDB in the app profile). Export characters and compendiums to back them up.
 
-## Features (v0.1)
+## Features (v0.2)
 
 - **Compendium:** import any number of XML files, enable or disable each file, browse and search
   races, classes, backgrounds, feats, spells, items and monsters, and export the merged library.
@@ -54,6 +54,31 @@ Data is stored locally (IndexedDB in the app profile). Export characters and com
   bonus actions, reactions and legendary actions; track hit points and temporary hit points; roll
   checks, saves, attacks and damage. Attack formulas can use the owner's numbers (`SPELL+PROF`,
   `1d8+3+SPELL`) for summons that scale. A long rest heals creatures.
+- **Built-in class rules:** most compendium files describe class features in text only, so the sheet
+  applies the official rules itself when a feature carries no modifiers of its own: resources (Rage,
+  Bardic Inspiration, Channel Divinity, Wild Shape, Second Wind, Action Surge, Indomitable, superiority
+  dice, Ki, Lay on Hands, Divine Sense, Arcane Recovery, Mystic Arcanum, Flash of Genius, Stroke of Luck),
+  Fast Movement and Unarmored Movement, Aura of Protection, Diamond Soul, Slippery Mind, Draconic
+  Resilience, Dwarven Toughness, Primal Champion, Martial Arts (Dexterity and the Martial Arts die),
+  the Alert, Mobile, Observant and Tough feats, and Eldritch Knight / Arcane Trickster spell slots.
+- **Choices the files don't record:** pick-one subclass features (Hunter's Prey, Totem Spirit), racial
+  ability increases (Variant Human, Half-Elf, Custom Lineage), racial feats, skills and cantrips, skill
+  picks inside features (College of Lore), the Draconic Sorcerer's dragon ancestor, and Tasha's optional
+  class features (offered, never added automatically). Oath, domain and similar subclass spells are added
+  as always prepared and do not count against the prepared limit. Option lists say how many you can
+  know (invocations, metamagic, maneuvers, infusions, …) and open whenever you know fewer.
+- **Limits you can go past:** an Ability Score Improvement stops at 20, and Constitution increases
+  raise earlier levels' hit points too. Going past a limit (a score above 20, more spells prepared or
+  known than allowed, spells above the level you can cast, extra options, skills or attunements) asks
+  first; if you go ahead, the character shows a red “too high” tag on its card and sheet, listing why.
+- **Movement:** click Speed to set your own walking speed, a bonus, and fly, swim, climb and burrow
+  speeds (or “same as walking”), plus hover.
+- **Spells:** the picker shows spell levels and, by default, only levels you can cast; cantrip damage
+  shows the die for your level; the wizard's list is labelled as a spellbook.
+- **Content filter:** Settings → “Official content only” hides playtest, Plane Shift, social-media,
+  third-party and homebrew entries; unofficial options and subclasses are tagged. Two different entries
+  with the same name in one file (e.g. a race printed in two books) are both kept, the second named
+  after its source. Two printings of one subclass merged into a class become “Subclass (version 2)”.
 - **Dice:** `2d6+3`, `1d20+5 adv`, `4d6kh3`, `d%`; every number on the sheet can be clicked to
   roll, and compendium formulas with placeholders (`%0`, `SPELL`, `PROF`, …) are resolved.
 
@@ -138,6 +163,9 @@ the iOS app (character `<version>38</version>`). The relevant facts, all verifie
   carry over normally.
 - Custom ability scores, custom skills and per-skill settings are stored as `<customAbility>`,
   `<customSkill>` and `<skillSetting>` elements, with the same caveat.
+- Movement settings are stored as a `<movement>` element and always-prepared subclass spells carry
+  `<grantedBy>`; a chosen dragon ancestor is written into the feature's text and a `<choice>` element.
+  Same caveat.
 - Custom trackers are stored as `<tracker>` elements (`<name>`, `<max>`, `<value>`, `<reset>`), also a
   Hearthsheet extension with the same caveat.
 

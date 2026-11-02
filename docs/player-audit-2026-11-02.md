@@ -3,7 +3,7 @@
 **Build tested:** latest build (commit `d5ae5e0`). The interface was driven in Chromium, plus a smoke test of the Electron app shell that the Windows `.exe` runs.
 **Compendium:** the uploaded `Complete.xml` (15.5 MB).
 **Content used:** official Wizards of the Coast books only (PHB, DMG, XGE, SCAG, TCE, EGW, MOT, GGR). Unearthed Arcana, Plane Shift, Twitter, Livestream, third-party and homebrew content was not chosen.
-**Scope:** documentation only. Nothing was fixed.
+**Scope:** documentation only. Nothing was fixed in this pass. See [Status after the fixes](#status-after-the-fixes-v020) at the end for what version 0.2.0 changed.
 
 ## How it was tested
 
@@ -133,3 +133,49 @@ No crashes, error messages or console errors occurred in any run. Every characte
 - **Other rules applied correctly:** Expertise (Rogue 1 and 6, Bard 3 and 10); Jack of All Trades on skills and initiative; Unarmored Defense for Barbarian and Monk; racial speeds and skills; Wood Elf 35 ft.
 - **Subclasses:** the subclass dropdown appears at the right level for every class (Cleric, Sorcerer and Warlock 1; Druid and Wizard 2; others 3) with the right heading.
 - **Robustness:** no crashes, errors or freezes in about 260 level-ups. The 15 MB compendium imports in about 1.2 s in the Electron shell. Characters survive export and re-import.
+
+---
+
+## Status after the fixes (v0.2.0)
+
+Version 0.2.0 addresses the issues above. The same 13 characters were built again, level 1 to 20, through the interface (see "How it was verified" below).
+
+| # | Issue | Status |
+| --- | --- | --- |
+| 1 | Scores above 20 through ASIs | **Fixed.** The cap applies to the final score (race, feats and features included, magic items not). Going past 20 asks first; if you go ahead, the character is tagged "too high". |
+| 2 | Constitution not retroactive | **Fixed** at level-up and when editing the base score: every earlier level gains or loses the difference. |
+| 3 | Beast Master missing | **Fixed.** |
+| 4 | Pick-one subclass features all granted | **Fixed.** Hunter's Prey, Defensive Tactics, Multiattack, Superior Hunter's Defense and the Totem Warrior animals are a "choose 1" list. |
+| 5 | Same-named subclasses merged | **Fixed.** The second printing becomes "Artillerist (version 2)" (also Alchemist and Battle Smith). |
+| 6 | Same-named races replace each other | **Fixed.** Both are kept; the second is named after its book, e.g. "Goblin (Guildmasters' Guide to Ravnica)". Exact copies are dropped. |
+| 7 | Arcane Trickster has no spellcasting | **Fixed** with a built-in one-third-caster table (also Eldritch Knight). |
+| 8 | Monk unarmed strike | **Fixed.** Dexterity and the Martial Arts die (2014 and 2024 tables). Monk weapons use Dexterity too. |
+| 9 | Speed bonuses | **Fixed.** Fast Movement, Unarmored Movement and the Mobile feat. Speed can also be edited by hand (click Speed). |
+| 10 | Saving-throw features | **Fixed.** Aura of Protection, Diamond Soul and Slippery Mind. |
+| 11 | AC and HP features | **Fixed.** Draconic Resilience (AC and HP), Dwarven Toughness, Primal Champion, plus the Tough feat. |
+| 12 | Class resources | **Fixed.** Built-in counters for every resource listed, used only when the file has none. Large pools (Lay on Hands, Ki) use a number field. |
+| 13 | Sorcery Points at level 1 | **Fixed.** The counter appears with Font of Magic at 2nd level. |
+| 14 | Option counts | **Fixed.** Lists show "you can know N" and "choose N", and open whenever fewer are known than allowed (invocations, metamagic, maneuvers, infusions, elemental disciplines, arcane shots, runes, pact boon, fighting styles). |
+| 15 | Racial choices | **Fixed.** Variant Human (+1/+1, skill, feat), Half-Elf (+1/+1 not Charisma, two skills), Custom Lineage (+2, feat), High Elf cantrip. |
+| 16 | Choices inside features | **Partly fixed.** College of Lore skills (and any "N skills of your choice" text) and the dragon ancestor are offered. Mystic Arcanum spells can be added without a warning (the picker allows 6th–9th level once you have Mystic Arcanum). **Not fixed:** Circle of the Land terrain spells, Spell Mastery and Signature Spells, Magical Secrets (still done by unticking the class filter in the picker); the file has no data for these choices. |
+| 17 | Unofficial content mixed in | **Fixed.** Settings → "Official content only" hides playtest, Plane Shift, Twitter/livestream, third-party and homebrew entries and the Blood Hunter class. Unofficial options, subclasses, races and picker entries are tagged. |
+| 18 | Homebrew option in every Fighter | **Fixed** by the filter above (it comes from a homebrew file). |
+| 19 | Tasha's optional features added automatically | **Fixed.** They are offered unticked under "Optional class features", with what they replace. |
+| 20 | Spell picker ignores your level | **Fixed.** The picker shows spell levels and only castable levels by default; adding a higher spell asks first and tags the spell and the character. |
+| 21 | Subclass spells | **Fixed** where the feature has a spell table (Oath Spells, Artillerist Spells, …): added as always prepared, outside the limit. The Life Domain in this file has no table, so its spells are still added by hand. |
+| 22 | No Wizard spellbook | **Fixed.** The wizard's list is labelled as the spellbook; you tick the prepared ones. |
+| 23 | Cantrip damage | **Fixed.** Shows the die for your level (1d8, 2d8 at 5, …); leveled spells show the base roll, with higher levels in the tooltip. |
+| 24 | Placeholder features | **Fixed.** Hidden from the level-up list, the Features tab and "Restore missing". |
+| 25 | No starting equipment or gold | **Partly fixed.** Character creation can roll the class's starting gold. Starting equipment is not offered (the file stores it as text only). |
+| 26 | Limits only warn | **Changed as requested.** Every limit asks before you go past it, and a red "too high" tag on the character card and sheet lists what is over. |
+| 27 | Feat tag spacing | **Fixed.** |
+
+### How it was verified
+
+- **Automated tests:** 117 tests pass. They include tests with small made-up compendium files, and tests that run against the uploaded `Complete.xml`.
+- **Through the interface:** all 13 characters were rebuilt from level 1 to 20 in the browser build, with no errors. Each one used the same subclass and the standard array, and picked whatever "choose N" the dialogs asked for. The script turned down every "goes past the usual limit" warning: all 19 Ability Score Improvements that would have passed 20 stopped at 20 instead.
+- **Checked against the 2014 rules:** proficiency, HP (including retroactive Constitution, Dwarven Toughness and Draconic Resilience), speed, slots, cantrips and prepared or known limits all matched.
+- **Results:**
+  - The finished characters show no "too high" tag.
+  - Resources match the expected list for every class. At 20th level, Rage and Wild Shape show as unlimited.
+- **A bug found and fixed in this run:** the Fighting Style feature was counted twice. This asked Fighters, Paladins and Rangers for a second style and then tagged them "too high". Those three classes were rebuilt after the fix and came out clean.

@@ -58,6 +58,19 @@ export function RollChip({ expr, label, children }: { expr: string; label?: stri
 
 export const signed = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
 
+/**
+ * Ask before going past a rules limit (an ability above 20, more spells prepared than allowed, ...).
+ * Going ahead is allowed, for house rules or a DM's permission; the character is then tagged "too high".
+ */
+export const confirmOverLimit = (what: string) =>
+  window.confirm(`${what}\n\nThis goes past the usual rules limit. You can do it anyway (house rules, or with your DM's permission); the character will be tagged "too high" in the character list.\n\nContinue?`);
+
+/** Red "too high" tag listing the limits a character goes past. */
+export function TooHighTag({ items }: { items: string[] }) {
+  if (!items.length) return null;
+  return <span className="tag too-high" title={`Past the usual limits:\n${items.join('\n')}`}>too high</span>;
+}
+
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return <label className="field"><span>{label}</span>{children}</label>;
 }

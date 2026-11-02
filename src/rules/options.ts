@@ -14,8 +14,9 @@
 // chosen subclass feature) mentions it by name, e.g. "Eldritch Invocations"
 // mentions "Invocation" and "Combat Superiority" mentions "maneuvers".
 
-import { ClassFeature, Entry, Library, featView, spellView, stripLevelPrefix, subclassOwner } from '../model/compendium';
+import { ClassFeature, Entry, Library, featView, sourceOf, sourceTag, spellView, stripLevelPrefix, subclassOwner } from '../model/compendium';
 import type { CV } from './derive';
+import { baseClassName, is2024 } from './spellcount';
 
 export interface OptionItem {
   /** Full name, e.g. "Invocation: Agonizing Blast". */
@@ -33,15 +34,21 @@ export interface OptionItem {
   feature?: ClassFeature;
   /** Set for options that are compendium feats. */
   feat?: Entry;
+  /** "UA", "Homebrew", ... for unofficial options; empty otherwise. */
+  sourceTag: string;
 }
 
 export interface OptionGroup {
   family: string;
   /** Feature that grants the choice, e.g. "Eldritch Invocations". */
   grantedBy: string;
-  /** The class grants (more of) this choice at the level being taken. */
+  /** The class grants (more of) this choice at the level being taken, or fewer are known than allowed. */
   now: boolean;
   options: OptionItem[];
+  /** How many the class lets you know at this level, when the rules say (e.g. invocations known). */
+  max: number | null;
+  /** How many the character already knows. */
+  known: number;
 }
 
 export interface OptionContext {
@@ -66,6 +73,61 @@ const cleanLabel = (s: string) => s.replace(/\s*\[(5\.5e|5e|legacy|2024|2014)\]\
 const optionLabel = (name: string) => { const n = stripLevelPrefix(name); return cleanLabel(n.slice(rawFamily(name).length + 1)); };
 /** "Metamagic Options" (Tasha's additions) is the same list as "Metamagic". */
 const familyOf = (name: string) => rawFamily(name).replace(/\s+options?$/i, '');
+export const optionFamily = familyOf;
+
+// ---------------------------------------------------------------- how many options a class knows
+
+type Table = (L: number, ed: '2014' | '2024') => number;
+const steps = (L: number, s: [number, number][]) => s.reduce((v, [lvl, n]) => (L >= lvl ? n : v), 0);
+const INVOCATIONS_2014 = [0, 2, 2, 2, 3, 3, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8];
+const INVOCATIONS_2024 = [1, 3, 3, 3, 5, 5, 6, 6, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10];
+/** Option families with a known count, the class that grants them, and the count by that class's level. */
+const OPTION_COUNTS: { family: RegExp; cls: string; title: string; table: Table }[] = [
+  { family: /^(eldritch )?invocations?$/i, cls: 'warlock', title: 'Eldritch Invocations', table: (L, ed) => (ed === '2024' ? INVOCATIONS_2024 : INVOCATIONS_2014)[L - 1] },
+  { family: /^metamagic$/i, cls: 'sorcerer', title: 'Metamagic', table: (L, ed) => (ed === '2024' ? steps(L, [[2, 2], [10, 4], [17, 6]]) : steps(L, [[3, 2], [10, 3], [17, 4]])) },
+  { family: /^maneuvers?$/i, cls: 'fighter', title: 'Maneuvers', table: (L) => steps(L, [[3, 3], [7, 5], [10, 7], [15, 9]]) },
+  { family: /^(artificer )?infusions?$/i, cls: 'artificer', title: 'Artificer Infusions', table: (L) => steps(L, [[2, 4], [6, 6], [10, 8], [14, 10], [18, 12]]) },
+  { family: /^elemental disciplines?$/i, cls: 'monk', title: 'Elemental Disciplines', table: (L) => steps(L, [[3, 1], [6, 2], [11, 3], [17, 4]]) },
+  { family: /^arcane shots?$/i, cls: 'fighter', title: 'Arcane Shots', table: (L) => steps(L, [[3, 2], [7, 3], [10, 4], [15, 5], [18, 6]]) },
+  { family: /^runes?$/i, cls: 'fighter', title: 'Runes', table: (L) => steps(L, [[3, 2], [7, 3], [10, 4], [15, 5]]) },
+  { family: /^pact boons?$/i, cls: 'warlock', title: 'Pact Boon', table: (L) => (L >= 3 ? 1 : 0) },
+];
+/** Options that come free with the list and do not count (Elemental Attunement). */
+const FREE_OPTION = /elemental attunement/i;
+
+export interface ClassLevelInfo { name: string; base: string; level: number; edition: '2014' | '2024'; names: string[] }
+
+/** How many options of a family a class lets you know at a level, if the rules say. */
+export function expectedOptionCount(family: string, className: string, level: number, edition: '2014' | '2024', knownNames: string[] = []): number | null {
+  if (/^fighting styles?$/i.test(family.trim())) {
+    const grants = [...new Set(knownNames)].filter((n) => /^(fighting style|additional fighting style)$/i.test(stripLevelPrefix(n).replace(/^[^:]+:\s*(?=additional)/i, '').trim()));
+    return grants.length || null;
+  }
+  const rule = OPTION_COUNTS.find((r) => r.family.test(family.trim()));
+  if (!rule || baseClassName(className) !== rule.cls || level < 1) return null;
+  const n = rule.table(Math.min(20, level), edition);
+  return n || null;
+}
+
+/** Count options of each family the character knows against the class's allowance. */
+export function optionLimits(names: string[], classes: ClassLevelInfo[]): { title: string; have: number; max: number }[] {
+  const out: { title: string; have: number; max: number }[] = [];
+  const famOf = (n: string) => familyOf(n).toLowerCase();
+  const allKnown = classes.flatMap((k) => k.names);
+  const uniq = [...new Set(names)];
+  for (const rule of OPTION_COUNTS) {
+    const k = classes.find((x) => x.base === rule.cls);
+    if (!k) continue;
+    const max = expectedOptionCount(rule.title, k.name, k.level, k.edition, allKnown);
+    if (max === null) continue;
+    const have = uniq.filter((n) => rule.family.test(famOf(n)) && !FREE_OPTION.test(n)).length;
+    if (have) out.push({ title: rule.title, have, max });
+  }
+  const styles = uniq.filter((n) => /^fighting styles?$/i.test(famOf(n))).length;
+  const styleMax = expectedOptionCount('Fighting Style', '', 0, '2014', allKnown);
+  if (styles && styleMax !== null) out.push({ title: 'Fighting Styles', have: styles, max: styleMax });
+  return out;
+}
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
@@ -146,10 +208,12 @@ export function optionGroups(ctx: OptionContext): OptionGroup[] {
   const ensure = (family: string, grantedBy: string) => {
     const key = family.toLowerCase();
     let g = groups.get(key);
-    if (!g) { g = { family, grantedBy, now: false, options: [] }; groups.set(key, g); }
+    if (!g) { g = { family, grantedBy, now: false, options: [], max: null, known: 0 }; groups.set(key, g); }
     return g;
   };
   const subclassFamilies = new Set(ctx.cv.subclasses.map((s) => s.toLowerCase()));
+  // Features that are themselves named after a family ("Deft Explorer") own their options.
+  const ownerFeature = new Set(ctx.cv.features.map((f) => stripLevelPrefix(f.name).toLowerCase()).filter((n) => !n.includes(':')));
   const label = ctx.cv.subclassLabel.toLowerCase();
 
   // 1. Options inside the class, at or below the current level.
@@ -158,10 +222,12 @@ export function optionGroups(ctx: OptionContext): OptionGroup[] {
     const family = familyOf(f.name);
     if (!family || subclassFamilies.has(family.toLowerCase()) || family.toLowerCase() === label || subclassOwner(f, ctx.cv.subclasses)) continue;
     const g = ensure(family, grantedAt(family)[0]?.name ?? family);
+    // Sub-options of a feature the character does not have ("Deft Explorer: Canny" without Deft Explorer).
+    if (ownerFeature.has(family.toLowerCase()) && !triggers.some((t) => stripLevelPrefix(t.name).toLowerCase() === family.toLowerCase())) continue;
     if (g.options.some((o) => o.name === f.name)) continue;
     g.options.push({
       name: f.name, label: optionLabel(f.name), text: f.text, prerequisite: '', prereqMet: true, prereqNote: '',
-      taken: ctx.known.has(f.name), level: f.level, feature: f,
+      taken: ctx.known.has(f.name), level: f.level, feature: f, sourceTag: sourceTag(f.name, sourceOf(f.el)),
     });
     if (f.level === ctx.level) g.now = true;
   }
@@ -188,14 +254,19 @@ export function optionGroups(ctx: OptionContext): OptionGroup[] {
         g.options.push({
           name: e.name, label: optionLabel(e.name), text: v.text, prerequisite: v.prerequisite,
           prereqMet: pre.met, prereqNote: pre.note, taken: ctx.known.has(e.name), feat: e,
+          sourceTag: sourceTag(e.name, sourceOf(e.el)),
         });
       }
     }
   }
 
   // A group is "now" when a feature gained at this level mentions it (e.g. "Additional Invocation").
+  const edition = is2024(ctx.cv.name, ctx.cv.features) ? '2024' : '2014';
   for (const g of groups.values()) {
     if (triggers.some((f) => f.level === ctx.level && grants(f, g.family))) g.now = true;
+    g.known = g.options.filter((o) => o.taken && !FREE_OPTION.test(o.name)).length;
+    g.max = expectedOptionCount(g.family, ctx.cv.name, ctx.level, edition, [...ctx.known, ...triggers.map((t) => t.name)]);
+    if (g.max !== null && g.known < g.max) g.now = true;
     g.options.sort((a, b) => Number(b.prereqMet !== false) - Number(a.prereqMet !== false) || a.label.localeCompare(b.label));
   }
   return [...groups.values()].filter((g) => g.options.length).sort((a, b) => Number(b.now) - Number(a.now) || a.family.localeCompare(b.family));

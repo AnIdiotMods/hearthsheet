@@ -3,7 +3,7 @@
 
 import {
   ABBR, ABILITIES, Ability, ClassFeature, Counter, Modifier, SKILLS, Trait, backgroundView, canonicalSkill, classView,
-  isSkill, itemView, proficiencyNames, raceView, stripLevelPrefix, traitsOf,
+  isOptionalRule, isSkill, itemView, proficiencyNames, raceView, stripLevelPrefix, traitsOf,
 } from '../model/compendium';
 import {
   AppState, Character, chosenSubclasses, classFeats, classHitDie, classLevel, classSlots,
@@ -13,12 +13,17 @@ import { XElement, childText, elements } from '../xml/xml';
 import { FormulaContext, resolveFormula } from './dice';
 import { SpellLimit, spellLimit } from './spellcount';
 import { ProfLevel, customAbilities, customSkills, isStandardAbility, skillSetting } from '../model/custom';
+import { Movement, OTHER_SPEEDS, OtherSpeed, movementOf } from '../model/movement';
+import { ClassInfo, builtinCounters, classBase, editionOf, martialArtsDie, plainFeature, thirdCasterRow, unarmoredMovement } from './builtin';
+import { optionLimits } from './options';
 
 export interface RulesOptions {
   /** 2024 rules round half-caster levels up when multiclassing; 2014 rounds down. */
   multiclassRounding: '2014' | '2024';
   /** Finds a compendium class by name, used when a character's embedded class lacks progression data. */
   classLookup?: (name: string) => XElement | undefined;
+  /** Finds a compendium spell by name, used to add subclass spells (Oath Spells, Domain Spells). */
+  spellLookup?: (name: string) => XElement | undefined;
 }
 export const defaultOptions: RulesOptions = { multiclassRounding: '2014' };
 
@@ -26,7 +31,7 @@ export const mod = (score: number) => Math.floor((score - 10) / 2);
 export const profBonus = (level: number) => 2 + Math.floor((Math.max(1, level) - 1) / 4);
 export const fmt = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
 
-export interface SourcedModifier extends Modifier { source: string }
+export interface SourcedModifier extends Modifier { source: string; item?: boolean }
 export interface ActiveFeature { name: string; text: string; source: string; level?: number; special: string; rolls: { formula: string; description: string }[]; modifiers: Modifier[] }
 
 export type CasterKind = 'full' | 'half' | 'third' | 'pact' | 'none';
@@ -75,6 +80,8 @@ export interface Sheet {
   level: number;
   prof: number;
   scores: Record<Ability, number>;
+  /** Scores from base, race, feats and features, without magic items: what the usual maximum of 20 applies to. */
+  naturalScores: Record<Ability, number>;
   mods: Record<Ability, number>;
   saves: { ability: Ability; bonus: number; proficient: boolean }[];
   skills: SkillResult[];
@@ -83,6 +90,11 @@ export interface Sheet {
   acNotes: string[];
   initiative: number;
   speed: number;
+  /** Other movement modes in feet (fly, swim, climb, burrow), when the character has them. */
+  speeds: Partial<Record<OtherSpeed, number>>;
+  hover: boolean;
+  speedNotes: string[];
+  movement: Movement;
   passivePerception: number;
   passiveInvestigation: number;
   passiveInsight: number;
@@ -94,7 +106,7 @@ export interface Sheet {
   pact: { level: number; count: number } | null;
   attacks: Attack[];
   features: ActiveFeature[];
-  counters: (Counter & { source: string })[];
+  counters: (Counter & { source: string; builtin?: boolean; unlimited?: boolean })[];
   proficiencies: { armor: string[]; weapons: string[]; tools: string[]; other: string[] };
   skillProficiencies: string[];
   expertise: string[];
@@ -104,6 +116,8 @@ export interface Sheet {
   formula: FormulaContext;
   classes: { el: XElement; name: string; level: number; subclasses: string[] }[];
   warnings: string[];
+  /** Limits the character goes past (ability over 20, too many spells prepared, ...); shown as a "too high" tag. */
+  overLimits: string[];
 }
 
 // SRD multiclass spellcaster table, caster levels 1-20, slot levels 1-9.
@@ -132,6 +146,8 @@ export const subclassCastingActive = (activeNames: string[]) =>
  */
 export function classSlotRow(cv: CV, level: number, activeNames: string[]): number[] | null {
   const optionalOk = subclassCastingActive(activeNames);
+  // Eldritch Knight / Arcane Trickster in files without a slot table for them.
+  if (optionalOk && !cv.slots.some((r) => r.values.slice(1).some((v) => v > 0))) return thirdCasterRow(level, activeNames);
   const rows = cv.slots.filter((r) => r.level <= level && (!r.optional || optionalOk));
   if (!rows.length) return null;
   const regular = rows.filter((r) => !r.optional);
@@ -184,7 +200,7 @@ export function activeClassFeatures(ce: XElement, cv: CV): Trait[] {
   const feats = classFeats(ce);
   if (feats.length || hasEmbeddedProgression(ce)) return feats;
   const level = classLevel(ce);
-  return cv.features.filter((f) => !f.optional && f.level <= level).map((f) => ({
+  return cv.features.filter((f) => !f.optional && !isOptionalRule(f) && f.level <= level).map((f) => ({
     name: f.name, text: f.text, modifiers: f.modifiers, special: f.special, proficiencies: f.proficiencies, rolls: f.rolls, el: f.el,
   }));
 }
@@ -260,8 +276,11 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
     }
     if (i === 0 && !names.some((p) => ABILITIES.includes(p.toLowerCase() as Ability))) cv.savingThrows.forEach((a) => saveProf.add(a));
     const latest = new Map<string, Counter>();
+    // A resource granted by a later feature (Sorcery Points come with Font of Magic at 2nd level).
+    const grantedLater = (ct: Counter) => /sorcery points/i.test(ct.name)
+      && cv.features.some((f) => !f.optional && /font of magic/i.test(f.name) && f.level > lv);
     for (const ct of cv.counters) {
-      if (ct.level > lv) continue;
+      if (ct.level > lv || grantedLater(ct)) continue;
       if (ct.subclass && !subclasses.some((s) => s.toLowerCase() === ct.subclass.toLowerCase())) continue;
       const prev = latest.get(ct.name);
       if (!prev || ct.level >= prev.level) latest.set(ct.name, ct);
@@ -280,7 +299,7 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
   for (const it of items) {
     if (!it.equipped && !it.attuned) continue;
     if (it.v.attunement && !it.attuned) continue;
-    addMods(it.v.modifiers, it.v.name);
+    it.v.modifiers.forEach((m) => modifiers.push({ ...m, source: it.v.name, item: true }));
   }
   const attunedCount = items.filter((i) => i.attuned).length;
   if (attunedCount > 3) warnings.push(`${attunedCount} items attuned (limit is normally 3)`);
@@ -291,12 +310,28 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
   if (race && race.modifiers.every((m) => m.category !== 'ability score')) {
     for (const [a, v] of Object.entries(race.abilityBonuses)) scores[a as Ability] += v!;
   }
+  // Scores before items and other "set" effects, for the usual maximum of 20.
+  const natural = { ...scores };
   for (const m of modifiers) {
     if (m.category !== 'ability score' || m.value === null) continue;
     const a = ABILITIES.find((x) => x === m.target);
     if (!a) continue;
-    if (m.mode === 'add') scores[a] += m.value;
+    if (m.mode === 'add') { scores[a] += m.value; if (!m.item) natural[a] += m.value; }
     else scores[a] = Math.max(scores[a], m.value);
+  }
+  const classInfo: ClassInfo[] = classes.map(({ cv, level: lv, names }) => ({
+    name: cv.name, base: classBase(cv.name), level: lv, edition: editionOf(cv.name, cv.features.map((f) => f.name)), names,
+  }));
+  const classOf = (f: ActiveFeature) => classInfo.find((k) => k.name === f.source);
+  const scoreMax: Record<Ability, number> = Object.fromEntries(ABILITIES.map((a) => [a, 20])) as Record<Ability, number>;
+  // Primal Champion: Strength and Constitution +4, maximum 24.
+  const primal = plainFeature(features, /^primal champion$/);
+  if (primal) {
+    for (const a of ['strength', 'constitution'] as const) {
+      scores[a] = Math.max(scores[a], Math.min(24, scores[a] + 4));
+      natural[a] = Math.min(24, natural[a] + 4);
+      scoreMax[a] = 24;
+    }
   }
   const mods = {} as Record<Ability, number>;
   ABILITIES.forEach((a) => { mods[a] = mod(scores[a]); });
@@ -317,6 +352,9 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
   for (const m of modifiers) if (m.category === 'ability modifier') { const a = ABILITIES.find((x) => x === m.target); if (a) mods[a] += valueOf(m); }
   formula.abilityMods = ABILITIES.map((a) => mods[a]);
   if (firstCaster) formula.spellMod = mods[firstCaster];
+  for (const bc of builtinCounters(classInfo, counters.map((x) => x.name), mods)) {
+    counters.push({ name: bc.name, value: bc.value, reset: bc.reset, level: 0, subclass: '', source: bc.source, builtin: true, unlimited: bc.unlimited });
+  }
 
   const sumMods = (pred: (m: SourcedModifier) => boolean) => sum(modifiers.filter((m) => m.mode === 'add' && pred(m)).map(valueOf));
   const pb = pbBase + sumMods((m) => m.category === 'bonus' && m.target === 'proficiency bonus');
@@ -332,10 +370,17 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
   for (const m of modifiers) {
     if (m.category === 'saving throw' && m.mode === 'set') { const a = ABILITIES.find((x) => x === m.target); if (a) saveProf.add(a); }
   }
+  // Diamond Soul: proficiency in every saving throw. Slippery Mind: Wisdom (2024: and Charisma).
+  if (plainFeature(features, /^diamond soul$/)) ABILITIES.forEach((a) => saveProf.add(a));
+  const slippery = plainFeature(features, /^slippery mind$/);
+  if (slippery) { saveProf.add('wisdom'); if (/charisma/i.test(slippery.text)) saveProf.add('charisma'); }
+  // Aura of Protection: Charisma modifier (minimum +1) to every saving throw.
+  const aura = plainFeature(features, /^aura of protection$/);
+  const auraBonus = aura ? Math.max(1, mods.charisma) : 0;
   const saves = ABILITIES.map((a) => ({
     ability: a,
     proficient: saveProf.has(a),
-    bonus: mods[a] + (saveProf.has(a) ? pb : 0) + bonus('saving throws')
+    bonus: mods[a] + (saveProf.has(a) ? pb : 0) + bonus('saving throws') + auraBonus
       + sumMods((m) => m.category === 'saving throw' && m.target === a),
   }));
 
@@ -344,7 +389,7 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
     const m = mod(ca.score);
     return {
       key: `custom:${ca.id}`, id: ca.id, name: ca.name, abbr: ca.abbr, score: ca.score, mod: m, saveProficient: ca.saveProf,
-      save: m + (ca.saveProf ? pb : 0) + bonus('saving throws'), el: ca.el,
+      save: m + (ca.saveProf ? pb : 0) + bonus('saving throws') + auraBonus, el: ca.el,
     };
   });
   const abilityMod = (key: string) => (isStandardAbility(key) ? mods[key] : customAbilityList.find((x) => x.key === key)?.mod ?? 0);
@@ -411,6 +456,9 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
         ac += mods[extra]; acNotes.push(`${ud.name} ${fmt(mods[extra])}`);
       }
     }
+    // Draconic Resilience: 13 + Dexterity modifier when not wearing armor.
+    const dr = plainFeature(features, /^draconic resilience$/);
+    if (dr && 13 + mods.dexterity > ac) { ac = 13 + mods.dexterity; acNotes.length = 0; acNotes.push(`${dr.name} 13 ${fmt(mods.dexterity)} Dex`); }
     // Natural Armor: "<special>Natural Armor: 13+%2</special>" (base + ability modifier).
     const na = features.find((f) => /natural armor/i.test(f.special));
     if (na) {
@@ -431,10 +479,37 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
   if (acBonus) { ac += acBonus; acNotes.push(`Bonuses ${fmt(acBonus)}`); }
 
   // ---- speed, initiative, hit points
-  let speed = (race?.speed ?? 30) + bonus('speed');
-  if (armor && armor.v.type === 'HA' && armor.v.strength && scores.strength < armor.v.strength) speed -= 10;
-  const initiative = mods.dexterity + bonus('initiative') + (joat ? Math.floor(pb / 2) : 0);
-  const hpMax = c.hpMax + bonus('hp') + (has(/^toughness\||, toughness|^toughness$/) ? 2 * level : 0);
+  const movement = movementOf(c.ch);
+  const speedNotes: string[] = [];
+  let speed = (movement.walk ?? race?.speed ?? 30) + bonus('speed');
+  if (movement.walk !== null) speedNotes.push(`Walking speed set to ${movement.walk} ft`);
+  if (armor && armor.v.type === 'HA' && armor.v.strength && scores.strength < armor.v.strength) { speed -= 10; speedNotes.push('Heavy armor without the Strength: -10'); }
+  const fast = plainFeature(features, /^fast movement$/);
+  if (fast && !(armor && armor.v.type === 'HA')) { speed += 10; speedNotes.push(`${fast.name} +10`); }
+  const um = plainFeature(features, /^unarmored movement$/);
+  const umLevel = um ? classOf(um)?.level ?? 0 : 0;
+  if (um && !armor && !shields.length && unarmoredMovement(umLevel)) { speed += unarmoredMovement(umLevel); speedNotes.push(`${um.name} +${unarmoredMovement(umLevel)}`); }
+  const mobile = plainFeature(features.filter((f) => f.source === 'Feat'), /^mobile$/);
+  if (mobile) { speed += 10; speedNotes.push('Mobile +10'); }
+  if (movement.bonus) { speed += movement.bonus; speedNotes.push(`Your bonus ${fmt(movement.bonus)}`); }
+  speed = Math.max(0, speed);
+  const speeds: Partial<Record<OtherSpeed, number>> = {};
+  for (const k of OTHER_SPEEDS) {
+    const v = movement.other[k];
+    const fromRace = raceEl ? parseInt(childText(raceEl, `${k}Speed`) || childText(raceEl, k), 10) : NaN;
+    const feet = v === 'walk' ? speed : v ?? (Number.isFinite(fromRace) && fromRace > 0 ? fromRace : null);
+    if (feet !== null && feet > 0) speeds[k] = feet;
+  }
+  // Alert: +5 initiative (2014); the 2024 feat adds the proficiency bonus.
+  const alert = plainFeature(features.filter((f) => f.source === 'Feat'), /^alert$/);
+  const alertBonus = alert ? (/\+\s*5\b|bonus of 5|\b5 to initiative/i.test(alert.text) || !/proficiency bonus/i.test(alert.text) ? 5 : pb) : 0;
+  const initiative = mods.dexterity + bonus('initiative') + (joat ? Math.floor(pb / 2) : 0) + alertBonus;
+  // Built-in hit point bonuses: Tough (feat), Dwarven Toughness (race), Draconic Resilience (sorcerer levels).
+  const tough = has(/^toughness\||, toughness|^toughness$/) ? null : plainFeature(features.filter((f) => f.source === 'Feat'), /^tough$/);
+  const dwarven = plainFeature(features, /^dwarven toughness$/);
+  const resilience = plainFeature(features, /^draconic resilience$/);
+  const hpMax = c.hpMax + bonus('hp') + (has(/^toughness\||, toughness|^toughness$/) ? 2 * level : 0)
+    + (tough ? 2 * level : 0) + (dwarven ? level : 0) + (resilience ? classOf(resilience)?.level ?? 0 : 0);
 
   // ---- spellcasting
   const spellcasting: Spellcasting[] = [];
@@ -446,7 +521,7 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
     let row = classSlotRow(cv, lv, names);
     if (!row && !cv.slots.length) { const stored = classSlots(ce); if (stored.some((v) => v > 0)) row = stored; }
     if (!row || !row.some((v) => v > 0)) continue;
-    const kind = cv.slots.length ? casterKind(cv, names) : 'full';
+    const kind = !cv.slots.some((r) => r.values.slice(1).some((v) => v > 0)) && thirdCasterRow(lv, names) ? 'third' : cv.slots.length ? casterKind(cv, names) : 'full';
     const slots = [0, ...Array.from({ length: 9 }, (_, i) => row![i + 1] ?? 0)];
     const ab = ability ?? 'intelligence';
     if (!ability) warnings.push(`${cv.name}: spellcasting ability unknown, assuming Intelligence`);
@@ -483,6 +558,7 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
   const attacks: Attack[] = [];
   const styleArchery = has(/fighting style: archery|^fighting style archery/);
   const styleDueling = has(/fighting style: dueling|^fighting style dueling/);
+  const martialArts = !!plainFeature(features, /^martial arts$/);
   const equippedWeapons = items.filter((it) => it.equipped && ['M', 'R'].includes(it.v.type) && it.v.dmg1);
   // A weapon's own attack/damage modifiers ("+1 longsword") apply to that weapon only.
   const weaponOwned = (t: string) => sum(equippedWeapons.flatMap((w) => w.v.modifiers.filter((m) => m.category === 'bonus' && m.target === t).map(valueOf)));
@@ -491,7 +567,9 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
     const ranged = it.v.type === 'R';
     const finesse = it.v.properties.includes('F');
     const thrown = it.v.properties.includes('T');
-    const ab: Ability = ranged ? 'dexterity' : finesse && mods.dexterity > mods.strength ? 'dexterity' : 'strength';
+    const monkWeapon = martialArts && !ranged && !it.v.properties.includes('2H') && !it.v.properties.includes('H')
+      && (!it.v.properties.includes('M') || /shortsword/i.test(it.v.name));
+    const ab: Ability = ranged ? 'dexterity' : (finesse || monkWeapon) && mods.dexterity > mods.strength ? 'dexterity' : 'strength';
     const kind = ranged ? 'ranged' : 'melee';
     const own = (t: string) => sum(it.v.modifiers.filter((m) => m.category === 'bonus' && m.target === t).map(valueOf));
     // The item's own modifiers are already in `modifiers` when equipped; keep them from applying to other weapons.
@@ -509,9 +587,16 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
     });
   }
   if (c.unarmed) {
+    // Martial Arts: Dexterity instead of Strength if higher, and the Martial Arts die.
+    const ma = plainFeature(features, /^martial arts$/);
+    const maInfo = ma ? classOf(ma) : undefined;
+    const die = ma ? martialArtsDie(maInfo?.level ?? 1, maInfo?.edition ?? '2014') : 0;
+    const ab: Ability = die && mods.dexterity > mods.strength ? 'dexterity' : 'strength';
+    const dmg = mods[ab] + general('melee damage') + general('weapon damage');
     attacks.push({
-      name: 'Unarmed Strike', bonus: mods.strength + pb + general('melee attacks') + general('weapon attacks'),
-      damage: `${Math.max(1, 1 + mods.strength + general('melee damage') + general('weapon damage'))}`, damageType: 'bludgeoning', range: '', notes: '',
+      name: 'Unarmed Strike', bonus: mods[ab] + pb + general('melee attacks') + general('weapon attacks'),
+      damage: die ? `1d${die}${dmg ? fmt(dmg) : ''}` : `${Math.max(1, 1 + dmg)}`, damageType: 'bludgeoning', range: '',
+      notes: die ? `Martial Arts d${die}` : '',
     });
   }
 
@@ -528,10 +613,34 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
 
   if (app.exhaustion > 0) warnings.push(`Exhaustion level ${app.exhaustion}`);
 
+  // Observant (2014): +5 to passive Perception and Investigation.
+  const observant = plainFeature(features.filter((f) => f.source === 'Feat'), /^observant$/);
+  const obs = observant && /\+\s*5|bonus to your passive/i.test(observant.text) ? 5 : 0;
+
+  // ---- limits the character goes past
+  const overLimits: string[] = [];
+  for (const a of ABILITIES) if (natural[a] > scoreMax[a]) overLimits.push(`${ABBR[a]} ${natural[a]} (maximum ${scoreMax[a]})`);
+  for (const sc of spellcasting) {
+    if (sc.limit.max !== null && sc.limit.count > sc.limit.max) overLimits.push(`${sc.className}: ${sc.limit.mode === 'prepared' || sc.limit.edition === '2024' ? 'prepared' : 'known'} spells ${sc.limit.count} / ${sc.limit.max}`);
+    if (sc.cantrips > 0 && sc.limit.cantrips > sc.cantrips) overLimits.push(`${sc.className}: cantrips ${sc.limit.cantrips} / ${sc.cantrips}`);
+    const castable = sc.kind === 'pact' ? (pact?.level ?? 0) : sc.slots.reduce((m, v, i) => (i > 0 && v > 0 ? i : m), 0);
+    const tooHigh = elements(sc.el, 'spell').filter((sp) => !childText(sp, 'grantedBy') && (parseInt(childText(sp, 'level'), 10) || 0) > Math.max(castable, sc.kind === 'pact' && sc.el ? mysticArcanumLevel(classOfName(classInfo, sc.className)) : 0));
+    if (tooHigh.length) overLimits.push(`${sc.className}: ${tooHigh.length} spell${tooHigh.length > 1 ? 's' : ''} above the highest level you can cast`);
+  }
+  const first = classes[0];
+  if (first) {
+    const chosenSkills = proficiencyNames(first.ce).filter((p) => !!canonicalSkill(p));
+    if (chosenSkills.length > first.cv.numSkills) overLimits.push(`${first.cv.name}: ${chosenSkills.length} class skills (${first.cv.numSkills} allowed)`);
+  }
+  if (attunedCount > 3) overLimits.push(`${attunedCount} attuned items (maximum 3)`);
+  const optionNames = [...traitsOf(c.ch, 'feat').map((f) => f.name), ...classes.flatMap((k) => k.names)];
+  for (const o of optionLimits(optionNames, classInfo)) if (o.have > o.max) overLimits.push(`${o.title} ${o.have} / ${o.max}`);
+
   return {
-    level, prof: pb, scores, mods, saves, skills, ac, acNotes, initiative, speed,
-    passivePerception: 10 + skill('Perception') + bonus('passive perception'),
-    passiveInvestigation: 10 + skill('Investigation') + bonus('passive investigation'),
+    level, prof: pb, scores, naturalScores: natural, mods, saves, skills, ac, acNotes, initiative, speed, speeds, hover: movement.hover, speedNotes, movement,
+    overLimits,
+    passivePerception: 10 + skill('Perception') + bonus('passive perception') + obs,
+    passiveInvestigation: 10 + skill('Investigation') + bonus('passive investigation') + obs,
     passiveInsight: 10 + skill('Insight') + bonus('passive insight'),
     hpMax, hitDice, spellcasting, slots, slotsUsed, pact, attacks, features, counters,
     proficiencies: {
@@ -544,6 +653,11 @@ export function deriveSheet(c: Character, app: AppState, opts: RulesOptions = de
     warnings,
   };
 }
+
+const classOfName = (cs: ClassInfo[], name: string) => cs.find((k) => k.name === name);
+/** Warlocks cast one spell of 6th-9th level each day through Mystic Arcanum (11th, 13th, 15th, 17th level). */
+const mysticArcanumLevel = (k: ClassInfo | undefined) =>
+  !k || k.base !== 'warlock' ? 0 : k.level >= 17 ? 9 : k.level >= 15 ? 8 : k.level >= 13 ? 7 : k.level >= 11 ? 6 : 0;
 
 function guessSpellAbility(active: { name: string; text: string }[]): Ability | null {
   const t = active.filter((f) => CASTING_FEATURE.test(f.name)).map((f) => f.text).join(' ');

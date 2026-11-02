@@ -77,7 +77,9 @@ export function spellLimit(p: {
 }): SpellLimit {
   const base = baseClassName(p.className);
   const edition2024 = is2024(p.className, p.features);
-  const spells = elements(p.ce, 'spell').map((s) => ({ v: spellView(s), prepared: /^(1|yes|true)$/i.test(childText(s, 'prepared')) }));
+  // Spells a feature grants (Oath Spells, racial cantrips) do not count against the limits.
+  const spells = elements(p.ce, 'spell').filter((s) => !childText(s, 'grantedBy'))
+    .map((s) => ({ v: spellView(s), prepared: /^(1|yes|true)$/i.test(childText(s, 'prepared')) }));
   const third = p.casterKind === 'third' || /(eldritch knight|arcane trickster)/i.test(p.activeNames.join('|'));
   const mode: LimitMode = PREPARE_FROM_LIST.has(base) ? 'prepared' : 'known';
   const count = spells.filter((s) => s.v.level > 0 && (mode === 'known' || s.prepared)).length;

@@ -1,6 +1,6 @@
 {
   "name": "hearthsheet",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Open-source 5e character manager, file-compatible with the community compendium XML format",
   "license": "MIT",
   "author": "Hearthsheet contributors",
