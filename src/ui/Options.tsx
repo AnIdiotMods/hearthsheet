@@ -5,7 +5,7 @@ import { CV, Sheet as SheetData } from '../rules/derive';
 import { OptionContext, OptionGroup, OptionItem } from '../rules/options';
 import { subclassChoicesAt, subclassFeaturesAt } from '../rules/level';
 import { XElement, childText, elements, setChildText } from '../xml/xml';
-import { RichText, confirmOverLimit } from './common';
+import { RichText, TextToggle, confirmOverLimit } from './common';
 import { setSkillSetting } from '../model/custom';
 
 /** Build the context for option lists of one class at the level being taken. */
@@ -160,8 +160,9 @@ export function SubclassFeatures({ cv, subclass, level, picked, setPicked }: {
       <h3>{subclass} features</h3>
       <div className="checks">
         {all.filter((f) => !inGroup.has(f.name)).map((f) => (
-          <label key={f.name} title={f.text.slice(0, 400)}>
+          <label key={f.name}>
             <input type="checkbox" checked={picked.includes(f.name)} onChange={(e) => toggle(f.name, e.target.checked)} /> {f.name}
+            <TextToggle text={f.text} label={f.name} />
           </label>
         ))}
       </div>
@@ -172,12 +173,13 @@ export function SubclassFeatures({ cv, subclass, level, picked, setPicked }: {
             <p><b>{stripLevelPrefix(g.parent.name).replace(/^[^:]+:\s*/, '')}</b>{' '}<span className={`tag ${n > g.count ? 'too-high' : ''}`}>choose {g.count}{n ? ` · ${n} chosen` : ''}</span></p>
             <div className="checks">
               {g.options.map((f) => (
-                <label key={f.name} title={f.text.slice(0, 400)}>
+                <label key={f.name}>
                   <input type="checkbox" checked={picked.includes(f.name)} onChange={async (e) => {
                     const on = e.target.checked;
                     if (on && n >= g.count && !(await confirmOverLimit(`${g.parent.name} lets you choose ${g.count}, and this would make ${n + 1}.`))) return;
                     toggle(f.name, on);
                   }} /> {stripLevelPrefix(f.name).replace(/^[^:]+:\s*/, '')}
+                  <TextToggle text={f.text} label={f.name} />
                 </label>
               ))}
             </div>

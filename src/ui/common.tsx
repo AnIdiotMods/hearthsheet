@@ -66,6 +66,19 @@ export function RichText({ text, label }: { text: string; label?: string }) {
   );
 }
 
+/** A "details" link that shows a feature's full text in place (tooltips do not work on touch screens). */
+export function TextToggle({ text, label }: { text: string; label: string }) {
+  const [open, setOpen] = useState(false);
+  if (!text.trim()) return null;
+  return (
+    <>
+      <button type="button" className="link small details-link" aria-expanded={open}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(!open); }}>{open ? 'hide' : 'details'}</button>
+      {open && <div className="feature-text"><RichText text={text} label={label} /></div>}
+    </>
+  );
+}
+
 export function RollChip({ expr, label, children }: { expr: string; label?: string; children?: ReactNode }) {
   const { roll } = useApp();
   return <button className="roll" title={`Roll ${expr}`} onClick={() => roll(expr, label)}>{children ?? expr}</button>;

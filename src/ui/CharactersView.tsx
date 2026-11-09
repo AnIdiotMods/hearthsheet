@@ -12,7 +12,7 @@ import { Character, CharacterRecord, classLevel, emptyAppState } from '../model/
 import { applyLevelUp, defaultSubclassPicks, levelOptions, POINT_BUY_COST, pointBuyTotal, STANDARD_ARRAY, subclassFeaturesAt } from '../rules/level';
 import { cryptoRng, roll } from '../rules/dice';
 import { XElement, childText } from '../xml/xml';
-import { Field, Modal, NumberInput, TooHighTag, confirmOverLimit, useApp } from './common';
+import { Field, Modal, NumberInput, TextToggle, TooHighTag, confirmOverLimit, useApp } from './common';
 import { ask } from './dialogs';
 import { RulesOptions, deriveSheet, mod } from '../rules/derive';
 
@@ -315,10 +315,10 @@ function NewCharacter({ onClose, onCreate }: { onClose: () => void; onCreate: (c
           <h3>Level 1 options</h3>
           <div className="checks">
             {level1Plain.map((f) => (
-              <label key={f.name} title={f.text}>
+              <label key={f.name}>
                 <input type="checkbox" checked={choices.includes(f.name)}
                   onChange={(e) => setChoices(e.target.checked ? [...choices, f.name] : choices.filter((x) => x !== f.name))} />
-                {f.name}
+                {f.name} <TextToggle text={f.text} label={f.name} />
               </label>
             ))}
           </div>
@@ -329,8 +329,9 @@ function NewCharacter({ onClose, onCreate }: { onClose: () => void; onCreate: (c
           <h3>Optional class features <span className="muted small">Tasha's Cauldron of Everything · ask your DM</span></h3>
           <div className="checks">
             {lo.optionalRules.map((f) => (
-              <label key={f.name} title={f.text.slice(0, 600)}>
+              <label key={f.name}>
                 <input type="checkbox" checked={choices.includes(f.name)} onChange={(e) => setChoices(e.target.checked ? [...choices, f.name] : choices.filter((x) => x !== f.name))} /> {f.name}
+                <TextToggle text={f.text} label={f.name} />
               </label>
             ))}
           </div>

@@ -423,3 +423,9 @@ button.primary.danger-fill { background: var(--danger); border-color: var(--dang
   .file-list li { flex-wrap: wrap; }
 }
 :root[data-corners="sharp"] .modal.dialog { border-radius: 0 !important; }
+
+/* Feature descriptions opened with "details" (tooltips do not work on touch screens). */
+.checks label { flex-wrap: wrap; }
+.checks label:has(.feature-text) { grid-column: 1 / -1; }
+.feature-text { flex-basis: 100%; font-size: 13px; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; margin: 2px 0 6px 24px; }
+.details-link { padding: 0 4px; }

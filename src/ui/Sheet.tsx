@@ -24,7 +24,7 @@ import {
   ExpertisePicker, ExtraChoicesPicker, ExtraValues, OptionGroupsPicker, SubclassFeatures, applyExtraChoices, emptyExtras, extraNeeds,
   optionContext, subclassOptionLabel,
 } from './Options';
-import { Field, Modal, Mutate, NumberInput, RollChip, TooHighTag, confirmOverLimit, signed, useApp } from './common';
+import { Field, Modal, Mutate, NumberInput, RollChip, TextToggle, TooHighTag, confirmOverLimit, signed, useApp } from './common';
 import { CreateFlow } from './Creator';
 import { ask, tell } from './dialogs';
 import { useBackHandler } from './back';
@@ -734,8 +734,9 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
   };
 
   const FeatureCheck = ({ f }: { f: ClassFeature }) => (
-    <label title={f.text.slice(0, 400)}>
+    <label>
       <input type="checkbox" checked={picked.includes(f.name)} onChange={(e) => toggle(f.name, e.target.checked)} /> {f.name}
+      <TextToggle text={f.text} label={f.name} />
     </label>
   );
   const shownGained = lo ? lo.gained.filter((f) => !isPlaceholderFeature(f)) : [];
@@ -763,7 +764,7 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
               {hp === 'manual' && <NumberInput value={manualHp} min={1} max={lo.cv.hd} onChange={setManualHp} />}
             </div>
           )}
-          {shownGained.length > 0 && <><h3>New features</h3><ul>{shownGained.map((f) => <li key={f.name} title={f.text.slice(0, 400)}>{f.name}</li>)}</ul></>}
+          {shownGained.length > 0 && <><h3>New features</h3><ul>{shownGained.map((f) => <li key={f.name}>{f.name} <TextToggle text={f.text} label={f.name} /></li>)}</ul></>}
           {lo.subclassChoices.length > 0 && (
             <Field label={lo.subclassLabel}>
               <select value={subclass} onChange={(e) => subclassPick(e.target.value)}>
@@ -782,8 +783,9 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
               <h3>Optional class features <span className="muted small">Tasha's Cauldron of Everything · ask your DM</span></h3>
               <div className="checks">
                 {lo.optionalRules.map((f) => (
-                  <label key={f.name} title={f.text.slice(0, 600)}>
+                  <label key={f.name}>
                     <input type="checkbox" checked={picked.includes(f.name)} onChange={(e) => toggle(f.name, e.target.checked)} /> {f.name}
+                    <TextToggle text={f.text} label={f.name} />
                     {/replaces? the ([\w' ]+?) feature/i.exec(f.text) && <span className="muted small"> · replaces {/replaces? the ([\w' ]+?) feature/i.exec(f.text)![1]}</span>}
                   </label>
                 ))}
