@@ -10,6 +10,7 @@ import { XElement, childText, removeChild } from '../xml/xml';
 import { Field, Modal, Mutate, NumberInput, RichText, useApp } from './common';
 import { OptionGroupsPicker, familyTitle, optionContext } from './Options';
 import { Picker } from './Picker';
+import { ask } from './dialogs';
 import { OptionGroup, OptionItem, optionGroups } from '../rules/options';
 
 type RollF = (f: string, l?: string) => unknown;
@@ -90,7 +91,7 @@ export function FeaturesTab({ c, sheet, app, mutate, rollF }: { c: Character; sh
                       <button className="link small" onClick={(e) => { e.preventDefault(); setEditing({ fe: f.el }); }}>edit</button>
                       <button className="link danger small" onClick={(e) => {
                         e.preventDefault();
-                        if (confirm(`Remove “${f.name}” from ${cv.name}?`)) mutate(() => removeChild(ce, f.el));
+                        void ask(`Remove “${f.name}” from ${cv.name}?`, { ok: 'Remove', danger: true }).then((ok) => { if (ok) mutate(() => removeChild(ce, f.el)); });
                       }}>remove</button>
                     </span>
                   </summary>
@@ -119,7 +120,7 @@ export function FeaturesTab({ c, sheet, app, mutate, rollF }: { c: Character; sh
               {childText(fe, 'name').includes(':') && <>{' '}<span className="tag">{familyTitle(childText(fe, 'name').split(':')[0].trim())}</span></>}
               <span className="feature-actions">
                 <button className="link small" onClick={(e) => { e.preventDefault(); setEditing({ fe }); }}>edit</button>
-                <button className="link danger small" onClick={(e) => { e.preventDefault(); if (confirm(`Remove the feat “${childText(fe, 'name')}”?`)) mutate((ch) => ch.remove(fe)); }}>remove</button>
+                <button className="link danger small" onClick={(e) => { e.preventDefault(); void ask(`Remove the feat “${childText(fe, 'name')}”?`, { ok: 'Remove', danger: true }).then((ok) => { if (ok) mutate((ch) => ch.remove(fe)); }); }}>remove</button>
               </span>
             </summary>
             <RichText text={sheet.features.find((f) => f.source === 'Feat' && f.name === childText(fe, 'name'))?.text ?? ''} />

@@ -18,9 +18,11 @@ export interface Theme {
   font: FontChoice;
   /** Text size as a percentage. */
   scale: number;
+  /** Rounded corners (default) or sharp, square edges on every box, button and field. */
+  corners: 'rounded' | 'sharp';
 }
 
-export const defaultTheme: Theme = { mode: 'system', accent: null, text: null, secondary: null, font: 'default', scale: 100 };
+export const defaultTheme: Theme = { mode: 'system', accent: null, text: null, secondary: null, font: 'default', scale: 100, corners: 'rounded' };
 
 export const PRESET_ACCENTS = ['#8a3b2a', '#2f6db5', '#2e7d4f', '#7b3fa0', '#b8860b', '#c2185b', '#00838f', '#455a64'];
 
@@ -73,5 +75,6 @@ export function applyTheme(t: Theme) {
   set('--accent-soft', t.accent ? mix(BACKGROUND[mode], t.accent, mode === 'dark' ? 0.28 : 0.16) : null);
   set('--ink', t.text);
   set('--muted', t.secondary);
+  root.dataset.corners = t.corners === 'sharp' ? 'sharp' : 'rounded';
   root.style.setProperty('--scale', String(Math.max(0.75, Math.min(1.6, t.scale / 100))));
 }

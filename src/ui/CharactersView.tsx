@@ -13,6 +13,7 @@ import { applyLevelUp, defaultSubclassPicks, levelOptions, POINT_BUY_COST, point
 import { cryptoRng, roll } from '../rules/dice';
 import { XElement, childText } from '../xml/xml';
 import { Field, Modal, NumberInput, TooHighTag, confirmOverLimit, useApp } from './common';
+import { ask } from './dialogs';
 import { RulesOptions, deriveSheet, mod } from '../rules/derive';
 
 interface Props {
@@ -49,7 +50,7 @@ export function CharactersView({ records, onOpen, onCreate, onImport, onExport, 
               <div className="row card-actions" onClick={(e) => e.stopPropagation()}>
                 <button className="link" onClick={() => onExport(r)}>Export</button>
                 <button className="link" onClick={() => onDuplicate(r)}>Duplicate</button>
-                <button className="link danger" onClick={() => { if (confirm(`Delete ${summary.name}? This cannot be undone.`)) onDelete(r); }}>Delete</button>
+                <button className="link danger" onClick={async () => { if (await ask(`Delete ${summary.name}? This cannot be undone.`, { ok: 'Delete', danger: true })) onDelete(r); }}>Delete</button>
               </div>
             </div>
           );
@@ -160,10 +161,10 @@ function NewCharacter({ onClose, onCreate }: { onClose: () => void; onCreate: (c
   const pool = method === 'standard' ? STANDARD_ARRAY : [...ABILITIES.map((a) => scores[a])].sort((x, y) => y - x);
   const valid = name.trim() && classEl && (method !== 'pointbuy' || pb <= 27);
 
-  const create = () => {
+  const create = async () => {
     const over = ABILITIES.filter((a) => scores[a] + (rv?.abilityBonuses[a] ?? 0) + chosenBonus(a) > 20)
       .map((a) => `${ABBR[a]} ${scores[a] + (rv?.abilityBonuses[a] ?? 0) + chosenBonus(a)}`);
-    if (over.length && !confirmOverLimit(`Starting scores above 20: ${over.join(', ')}.`)) return;
+    if (over.length && !(await confirmOverLimit(`Starting scores above 20: ${over.join(', ')}.`))) return;
     const c = Character.create(name.trim());
     if (raceEl) c.setRace(raceEl);
     for (const a of raceBonus) if (abilityChoice) c.addRaceAbilityBonus(a, abilityChoice.plusTwo ? 2 : 1);
@@ -254,9 +255,10 @@ function NewCharacter({ onClose, onCreate }: { onClose: () => void; onCreate: (c
           <div className="checks">
             {ABILITIES.filter((a) => !abilityChoice.exclude.includes(a)).map((a) => (
               <label key={a}>
-                <input type="checkbox" checked={raceBonus.includes(a)} onChange={(e) => {
-                  if (e.target.checked && raceBonus.length >= bonusCount && !confirmOverLimit(`${rv?.name} lets you choose ${bonusCount}, and this would make ${raceBonus.length + 1}.`)) return;
-                  setRaceBonus(e.target.checked ? [...raceBonus, a] : raceBonus.filter((x) => x !== a));
+                <input type="checkbox" checked={raceBonus.includes(a)} onChange={async (e) => {
+                  const on = e.target.checked;
+                  if (on && raceBonus.length >= bonusCount && !(await confirmOverLimit(`${rv?.name} lets you choose ${bonusCount}, and this would make ${raceBonus.length + 1}.`))) return;
+                  setRaceBonus(on ? [...raceBonus, a] : raceBonus.filter((x) => x !== a));
                 }} /> {ABBR[a]}
               </label>
             ))}
@@ -288,9 +290,10 @@ function NewCharacter({ onClose, onCreate }: { onClose: () => void; onCreate: (c
               <label key={s} className={fixed.has(s) ? 'muted' : ''}>
                 <input type="checkbox" disabled={fixed.has(s)}
                   checked={skills.includes(s) || fixed.has(s)}
-                  onChange={(e) => {
-                    if (e.target.checked && skills.length >= cv.numSkills && !confirmOverLimit(`${cv.name} chooses ${cv.numSkills} skills, and this would make ${skills.length + 1}.`)) return;
-                    setSkills(e.target.checked ? [...skills, s] : skills.filter((x) => x !== s));
+                  onChange={async (e) => {
+                    const on = e.target.checked;
+                    if (on && skills.length >= cv.numSkills && !(await confirmOverLimit(`${cv.name} chooses ${cv.numSkills} skills, and this would make ${skills.length + 1}.`))) return;
+                    setSkills(on ? [...skills, s] : skills.filter((x) => x !== s));
                   }} />
                 {s}{fixed.has(s) && ' (granted)'}
               </label>

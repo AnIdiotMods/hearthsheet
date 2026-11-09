@@ -3,6 +3,7 @@
 
 import type { CompendiumFile } from '../model/compendium';
 import { CharacterRecord, emptyAppState } from '../model/character';
+import { decodeText, pickFiles, saveTextFile } from '../platform';
 
 const DB_NAME = 'hearthsheet';
 const VERSION = 2;
@@ -72,42 +73,20 @@ export function saveSetting(key: string, value: unknown) {
   try { localStorage.setItem(`hearthsheet.${key}`, JSON.stringify(value)); } catch { /* ignore */ }
 }
 
-// ---- file helpers
+// ---- file helpers (native dialogs in the app, file inputs and downloads in a browser)
+const extensionsOf = (accept: string) => [...new Set(accept.split(',').map((x) => x.trim()).filter((x) => x.startsWith('.')).map((x) => x.slice(1).toLowerCase()))];
+
 export async function readFiles(accept: string, multiple = true): Promise<{ name: string; text: string }[]> {
-  return new Promise((resolve) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = accept;
-    input.multiple = multiple;
-    input.onchange = async () => {
-      const files = [...(input.files ?? [])];
-      resolve(await Promise.all(files.map(async (f) => ({ name: f.name, text: await f.text() }))));
-    };
-    input.click();
-  });
+  const files = await pickFiles('XML files', extensionsOf(accept), multiple);
+  return files.map((f) => ({ name: f.name, text: decodeText(f.data) }));
 }
 
 export async function readBinaryFiles(accept: string, multiple = true): Promise<{ name: string; data: ArrayBuffer }[]> {
-  return new Promise((resolve) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = accept;
-    input.multiple = multiple;
-    input.onchange = async () => {
-      const files = [...(input.files ?? [])];
-      resolve(await Promise.all(files.map(async (f) => ({ name: f.name, data: await f.arrayBuffer() }))));
-    };
-    input.click();
-  });
+  const files = await pickFiles('Fonts', extensionsOf(accept), multiple);
+  return files.map((f) => ({ name: f.name, data: f.data.buffer.slice(f.data.byteOffset, f.data.byteOffset + f.data.byteLength) as ArrayBuffer }));
 }
 
-export function downloadText(fileName: string, text: string, type = 'application/xml') {
-  const url = URL.createObjectURL(new Blob([text], { type }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
+/** Save text to a file; returns false when the player cancels the save dialog. */
+export const downloadText = (fileName: string, text: string): Promise<boolean> => saveTextFile(fileName, text);
 
 export const safeFileName = (s: string) => s.replace(/[\\/:*?"<>|]+/g, '_').trim() || 'export';

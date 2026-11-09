@@ -8,6 +8,7 @@ import { Sheet as SheetData } from '../rules/derive';
 import { resolveFormula } from '../rules/dice';
 import { XElement } from '../xml/xml';
 import { Field, Modal, Mutate, NumberInput } from './common';
+import { ask } from './dialogs';
 
 const PIP_LIMIT = 12;
 
@@ -94,7 +95,7 @@ function TrackerEditor({ initial, preview, isNew, onClose, onSave, onRemove }: {
         </select>
       </Field>
       <footer className="modal-actions">
-        {onRemove && <button className="danger" onClick={() => { if (confirm(`Remove the tracker “${initial.name}”?`)) onRemove(); }}>Remove</button>}
+        {onRemove && <button className="danger" onClick={async () => { if (await ask(`Remove the tracker “${initial.name}”?`, { ok: 'Remove', danger: true })) onRemove(); }}>Remove</button>}
         <span className="spacer" />
         <button onClick={onClose}>Cancel</button>
         <button className="primary" disabled={!d.name.trim() || !ok} onClick={() => onSave({ ...d, name: d.name.trim(), max: d.max.trim() })}>Save</button>

@@ -1,10 +1,12 @@
-import { createContext, ReactNode, useContext, useEffect } from 'react';
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import type { Library } from '../model/compendium';
 import type { CreatorKind } from '../model/homebrew';
 import type { XElement } from '../xml/xml';
 import type { AppState, Character } from '../model/character';
 import type { RulesOptions } from '../rules/derive';
 import { isRollable, RollResult } from '../rules/dice';
+import { ask, tell } from './dialogs';
+import { useBackHandler } from './back';
 
 export interface Ctx {
   lib: Library;
@@ -12,6 +14,8 @@ export interface Ctx {
   roll: (expr: string, label?: string) => RollResult | null;
   log: RollResult[];
   toast: (msg: string) => void;
+  /** Save text to a file the player picks, reporting the result. */
+  exportText: (fileName: string, text: string) => void;
   /** The "My homebrew" compendium file the Creator writes to. */
   homebrew: {
     xml: string;
@@ -33,6 +37,7 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
   }, [onClose]);
+  useBackHandler(true, onClose);
   return (
     <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className={`modal ${wide ? 'wide' : ''}`} role="dialog" aria-label={title}>
@@ -72,22 +77,39 @@ export const signed = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
  * Ask before going past a rules limit (an ability above 20, more spells prepared than allowed, ...).
  * Going ahead is allowed, for house rules or a DM's permission; the character is then tagged "too high".
  */
-export const confirmOverLimit = (what: string) =>
-  window.confirm(`${what}\n\nThis goes past the usual rules limit. You can do it anyway (house rules, or with your DM's permission); the character will be tagged "too high" in the character list.\n\nContinue?`);
+export const confirmOverLimit = (what: string): Promise<boolean> =>
+  ask(`${what}\n\nThis goes past the usual rules limit. You can do it anyway (house rules, or with your DM's permission); the character will be tagged "too high" in the character list.`,
+    { title: 'Past the usual limit', ok: 'Do it anyway', cancel: 'Cancel' });
 
 /** Red "too high" tag listing the limits a character goes past. */
 export function TooHighTag({ items }: { items: string[] }) {
   if (!items.length) return null;
-  return <span className="tag too-high" title={`Past the usual limits:\n${items.join('\n')}`}>too high</span>;
+  return (
+    <button type="button" className="tag too-high" title={`Past the usual limits:\n${items.join('\n')}`}
+      onClick={(e) => { e.stopPropagation(); void tell(items.join('\n'), { title: 'Past the usual limits' }); }}>too high</button>
+  );
 }
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return <label className="field"><span>{label}</span>{children}</label>;
 }
 
-export function NumberInput({ value, onChange, min, max, className }: { value: number; onChange: (n: number) => void; min?: number; max?: number; className?: string }) {
+export function NumberInput({ value, onChange, min, max, className, ariaLabel }: {
+  value: number; onChange: (n: number) => void; min?: number; max?: number; className?: string; ariaLabel?: string;
+}) {
+  // While typing, keep the text as typed (it may be empty or just "-"); a valid number is applied as
+  // soon as it is typed, and anything else goes back to the current value when the field loses focus.
+  const [draft, setDraft] = useState<string | null>(null);
+  const shown = draft ?? String(Number.isFinite(value) ? value : 0);
   return (
-    <input type="number" className={className} value={Number.isFinite(value) ? value : 0} min={min} max={max}
-      onChange={(e) => { const n = parseInt(e.target.value, 10); if (Number.isFinite(n)) onChange(n); }} />
+    <input type="number" inputMode={min !== undefined && min >= 0 ? 'numeric' : undefined} className={className} value={shown}
+      min={min} max={max} aria-label={ariaLabel}
+      onFocus={(e) => e.target.select()}
+      onChange={(e) => {
+        setDraft(e.target.value);
+        const n = parseInt(e.target.value, 10);
+        if (Number.isFinite(n)) onChange(max !== undefined ? Math.min(max, min !== undefined ? Math.max(min, n) : n) : min !== undefined ? Math.max(min, n) : n);
+      }}
+      onBlur={() => setDraft(null)} />
   );
 }

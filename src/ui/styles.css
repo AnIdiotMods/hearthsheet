@@ -43,7 +43,8 @@
   }
 }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+button:active:not(:disabled) { filter: brightness(0.93); }
 html, body, #root { height: 100%; margin: 0; }
 body {
   background: var(--bg);
@@ -233,7 +234,7 @@ summary { cursor: pointer; font-weight: 500; }
 pre.xml { font: 12px/1.4 Consolas, ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; max-height: 65vh; overflow: auto; margin: 0; }
 
 /* modal */
-.modal-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: flex; align-items: center; justify-content: center; z-index: 10; }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: flex; align-items: center; justify-content: center; z-index: 30; }
 .modal { background: var(--bg); border-radius: 12px; width: min(640px, 94vw); max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 12px 48px rgba(0,0,0,0.35); }
 .modal.wide { width: min(980px, 96vw); }
 .modal header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); }
@@ -330,3 +331,95 @@ tr.too-high-row td { background: color-mix(in srgb, var(--danger) 6%, transparen
 .level-row > summary { padding: 4px 0; }
 textarea.xml-edit { width: 100%; box-sizing: border-box; font-family: Consolas, ui-monospace, monospace; font-size: 12px; }
 .font-choice { gap: 2px; }
+
+/* In-app confirmation dialogs (above any open window). */
+.dialog-backdrop { z-index: 200; }
+.modal.dialog { max-width: 460px; }
+.dialog-text { white-space: pre-wrap; margin: 0 0 8px; }
+button.primary.danger-fill { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+/* Sharp edges (Settings → Appearance → Corners). */
+:root[data-corners="sharp"] *:not(input[type="radio"]),
+:root[data-corners="sharp"] *::before, :root[data-corners="sharp"] *::after { border-radius: 0 !important; }
+
+/* ------------------------------------------------------------------ phones and small tablets
+   Same look as the desktop app, rearranged for a narrow touch screen: the main tabs move to a
+   bottom bar, grids become single columns, windows fill the screen, list/detail screens show the
+   detail on its own page, and controls are large enough to tap. Safe-area insets keep content
+   clear of notches and rounded screen corners. */
+.back-button { display: none; }
+.app { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+.topbar { padding-top: max(8px, env(safe-area-inset-top)); }
+
+@media (max-width: 720px) {
+  body { font-size: 15px; -webkit-text-size-adjust: 100%; }
+  /* 16px fields stop iOS from zooming in when a field gets focus. */
+  input, select, textarea { font-size: 16px; }
+  button { min-height: 36px; padding: 6px 12px; }
+  button.small, button.link.small { min-height: 30px; }
+  button.link { min-height: 32px; }
+  button.roll, button.inline-roll, .prof-toggle, .pip, .swatch { min-height: 0; }
+  input[type="checkbox"], input[type="radio"] { width: 20px; height: 20px; }
+
+  .topbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    justify-content: space-around; gap: 0; padding: 4px 4px max(6px, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line); border-bottom: none;
+  }
+  .topbar .brand { display: none; }
+  .topbar button { flex: 1; font-size: 12px; padding: 8px 2px; min-height: 44px; }
+  main { padding: max(12px, env(safe-area-inset-top)) 12px calc(76px + env(safe-area-inset-bottom)); }
+  h1 { font-size: 20px; }
+
+  .grid2, .grid3, .setting-row { grid-template-columns: minmax(0, 1fr); }
+  .score-grid { grid-template-columns: repeat(3, 1fr); }
+  .cards { grid-template-columns: minmax(0, 1fr); }
+  .creator-kinds { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .creator-kind { min-height: 0; padding: 10px; }
+
+  /* Sheet header and vitals */
+  .sheet-head { gap: 8px; }
+  .sheet-head .title { min-width: 0; flex-basis: 100%; }
+  .sheet-head > .row { width: 100%; }
+  .sheet-head > .row > button { flex: 1 1 auto; }
+  .vitals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .stat { min-width: 0; padding: 6px 4px; }
+  .stat .value { font-size: 20px; }
+  .stat.hp { grid-column: 1 / -1; min-width: 0; order: -1; }
+  .nav-scroll, .tabs { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .tabs button { flex: 0 0 auto; }
+  .kind-tabs { flex-wrap: nowrap; overflow-x: auto; }
+  .kind-tabs button { flex: 0 0 auto; }
+  .main-cols { grid-template-columns: minmax(0, 1fr); }
+  .abilities { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .caster { flex-wrap: wrap; gap: 6px 12px; }
+  .counter-name { min-width: 0; flex-basis: 100%; }
+
+  /* Wide tables scroll sideways instead of squeezing */
+  .spell-table, .items, .attacks { display: block; overflow-x: auto; }
+  .roll-log li { grid-template-columns: 48px 1fr; }
+  .roll-log li > :nth-child(n+3) { grid-column: 2; }
+  .dice form input { width: 100%; flex: 1; }
+
+  /* List and detail: the detail opens as its own page */
+  .split { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .split .detail-pane { display: none; }
+  .split.has-selection .list-pane, .split.has-selection > .entry-list { display: none; }
+  .split.has-selection .detail-pane { display: block; max-height: none; }
+  .back-button { display: inline-block; margin-bottom: 10px; }
+  .entry-list { max-height: none; min-height: 0; }
+  .entry-list li { padding: 10px 12px; }
+  .picker .entry-list, .picker .detail-pane { max-height: none; }
+
+  /* Windows fill the screen like native sheets */
+  .modal-backdrop { align-items: stretch; }
+  .modal, .modal.wide { width: 100vw; max-height: none; height: 100%; border-radius: 0;
+    padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+  .modal.dialog { height: auto; margin: auto 0; border-radius: 12px; width: calc(100vw - 24px); padding: 0; }
+  .dialog-backdrop { align-items: center; }
+  .modal-actions { flex-wrap: wrap; position: sticky; bottom: 0; background: var(--bg); padding-top: 8px; }
+  .toast { bottom: calc(80px + env(safe-area-inset-bottom)); max-width: 92vw; }
+  .feature-actions { float: none; display: flex; gap: 4px; margin-top: 4px; }
+  .file-list li { flex-wrap: wrap; }
+}
+:root[data-corners="sharp"] .modal.dialog { border-radius: 0 !important; }

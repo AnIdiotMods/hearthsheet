@@ -11,6 +11,7 @@ import { CompendiumView } from './CompendiumView';
 import { CharactersView, newRecord } from './CharactersView';
 import { Sheet } from './Sheet';
 import { CreatorView } from './Creator';
+import { DialogHost, ask } from './dialogs';
 import { HOMEBREW_FILE_NAME, HOMEBREW_ID, CreatorKind, emptyHomebrewXml, removeEntry, upsertEntry } from '../model/homebrew';
 import type { XElement } from '../xml/xml';
 
@@ -97,13 +98,18 @@ export function App() {
     xml: homebrewFile?.xml ?? emptyHomebrewXml(),
     save: (e: XElement, previousName?: string) => writeHomebrew(upsertEntry(homebrewFile?.xml ?? emptyHomebrewXml(), e, previousName)),
     remove: (kind: CreatorKind, name: string) => writeHomebrew(removeEntry(homebrewFile?.xml ?? emptyHomebrewXml(), kind, name)),
-    exportFile: () => db.downloadText(HOMEBREW_FILE_NAME, homebrewFile?.xml ?? emptyHomebrewXml()),
+    exportFile: () => exportText(HOMEBREW_FILE_NAME, homebrewFile?.xml ?? emptyHomebrewXml()),
   };
 
   const toast = useCallback((msg: string) => {
     setToastMsg(msg);
     window.setTimeout(() => setToastMsg((m) => (m === msg ? null : m)), 3500);
   }, []);
+  function exportText(fileName: string, text: string) {
+    db.downloadText(fileName, text)
+      .then((saved) => { if (saved) toast(`Saved ${fileName}`); })
+      .catch((e) => setError(`Could not save ${fileName}: ${(e as Error)?.message ?? e}`));
+  }
 
   const roll = useCallback((expr: string, label?: string) => {
     try {
@@ -142,7 +148,7 @@ export function App() {
     setFiles((fs) => fs.map((x) => (x.id === f.id ? n : x)));
   };
   const removeFile = async (f: CompendiumFile) => {
-    if (!confirm(`Remove ${f.fileName} from the compendium? Characters keep their own copies of anything they use.`)) return;
+    if (!(await ask(`Remove ${f.fileName} from the compendium? Characters keep their own copies of anything they use.`, { ok: 'Remove', danger: true }))) return;
     await db.deleteFile(f.id);
     setFiles((fs) => fs.filter((x) => x.id !== f.id));
   };
@@ -175,7 +181,7 @@ export function App() {
   };
   const exportCharacter = (r: CharacterRecord) => {
     const c = Character.parse(r.xml);
-    db.downloadText(`${db.safeFileName(c.name)}.xml`, c.serialize());
+    exportText(`${db.safeFileName(c.name)}.xml`, c.serialize());
   };
   const deleteCharacter = async (r: CharacterRecord) => {
     await db.deleteCharacter(r.id);
@@ -191,7 +197,7 @@ export function App() {
   const setOpt = (o: RulesOptions) => { const { classLookup: _a, spellLookup: _b, ...plain } = o; void _a; void _b; setOptions(plain); db.saveSetting('rules', plain); };
 
   return (
-    <AppContext.Provider value={{ lib, options: rules, roll, log, toast, homebrew }}>
+    <AppContext.Provider value={{ lib, options: rules, roll, log, toast, homebrew, exportText }}>
       <div className="app">
         <nav className="topbar">
           <span className="brand">Hearthsheet</span>
@@ -214,6 +220,7 @@ export function App() {
             fonts={fonts} onImportFont={importFont} onRemoveFont={removeFont} />}
         </main>
         {toastMsg && <div className="toast" role="status">{toastMsg}</div>}
+        <DialogHost />
       </div>
     </AppContext.Provider>
   );
@@ -300,8 +307,8 @@ function AppearanceSettings({ theme, setTheme, fonts, onImportFont, onRemoveFont
                 <label className="radio" style={{ fontFamily: `"${customFontFamily(f.id)}"` }}>
                   <input type="radio" checked={theme.font === `custom:${f.id}`} onChange={() => setTheme({ ...theme, font: `custom:${f.id}` })} />{f.name}
                 </label>
-                <button className="link danger small" aria-label={`Remove font ${f.name}`} onClick={() => {
-                  if (!confirm(`Remove the font “${f.name}”?`)) return;
+                <button className="link danger small" aria-label={`Remove font ${f.name}`} onClick={async () => {
+                  if (!(await ask(`Remove the font “${f.name}”?`, { ok: 'Remove', danger: true }))) return;
                   if (theme.font === `custom:${f.id}`) setTheme({ ...theme, font: 'default' });
                   void onRemoveFont(f);
                 }}>remove</button>
@@ -309,6 +316,13 @@ function AppearanceSettings({ theme, setTheme, fonts, onImportFont, onRemoveFont
             ))}
           </div>
           <p><button className="small" onClick={onImportFont}>Import font…</button> <span className="muted small">TTF, OTF, WOFF or WOFF2 files. Fonts are kept on this computer.</span></p>
+        </div>
+      </div>
+      <div className="setting-row">
+        <div><b>Corners</b><div className="muted small">Sharp edges make every box, button and field square.</div></div>
+        <div className="row">
+          <label className="radio"><input type="radio" checked={theme.corners !== 'sharp'} onChange={() => setTheme({ ...theme, corners: 'rounded' })} />Rounded</label>
+          <label className="radio"><input type="radio" checked={theme.corners === 'sharp'} onChange={() => setTheme({ ...theme, corners: 'sharp' })} />Sharp</label>
         </div>
       </div>
       <div className="setting-row">

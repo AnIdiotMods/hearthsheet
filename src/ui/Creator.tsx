@@ -14,6 +14,7 @@ import {
 import { XElement, attr, child, childText, cloneEl, el, elements, parseXml, serializeXml, setAttr, setChildText, textOf } from '../xml/xml';
 import { EntryDetail } from './CompendiumView';
 import { Field, Modal, useApp } from './common';
+import { ask } from './dialogs';
 
 const pretty = (e: XElement) => serializeXml({ prolog: [], root: e, epilog: [] }, { pretty: true }).replace(/^<\?xml[^>]*>\s*/, '');
 const LIB_KIND: Record<CreatorKind, Kind> = { class: 'class', subclass: 'class', race: 'race', spell: 'spell', feat: 'feat', background: 'background', item: 'item', monster: 'monster' };
@@ -73,7 +74,7 @@ export function CreatorView() {
                       toast(`Made a copy of ${e.name}`);
                     }}>duplicate</button>
                     <button className="link danger small" onClick={async () => {
-                      if (!confirm(`Delete “${e.name}” from your homebrew? Characters keep their own copies of anything they already use.`)) return;
+                      if (!(await ask(`Delete “${e.name}” from your homebrew? Characters keep their own copies of anything they already use.`, { ok: 'Delete', danger: true }))) return;
                       await homebrew.remove(e.kind, e.name);
                     }}>delete</button>
                   </span>
@@ -111,7 +112,7 @@ type Start = { type: 'template'; id: string } | { type: 'scratch' } | { type: 'c
  * `onCreated` also hands the result to the caller (e.g. to add a custom item to a character).
  */
 export function CreateFlow({ kind, onClose, onCreated, addLabel }: {
-  kind: CreatorKind; onClose: () => void; onCreated?: (e: XElement) => void; addLabel?: string;
+  kind: CreatorKind; onClose: () => void; onCreated?: (e: XElement) => void | Promise<void>; addLabel?: string;
 }) {
   const { lib, homebrew, toast } = useApp();
   const [name, setName] = useState('');
@@ -140,7 +141,7 @@ export function CreateFlow({ kind, onClose, onCreated, addLabel }: {
 
   const finish = async (e: XElement) => {
     if (!onCreated || keep) await homebrew.save(e);
-    onCreated?.(e);
+    await onCreated?.(e);
     toast(`${onCreated && !keep ? 'Created' : 'Saved to My homebrew'}: ${entryName(e)}`);
     onClose();
   };

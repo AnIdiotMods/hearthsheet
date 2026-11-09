@@ -89,10 +89,11 @@ function Group({ g, picked, onToggle, open }: { g: OptionGroup; picked: string[]
         {list.map((o) => (
           <li key={o.name} className={o.prereqMet === false ? 'unmet' : ''}>
             <label>
-              <input type="checkbox" disabled={o.taken} checked={o.taken || picked.includes(o.name)} onChange={(e) => {
-                if (e.target.checked && remaining !== null && remaining <= 0
-                  && !confirmOverLimit(`${familyTitle(g.family)}: you can know ${g.max}, and this would make ${g.known + chosenHere + 1}.`)) return;
-                onToggle(o, e.target.checked);
+              <input type="checkbox" disabled={o.taken} checked={o.taken || picked.includes(o.name)} onChange={async (e) => {
+                const on = e.target.checked;
+                if (on && remaining !== null && remaining <= 0
+                  && !(await confirmOverLimit(`${familyTitle(g.family)}: you can know ${g.max}, and this would make ${g.known + chosenHere + 1}.`))) return;
+                onToggle(o, on);
               }} />
               <span>{o.label}</span>
             </label>
@@ -122,9 +123,10 @@ export function ExpertisePicker({ skills, picked, onChange, count = 2 }: {
         {eligible.map((s) => (
           <label key={s.name}>
             <input type="checkbox" checked={picked.includes(s.name)}
-              onChange={(e) => {
-                if (e.target.checked && picked.length >= count && !confirmOverLimit(`Expertise: you choose ${count} skills, and this would make ${picked.length + 1}.`)) return;
-                onChange(e.target.checked ? [...picked, s.name] : picked.filter((x) => x !== s.name));
+              onChange={async (e) => {
+                const on = e.target.checked;
+                if (on && picked.length >= count && !(await confirmOverLimit(`Expertise: you choose ${count} skills, and this would make ${picked.length + 1}.`))) return;
+                onChange(on ? [...picked, s.name] : picked.filter((x) => x !== s.name));
               }} />
             {s.name}
           </label>
@@ -171,9 +173,10 @@ export function SubclassFeatures({ cv, subclass, level, picked, setPicked }: {
             <div className="checks">
               {g.options.map((f) => (
                 <label key={f.name} title={f.text.slice(0, 400)}>
-                  <input type="checkbox" checked={picked.includes(f.name)} onChange={(e) => {
-                    if (e.target.checked && n >= g.count && !confirmOverLimit(`${g.parent.name} lets you choose ${g.count}, and this would make ${n + 1}.`)) return;
-                    toggle(f.name, e.target.checked);
+                  <input type="checkbox" checked={picked.includes(f.name)} onChange={async (e) => {
+                    const on = e.target.checked;
+                    if (on && n >= g.count && !(await confirmOverLimit(`${g.parent.name} lets you choose ${g.count}, and this would make ${n + 1}.`))) return;
+                    toggle(f.name, on);
                   }} /> {stripLevelPrefix(f.name).replace(/^[^:]+:\s*/, '')}
                 </label>
               ))}
@@ -230,9 +233,10 @@ export function ExtraChoicesPicker({ needs, value, onChange, proficient }: {
           <div className="checks">
             {from.filter((n) => !proficient.includes(n)).map((n) => (
               <label key={n}>
-                <input type="checkbox" checked={value.skills.includes(n)} onChange={(e) => {
-                  if (e.target.checked && value.skills.length >= total && !confirmOverLimit(`You choose ${total} skill${total > 1 ? 's' : ''} here, and this would make ${value.skills.length + 1}.`)) return;
-                  onChange({ ...value, skills: e.target.checked ? [...value.skills, n] : value.skills.filter((x) => x !== n) });
+                <input type="checkbox" checked={value.skills.includes(n)} onChange={async (e) => {
+                  const on = e.target.checked;
+                  if (on && value.skills.length >= total && !(await confirmOverLimit(`You choose ${total} skill${total > 1 ? 's' : ''} here, and this would make ${value.skills.length + 1}.`))) return;
+                  onChange({ ...value, skills: on ? [...value.skills, n] : value.skills.filter((x) => x !== n) });
                 }} /> {n}
               </label>
             ))}

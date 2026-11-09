@@ -26,6 +26,8 @@ import {
 } from './Options';
 import { Field, Modal, Mutate, NumberInput, RollChip, TooHighTag, confirmOverLimit, signed, useApp } from './common';
 import { CreateFlow } from './Creator';
+import { ask, tell } from './dialogs';
+import { useBackHandler } from './back';
 import { AdjustedStat, adjustmentOf, setAdjustment } from '../model/adjustments';
 import { castingSettings, setCastingSettings } from '../model/casting';
 
@@ -41,6 +43,7 @@ export function Sheet({ record, onSave, onBack, onExport }: {
   const [, bump] = useReducer((x: number) => x + 1, 0);
   const [tab, setTab] = useState<Tab>('main');
   const [levelUp, setLevelUp] = useState(false);
+  useBackHandler(true, onBack);
   const [speedEdit, setSpeedEdit] = useState(false);
   const [adjust, setAdjust] = useState<AdjustedStat | null>(null);
   const [xmlEdit, setXmlEdit] = useState<string | null>(null);
@@ -59,18 +62,20 @@ export function Sheet({ record, onSave, onBack, onExport }: {
   };
 
   /** Replace the whole character with edited XML, after checking it parses. */
-  const applyXml = (xml: string) => {
+  const applyXml = async (xml: string) => {
     let parsed: Character;
+    let warnings: string[] = [];
     try {
       const res = Character.parseAll(xml);
       if (!res.characters.length) throw new Error('No <character> element found.');
-      if (res.warnings.length && !confirm(`The XML has problems that were repaired:\n${res.warnings.slice(0, 8).join('\n')}\n\nApply anyway?`)) return;
       parsed = res.characters[0];
+      warnings = res.warnings;
     } catch (e) {
-      alert(`These changes cannot be applied: ${(e as Error).message}`);
+      await tell(`These changes cannot be applied: ${(e as Error).message}`, { title: 'XML not applied' });
       return;
     }
-    if (!confirm('Are you sure? This replaces the character with the edited XML.')) return;
+    if (warnings.length && !(await ask(`The XML has problems that were repaired:\n\n${warnings.slice(0, 8).join('\n')}\n\nApply anyway?`, { ok: 'Apply anyway' }))) return;
+    if (!(await ask('Are you sure? This replaces the character with the edited XML.', { ok: 'Replace', danger: true }))) return;
     c.doc = parsed.doc;
     c.ch = parsed.ch;
     setXmlEdit(null);
@@ -177,8 +182,8 @@ export function Sheet({ record, onSave, onBack, onExport }: {
           <div className="row between">
             <p className="muted small">The character file exactly as it will be exported. Elements this app does not recognise are kept as they are.</p>
             {xmlEdit === null
-              ? <button onClick={() => {
-                if (confirm('Are you sure you want to edit the XML directly?\n\nA mistake here can break the character or lose information. Consider exporting a backup first. Changes only take effect when you click “Apply changes”.')) setXmlEdit(c.serialize());
+              ? <button onClick={async () => {
+                if (await ask('Are you sure you want to edit the XML directly?\n\nA mistake here can break the character or lose information. Consider exporting a backup first. Changes only take effect when you click “Apply changes”.', { title: 'Edit XML', ok: 'Edit XML' })) setXmlEdit(c.serialize());
               }}>Edit XML…</button>
               : <span className="row">
                 <button onClick={() => setXmlEdit(null)}>Cancel</button>
@@ -341,7 +346,10 @@ function HitPoints({ c, app, max, mutate }: { c: Character; app: AppState; max: 
         <button disabled={!(n > 0)} onClick={heal}>Heal</button>
         <button disabled={!(n > 0)} onClick={() => mutate((_, a) => { a.hpTemp = Math.max(a.hpTemp, n); })}>Temp</button>
       </span>
-      <span className="row small muted">Max <NumberInput className="hp-max" value={c.hpMax} min={0} onChange={(v) => mutate((ch) => { ch.hpMax = v; })} /></span>
+      <span className="row small muted" title="The stored maximum. Bonuses from features, feats and items are added on top.">
+        {max !== c.hpMax ? 'Base max' : 'Max'} <NumberInput className="hp-max" value={c.hpMax} min={0} ariaLabel="Hit point maximum" onChange={(v) => mutate((ch) => { ch.hpMax = v; })} />
+        {max !== c.hpMax && <span>{signed(max - c.hpMax)} bonuses</span>}
+      </span>
     </div>
   );
 }
@@ -368,22 +376,22 @@ function SpellsTab({ c, app, sheet, mutate, rollF }: { c: Character; app: AppSta
     const arcanum = sheet.counters.filter((ct) => /mystic arcanum \((\d)/i.test(ct.name)).map((ct) => +/\((\d)/.exec(ct.name)![1]);
     return Math.max(own, ...arcanum);
   };
-  const togglePrepared = (ce: XElement, el: XElement, on: boolean) => {
+  const togglePrepared = async (ce: XElement, el: XElement, on: boolean) => {
     const sc = sheet.spellcasting.find((x) => x.el === ce);
     if (on && sc && sc.limit.max !== null && sc.limit.count >= sc.limit.max
-      && !confirmOverLimit(`${sc.className} can have ${sc.limit.max} spells prepared (${sc.limit.basis}), and this would make ${sc.limit.count + 1}.`)) return;
+      && !await confirmOverLimit(`${sc.className} can have ${sc.limit.max} spells prepared (${sc.limit.basis}), and this would make ${sc.limit.count + 1}.`)) return;
     mutate(() => setPrepared(el, on));
   };
   /** Before adding a spell from the picker: warn about levels above what can be cast and about full lists. */
-  const allowAdd = (ce: XElement, src: XElement) => {
+  const allowAdd = async (ce: XElement, src: XElement): Promise<boolean> => {
     const v = spellView(src);
     const sc = sheet.spellcasting.find((x) => x.el === ce);
     const castable = castableOf(ce);
-    if (v.level > castable && !confirmOverLimit(`${v.name} is a ${ordinal(v.level)}-level spell; ${childText(ce, 'name')} can cast up to ${castable ? `${ordinal(castable)} level` : 'cantrips only'} right now.`)) return false;
+    if (v.level > castable && !await confirmOverLimit(`${v.name} is a ${ordinal(v.level)}-level spell; ${childText(ce, 'name')} can cast up to ${castable ? `${ordinal(castable)} level` : 'cantrips only'} right now.`)) return false;
     if (!sc) return true;
-    if (v.level === 0 && sc.cantrips > 0 && sc.limit.cantrips >= sc.cantrips && !confirmOverLimit(`${sc.className} knows ${sc.cantrips} cantrips, and this would make ${sc.limit.cantrips + 1}.`)) return false;
+    if (v.level === 0 && sc.cantrips > 0 && sc.limit.cantrips >= sc.cantrips && !await confirmOverLimit(`${sc.className} knows ${sc.cantrips} cantrips, and this would make ${sc.limit.cantrips + 1}.`)) return false;
     if (v.level > 0 && sc.limit.mode === 'known' && sc.limit.max !== null && sc.limit.count >= sc.limit.max
-      && !confirmOverLimit(`${sc.className} can know ${sc.limit.max} spells (${sc.limit.basis}), and this would make ${sc.limit.count + 1}.`)) return false;
+      && !await confirmOverLimit(`${sc.className} can know ${sc.limit.max} spells (${sc.limit.basis}), and this would make ${sc.limit.count + 1}.`)) return false;
     return true;
   };
   const setUsed = (l: number, n: number) => mutate((ch) => {
@@ -396,7 +404,7 @@ function SpellsTab({ c, app, sheet, mutate, rollF }: { c: Character; app: AppSta
     for (let l = level; l <= 9; l++) {
       if (sheet.slotsUsed[l] < sheet.slots[l]) { setUsed(l, sheet.slotsUsed[l] + 1); return; }
     }
-    alert('No spell slots of that level or higher remain.');
+    void tell('No spell slots of that level or higher remain.');
   };
 
   return (
@@ -476,7 +484,7 @@ function SpellsTab({ c, app, sheet, mutate, rollF }: { c: Character; app: AppSta
       )}
       {creating && (
         <CreateFlow kind="spell" addLabel={`Add to ${childText(creating, 'name')}`} onClose={() => setCreating(null)}
-          onCreated={(e) => { if (allowAdd(creating, e)) mutate((ch) => { ch.addSpell(creating, e); }); }} />
+          onCreated={async (e) => { if (await allowAdd(creating, e)) mutate((ch) => { ch.addSpell(creating, e); }); }} />
       )}
       {castingEdit && <SpellcastingEditor ce={castingEdit} sheet={sheet} onClose={() => setCastingEdit(null)} mutate={mutate} />}
       {adding && (
@@ -561,10 +569,11 @@ function InventoryTab({ c, sheet, mutate, rollF }: { c: Character; sheet: SheetD
             {items.map(({ el, v, qty, eq, att }, i) => (
               <tr key={i}>
                 <td><input type="checkbox" checked={eq} onChange={(e) => mutate(() => setEquipped(el, e.target.checked))} /></td>
-                <td>{(v.magic || v.attunement) && <input type="checkbox" checked={att} onChange={(e) => {
+                <td>{(v.magic || v.attunement) && <input type="checkbox" checked={att} onChange={async (e) => {
+                  const on = e.target.checked;
                   const n = items.filter((x) => x.att).length;
-                  if (e.target.checked && n >= 3 && !confirmOverLimit(`You can normally be attuned to 3 items at once, and this would make ${n + 1}.`)) return;
-                  mutate(() => setAttuned(el, e.target.checked));
+                  if (on && n >= 3 && !(await confirmOverLimit(`You can normally be attuned to 3 items at once, and this would make ${n + 1}.`))) return;
+                  mutate(() => setAttuned(el, on));
                 }} />}</td>
                 <td><button className="link" onClick={() => setOpen(el)}>{v.name}</button> <span className="muted small">{v.typeLabel}</span></td>
                 <td><NumberInput className="qty" value={qty} min={0} onChange={(n) => mutate(() => setItemQuantity(el, n))} /></td>
@@ -586,7 +595,7 @@ function InventoryTab({ c, sheet, mutate, rollF }: { c: Character; sheet: SheetD
         <section key={i} className="panel">
           <div className="row between">
             <h3>{childText(ct, 'label') || childText(ct, 'name')} <span className="muted small">{childText(ct, 'name')} · {containerCarried(ct) ? 'carried' : 'not carried'}</span></h3>
-            <button className="link danger" onClick={() => { if (confirm('Remove this container and its contents?')) mutate((ch) => ch.remove(ct)); }}>Remove</button>
+            <button className="link danger" onClick={async () => { if (await ask('Remove this container and its contents?', { ok: 'Remove', danger: true })) mutate((ch) => ch.remove(ct)); }}>Remove</button>
           </div>
           <ul className="small">
             {elements(ct, 'item').map((it, j) => <li key={j}>{childText(it, 'name')}{itemQuantity(it) !== 1 ? ` ×${itemQuantity(it)}` : ''} <span className="muted">{childText(it, 'weight') && `${childText(it, 'weight')} lb`}</span></li>)}
@@ -699,12 +708,12 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
   const asiOver = Object.entries(asiIncrease ?? {}).filter(([a, v]) => natural[a as Ability] + (v ?? 0) > 20)
     .map(([a, v]) => `${ABBR[a as Ability]} ${natural[a as Ability]} → ${natural[a as Ability] + (v ?? 0)}`);
 
-  const apply = () => {
+  const apply = async () => {
     if (!classEl || c.totalLevel >= 20 || !lo) return;
     let allowOverMax = false;
     if (asiOver.length) {
-      allowOverMax = confirmOverLimit(`This Ability Score Improvement raises ${asiOver.join(', ')}, above the usual maximum of 20.`);
-      if (!allowOverMax && !window.confirm('Apply the level anyway, with the increase stopped at 20?')) return;
+      allowOverMax = await confirmOverLimit(`This Ability Score Improvement raises ${asiOver.join(', ')}, above the usual maximum of 20.`);
+      if (!allowOverMax && !(await ask('Apply the level anyway, with the increase stopped at 20?', { ok: 'Apply, stop at 20' }))) return;
     }
     const featEl = lo.asi && asiMode === 'feat' && feat ? lib.byKind.feat.find((f) => f.name === feat)?.el : undefined;
     let granted: string[] = [];
@@ -819,7 +828,7 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
         {existing.length > 0 && (
           <button className="danger" onClick={() => {
             const ce = existingEl ?? existing[existing.length - 1];
-            if (confirm(`Remove one ${childText(ce, 'name')} level?`)) { mutate((ch) => removeLevel(ch, ce, options)); onClose(); }
+            void ask(`Remove one ${childText(ce, 'name')} level?`, { ok: 'Remove level', danger: true }).then((ok) => { if (ok) { mutate((ch) => removeLevel(ch, ce, options)); onClose(); } });
           }}>Remove a level</button>
         )}
         <span className="spacer" />

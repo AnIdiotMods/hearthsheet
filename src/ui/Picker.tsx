@@ -11,7 +11,7 @@ export function Picker({ kind, onClose, onPick, has, filterHint, subclasses = []
   /** Spells: the highest level the class can cast now; higher spells are hidden unless asked for. */
   maxSpellLevel?: number;
   /** Return false to cancel adding (after a warning). */
-  beforePick?: (e: Entry) => boolean;
+  beforePick?: (e: Entry) => boolean | Promise<boolean>;
 }) {
   const { lib, toast } = useApp();
   const [q, setQ] = useState('');
@@ -37,7 +37,7 @@ export function Picker({ kind, onClose, onPick, has, filterHint, subclasses = []
           <label><input type="checkbox" checked={castableOnly} onChange={(e) => setCastableOnly(e.target.checked)} /> Only levels you can cast ({maxSpellLevel ? `up to ${levelLabel(maxSpellLevel)}` : 'cantrips'})</label>
         )}
       </div>
-      <div className="split picker">
+      <div className={`split picker ${sel ? 'has-selection' : ''}`}>
         <ul className="entry-list">
           {list.slice(0, 1000).map(({ e, level, tag }) => (
             <li key={e.name} className={sel === e ? 'active' : ''} onClick={() => setSel(e)}>
@@ -47,9 +47,9 @@ export function Picker({ kind, onClose, onPick, has, filterHint, subclasses = []
                 {tag && <>{' '}<span className="tag unofficial">{tag}</span></>}
               </span>
               <button className="small" disabled={isSpell && has(e.name)}
-                onClick={(ev) => {
+                onClick={async (ev) => {
                   ev.stopPropagation();
-                  if (beforePick && !beforePick(e)) return;
+                  if (beforePick && !(await beforePick(e))) return;
                   onPick(e);
                   toast(`Added ${e.name}`);
                 }}>{isSpell && has(e.name) ? 'Added' : 'Add'}</button>
@@ -57,7 +57,10 @@ export function Picker({ kind, onClose, onPick, has, filterHint, subclasses = []
           ))}
           {list.length === 0 && <li className="muted small">Nothing matches.{castableOnly ? ' Untick “Only levels you can cast” to see higher-level spells.' : ''}</li>}
         </ul>
-        <div className="detail-pane">{sel ? <EntryDetail entry={sel} /> : <p className="muted">Select an entry to preview.</p>}</div>
+        <div className="detail-pane">
+          {sel && <button className="back-button" onClick={() => setSel(null)}>← Back to the list</button>}
+          {sel ? <EntryDetail entry={sel} /> : <p className="muted">Select an entry to preview.</p>}
+        </div>
       </div>
     </Modal>
   );

@@ -1,23 +1,49 @@
 # Hearthsheet
 
-An independent, open-source 5e character manager for Windows (Electron + TypeScript + React).
+An independent, open-source 5e character manager for **Windows, macOS, Linux, Android and iOS**,
+built with [Tauri 2](https://tauri.app) (TypeScript + React front end, a small Rust shell). It uses
+each system's own web view, so there is no bundled browser: the Windows installer is a few MB.
 It reads and writes the compendium and character XML files used by the popular community
 compendium ecosystem, so you can use compendium files you already own and carry characters
 across. It ships with no game content apart from an optional small SRD 5.1 sample (CC-BY-4.0,
 attribution in the app's Settings → About and in the sample file).
 
-## Run it
+Every platform runs the same code and the same interface; on phones the layout adapts (bottom tab
+bar, full-screen windows, list and detail on separate pages) while keeping the desktop look. Files
+are opened and saved with each system's own file dialogs, and the system Back button or gesture
+closes windows and screens.
 
-- **Windows:** run `release/Hearthsheet 0.3.0.exe` (portable, no install), or unzip
-  `release/Hearthsheet-0.3.0-win.zip` and run `Hearthsheet.exe`. The build is unsigned, so
-  Windows SmartScreen will warn on first launch ("More info" → "Run anyway").
-- **From source:** `npm install`, then `npm run build && npm run electron`. `npm run dev` runs it
-  in a browser. `npm run dist:win` rebuilds the Windows packages (works from Linux too).
-- **Tests:** `npm test`.
+## Install
 
-Data is stored locally (IndexedDB in the app profile). Export characters and compendiums to back them up.
+| Platform | Package | Notes |
+| --- | --- | --- |
+| Windows 10/11 | `Hearthsheet_0.4.0_x64-setup.exe` | Installs for the current user. Uses the Edge WebView2 runtime (built into Windows 11; downloaded if missing). |
+| macOS 11+ | `.dmg` (universal: Apple silicon and Intel) | Built by GitHub Actions on macOS. |
+| Linux | `.AppImage`, `.deb`, `.rpm` | AppImage runs anywhere; `.deb` for Debian/Ubuntu, `.rpm` for Fedora/openSUSE. |
+| Android 7+ | `.apk` (sideload) or `.aab` (Play Store) | Allow installing from your browser or file manager when asked. |
+| iOS / iPadOS 15+ | TestFlight / App Store | Needs an Apple Developer account; built by GitHub Actions. |
 
-## Features (v0.3)
+Unsigned builds trigger "unknown publisher" warnings. See [docs/SIGNING.md](docs/SIGNING.md) for
+how to sign releases (it needs credentials only you can obtain; the release workflow uses them
+automatically once they are added as repository secrets).
+
+## Build from source
+
+- Requirements: Node 22+, Rust (stable), and the [Tauri prerequisites](https://tauri.app/start/prerequisites/)
+  for your system (WebKitGTK on Linux, Xcode on macOS, Android SDK + NDK for Android).
+- `npm install`
+- `npm run app:dev`: the desktop app with live reload. `npm run dev` runs it in a browser.
+- `npm run app:build`: installers for the system you are on (`src-tauri/target/release/bundle/`).
+- `npm run app:build:windows-from-linux`: the Windows installer from Linux (needs `cargo-xwin`, `nsis`, `lld`, `llvm`).
+- `npm run android:build`, `npm run ios:build` (iOS on macOS only).
+- `npm test`: unit tests (plus `tests/local/` when the local test files are present).
+- **All platforms at once:** push a tag such as `v0.4.0`; `.github/workflows/release.yml` builds
+  Windows, macOS, Linux, Android (and iOS when enabled) and attaches them to a draft release.
+
+Data is stored locally on each device (the app's own storage). Export characters and compendiums to
+back them up or move them between devices; the files are the same on every platform.
+
+## Features (v0.4)
 
 - **Compendium:** import any number of XML files, enable or disable each file, browse and search
   races, classes, backgrounds, feats, spells, items and monsters, and export the merged library.
@@ -31,9 +57,10 @@ Data is stored locally (IndexedDB in the app profile). Export characters and com
 - **Custom ability scores and skills:** add ability scores (e.g. Sanity, Honor) with their own
   modifier and saving throw; add skills; choose which ability any skill uses, standard or custom
   (e.g. Intimidation with Strength); set proficiency or expertise per skill and add an extra bonus.
-- **Appearance:** light, dark or system mode; pick the primary (button) color, the text color and
-  the secondary text color, with a readability warning for low-contrast choices; a built-in
-  OpenDyslexic font (SIL Open Font License); text size from 80% to 140%.
+- **Appearance:** light, dark or system mode; rounded or sharp corners; pick the primary (button)
+  color, the text color and the secondary text color, with a readability warning for low-contrast
+  choices; a built-in OpenDyslexic font (SIL Open Font License) or your own imported fonts; text size
+  from 80% to 140%.
 - **Trackers:** custom counters on the Abilities & Skills page (luck points, ki, arrows, charges, …)
   with a maximum that can be a number or a formula (`PROF`, `1+CHA`, `LVL`, `2*PROF`) and that
   refill on a short rest, a long rest, or only by hand.
@@ -103,7 +130,9 @@ Data is stored locally (IndexedDB in the app profile). Export characters and com
 | Model | `src/model/` | `compendium.ts`: typed views over compendium entries (also accepts the compiled shapes inside character files). `character.ts`: the character document in the real export format. `codes.ts`: numeric codes used in character files. |
 | Rules | `src/rules/` | Pure functions: derived sheet, multiclass slots, level-up, dice. |
 | Store | `src/store/db.ts` | IndexedDB. Compendium files are stored as their original text. |
-| UI | `src/ui/` | React. |
+| UI | `src/ui/` | React. One interface for every platform; `styles.css` adapts it to phones. `dialogs.tsx`: in-app confirmations (the same on every platform). `back.ts`: system Back button support. |
+| Platform | `src/platform.ts` | The only platform-specific code: native file dialogs and file access in the app (Tauri dialog and fs plugins), file inputs and downloads in a browser. |
+| Native shell | `src-tauri/` | Tauri 2: opens the window and provides the dialog and fs plugins, with permissions limited to files the user picks (`capabilities/default.json`). `gen/android` is the Android project. |
 
 ## File compatibility
 

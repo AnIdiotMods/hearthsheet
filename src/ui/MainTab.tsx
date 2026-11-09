@@ -8,6 +8,7 @@ import {
 import { CustomAbilityResult, Sheet as SheetData, SkillResult, deriveSheet } from '../rules/derive';
 import { Field, Modal, Mutate, NumberInput, RollChip, confirmOverLimit, signed, useApp } from './common';
 import { TrackersPanel } from './Trackers';
+import { ask } from './dialogs';
 
 const CONDITIONS = ['Blinded', 'Charmed', 'Deafened', 'Frightened', 'Grappled', 'Incapacitated', 'Invisible',
   'Paralyzed', 'Petrified', 'Poisoned', 'Prone', 'Restrained', 'Stunned', 'Unconscious'];
@@ -16,10 +17,10 @@ const PROF_MARK: Record<ProfLevel, string> = { 0: '○', 1: '●', 2: '◆' };
 export function MainTab({ c, app, sheet: s, mutate }: { c: Character; app: AppState; sheet: SheetData; mutate: Mutate }) {
   const { roll, options: rules, toast } = useApp();
   /** Edit a base score: warn before the total passes 20, and keep the hit point maximum in step with Constitution. */
-  const setBase = (a: Ability, n: number) => {
+  const setBase = async (a: Ability, n: number) => {
     const total = s.naturalScores[a] + (n - c.abilities[a]);
     if (total > 20 && s.naturalScores[a] <= 20 && n > c.abilities[a]
-      && !confirmOverLimit(`${ABBR[a]} would be ${total}, above the usual maximum of 20.`)) return;
+      && !(await confirmOverLimit(`${ABBR[a]} would be ${total}, above the usual maximum of 20.`))) return;
     mutate((ch, st) => {
       const before = a === 'constitution' ? deriveSheet(ch, st, rules).mods.constitution : 0;
       ch.abilities = { ...ch.abilities, [a]: n };
@@ -240,7 +241,7 @@ function AbilityEditor({ initial, onClose, onSave, onRemove }: {
         <label className="check"><input type="checkbox" checked={v.saveProf} onChange={(e) => setV({ ...v, saveProf: e.target.checked })} /> Proficient in saving throws</label>
       </div>
       <footer className="modal-actions">
-        {onRemove && <button className="danger" onClick={() => { if (confirm(`Remove ${initial!.name}? Skills that use it go back to their usual ability.`)) onRemove(); }}>Remove</button>}
+        {onRemove && <button className="danger" onClick={async () => { if (await ask(`Remove ${initial!.name}? Skills that use it go back to their usual ability.`, { ok: 'Remove', danger: true })) onRemove(); }}>Remove</button>}
         <span className="spacer" />
         <button onClick={onClose}>Cancel</button>
         <button className="primary" disabled={!v.name.trim()} onClick={() => onSave({ ...v, name: v.name.trim(), abbr })}>Save</button>
@@ -276,7 +277,7 @@ function SkillEditor({ skill, options, onClose, onSave, onRemove, onReset }: {
         <Field label="Extra bonus"><NumberInput value={v.bonus} min={-20} max={20} onChange={(n) => setV({ ...v, bonus: n })} /></Field>
       </div>
       <footer className="modal-actions">
-        {onRemove && <button className="danger" onClick={() => { if (confirm(`Remove the skill ${skill!.name}?`)) onRemove(); }}>Remove</button>}
+        {onRemove && <button className="danger" onClick={async () => { if (await ask(`Remove the skill ${skill!.name}?`, { ok: 'Remove', danger: true })) onRemove(); }}>Remove</button>}
         {onReset && skill!.overridden && <button onClick={onReset}>Reset to normal</button>}
         <span className="spacer" />
         <button onClick={onClose}>Cancel</button>

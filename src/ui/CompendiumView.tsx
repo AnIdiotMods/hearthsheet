@@ -3,7 +3,6 @@ import {
   CompendiumFile, Entry, KINDS, KIND_LABEL, Kind, backgroundView, classView, exportLibrary, featView, fieldsOf,
   itemView, monsterView, raceView, spellView, ABBR, ABILITIES, WEAPON_PROPERTIES, Roll,
 } from '../model/compendium';
-import { downloadText } from '../store/db';
 import { RichText, RollChip, signed, useApp } from './common';
 import { mod } from '../rules/derive';
 import { isRollable } from '../rules/dice';
@@ -17,7 +16,7 @@ interface Props {
 }
 
 export function CompendiumView({ files, onImport, onLoadSample, onToggle, onRemove }: Props) {
-  const { lib } = useApp();
+  const { lib, exportText } = useApp();
   const [kind, setKind] = useState<Kind>('spell');
   const [q, setQ] = useState('');
   const [sel, setSel] = useState<Entry | null>(null);
@@ -35,7 +34,7 @@ export function CompendiumView({ files, onImport, onLoadSample, onToggle, onRemo
           <div className="row">
             <button onClick={onImport}>Import XML…</button>
             <button onClick={onLoadSample} title="Small CC-BY-4.0 sample from the SRD 5.1">Add SRD sample</button>
-            <button disabled={!lib.entries.size} onClick={() => downloadText('compendium.xml', exportLibrary(lib))}>Export merged</button>
+            <button disabled={!lib.entries.size} onClick={() => exportText('compendium.xml', exportLibrary(lib))}>Export merged</button>
           </div>
         </div>
         {files.length === 0 && <p className="muted">No compendiums yet. Import your own compendium XML files, or add the SRD sample to try the app.</p>}
@@ -44,7 +43,7 @@ export function CompendiumView({ files, onImport, onLoadSample, onToggle, onRemo
             <li key={f.id}>
               <label><input type="checkbox" checked={f.enabled} onChange={() => onToggle(f)} /> {f.fileName}</label>
               <span className="muted">{new Date(f.importedAt).toLocaleDateString()}</span>
-              <button className="link" onClick={() => downloadText(f.fileName, f.xml)}>Export</button>
+              <button className="link" onClick={() => exportText(f.fileName, f.xml)}>Export</button>
               <button className="link danger" onClick={() => onRemove(f)}>Remove</button>
             </li>
           ))}
@@ -71,7 +70,7 @@ export function CompendiumView({ files, onImport, onLoadSample, onToggle, onRemo
             </button>
           ))}
         </nav>
-        <div className="split">
+        <div className={`split ${sel ? 'has-selection' : ''}`}>
           <div className="list-pane">
             <input type="search" placeholder={`Search ${KIND_LABEL[kind].toLowerCase()}…`} value={q} onChange={(e) => setQ(e.target.value)} />
             <ul className="entry-list">
@@ -82,7 +81,10 @@ export function CompendiumView({ files, onImport, onLoadSample, onToggle, onRemo
               ))}
             </ul>
           </div>
-          <div className="detail-pane">{sel ? <EntryDetail entry={sel} /> : <p className="muted">Select an entry.</p>}</div>
+          <div className="detail-pane">
+            {sel && <button className="back-button" onClick={() => setSel(null)}>← Back to the list</button>}
+            {sel ? <EntryDetail entry={sel} /> : <p className="muted">Select an entry.</p>}
+          </div>
         </div>
       </div>
     </div>

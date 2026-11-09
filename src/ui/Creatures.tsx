@@ -12,6 +12,7 @@ import { XElement, childText, cloneEl, removeChild } from '../xml/xml';
 import { Field, Modal, Mutate, NumberInput, RichText, RollChip, signed } from './common';
 import { Picker } from './Picker';
 import { CreateFlow } from './Creator';
+import { ask } from './dialogs';
 
 export function CreaturesTab({ c, sheet, mutate }: { c: Character; sheet: SheetData; mutate: Mutate }) {
   const [picking, setPicking] = useState(false);
@@ -41,7 +42,7 @@ export function CreaturesTab({ c, sheet, mutate }: { c: Character; sheet: SheetD
             setField(copy, 'name', `${childText(cr, 'name')} (copy)`);
             ch.addCreature(copy);
           })}
-          onRemove={() => { if (confirm(`Remove ${childText(cr, 'name')}?`)) mutate((ch) => ch.remove(cr)); }} />
+          onRemove={async () => { if (await ask(`Remove ${childText(cr, 'name')}?`, { ok: 'Remove', danger: true })) mutate((ch) => ch.remove(cr)); }} />
       ))}
 
       {picking && (
