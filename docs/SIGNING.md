@@ -54,13 +54,16 @@ have to right-click the app and choose Open the first time.
 
 ## iOS
 
-iPhones and iPads only install apps signed through an Apple Developer account (the same US$99 a
-year). Distribution is through TestFlight or the App Store. Set these secrets, and the repository
-**variable** `IOS_ENABLED` to `true` (Settings → Secrets and variables → Actions → Variables):
+Every release build makes an iPhone app. What you get depends on the secrets:
 
-- `APPLE_TEAM_ID`
-- `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, `APPLE_API_KEY_P8`: an App Store Connect API key (the
-  contents of the `.p8` file)
+- **Without an Apple Developer account:** `Hearthsheet-unsigned.ipa`. Install it with a sideloading
+  tool such as Sideloadly or AltStore, which signs it with your own (free) Apple ID as it installs.
+  Apple lets apps installed this way run for 7 days, after which you install it again.
+- **With an Apple Developer account** (US$99 a year): a signed build for TestFlight or the App Store,
+  which installs like any other app. Secrets:
+  - `APPLE_TEAM_ID`
+  - `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, `APPLE_API_KEY_P8`: an App Store Connect API key (the
+    contents of the `.p8` file)
 
 ## Android
 

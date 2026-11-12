@@ -114,6 +114,7 @@ jobs:
             src-tauri/target/**/release/bundle/**/*.exe
             src-tauri/target/**/release/bundle/**/*.msi
             src-tauri/target/**/release/bundle/**/*.dmg
+            src-tauri/target/**/release/bundle/macos/*.app
             src-tauri/target/**/release/bundle/**/*.app.tar.gz
             src-tauri/target/**/release/bundle/**/*.deb
             src-tauri/target/**/release/bundle/**/*.rpm
@@ -164,8 +165,8 @@ jobs:
   ios:
     needs: test
     runs-on: macos-latest
-    # An iOS app can only be installed when it is signed with an Apple Developer account.
-    if: ${{ vars.IOS_ENABLED == 'true' }}
+    env:
+      HAS_APPLE_SIGNING: ${{ secrets.APPLE_API_KEY_P8 != '' && secrets.APPLE_TEAM_ID != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -174,21 +175,40 @@ jobs:
         with: { targets: 'aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios' }
       - run: npm ci
       - run: brew install xcodegen
+      - name: Generate the Xcode project
+        run: '[ -d src-tauri/gen/apple ] || npx tauri ios init --ci'
+
+      # With an Apple Developer account: a signed build for TestFlight / the App Store.
       - name: App Store Connect API key
+        if: env.HAS_APPLE_SIGNING == 'true'
         env:
           APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
         run: |
           mkdir -p ~/private_keys
           echo "$APPLE_API_KEY_P8" > ~/private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8
           echo "APPLE_API_KEY_PATH=$HOME/private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8" >> "$GITHUB_ENV"
-      - name: Build
+      - name: Signed build
+        if: env.HAS_APPLE_SIGNING == 'true'
         env:
           APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: npx tauri ios build --export-method app-store-connect
+
+      # Without one: an unsigned .ipa. Sideloading tools (Sideloadly, AltStore) sign it with a free
+      # Apple ID when they install it; Apple limits such installs to 7 days before re-installing.
+      - name: Unsigned build
+        if: env.HAS_APPLE_SIGNING != 'true'
         run: |
-          [ -d src-tauri/gen/apple ] || npx tauri ios init --ci
-          npx tauri ios build --export-method app-store-connect
+          PROJECT=$(ls -d src-tauri/gen/apple/*.xcodeproj | head -1)
+          SCHEME=$(xcodebuild -list -project "$PROJECT" | awk '/Schemes:/{f=1;next} f&&NF{print $1; exit}')
+          xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration release -sdk iphoneos \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Hearthsheet.xcarchive" archive \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" ARCHS=arm64
+          APP=$(find "$RUNNER_TEMP/Hearthsheet.xcarchive/Products/Applications" -maxdepth 1 -name '*.app' | head -1)
+          mkdir -p "$RUNNER_TEMP/ipa/Payload" src-tauri/gen/apple/build/unsigned
+          cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/"
+          (cd "$RUNNER_TEMP/ipa" && zip -qr "$GITHUB_WORKSPACE/src-tauri/gen/apple/build/unsigned/Hearthsheet-unsigned.ipa" Payload)
       - uses: actions/upload-artifact@v4
         with:
           name: hearthsheet-ios
