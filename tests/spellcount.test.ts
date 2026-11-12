@@ -57,3 +57,13 @@ describe('prepared and known spell limits', () => {
     expect(baseClassName('Cleric [5.5e]')).toBe('cleric');
   });
 });
+
+describe('prepared spells stated in a homebrew class', () => {
+  it('reads a "Prepared Spells:" line with one number per level', async () => {
+    const { preparedTable } = await import('../src/rules/spellcount');
+    const nums = Array.from({ length: 20 }, (_, i) => i + 4).join(', ');
+    expect(preparedTable([{ name: 'Spellcasting', text: `You prepare spells.\nPrepared Spells: ${nums}` }])?.slice(0, 3)).toEqual([4, 5, 6]);
+    expect(preparedTable([{ name: 'Spellcasting', text: 'Prepared Spells: 4, 5' }])).toBeNull();
+  });
+});
+

@@ -65,6 +65,21 @@ export function preparedFormula(features: { name: string; text: string }[]): { a
   return null;
 }
 
+/**
+ * A "Prepared Spells: 4, 5, 6, …" line (20 numbers, one per class level) in a class feature's text: how
+ * homebrew classes in the 2024 style state their Prepared Spells column, which the XML format has no
+ * field for.
+ */
+export function preparedTable(features: { name: string; text: string }[]): number[] | null {
+  for (const f of features) {
+    const m = /^\s*prepared spells:\s*([\d,\s]+)$/im.exec(f.text);
+    if (!m) continue;
+    const nums = m[1].split(/[,\s]+/).filter(Boolean).map(Number);
+    if (nums.length >= 20 && nums.every(Number.isFinite)) return nums.slice(0, 20);
+  }
+  return null;
+}
+
 export const customLimit = (ce: XElement): number | null => {
   const n = parseInt(childText(ce, 'preparedMax'), 10);
   return Number.isFinite(n) ? n : null;
@@ -89,6 +104,13 @@ export function spellLimit(p: {
 
   const custom = customLimit(p.ce);
   if (custom !== null) return { mode, max: custom, source: 'custom', basis: 'your own limit', count, cantrips, edition: edition2024 ? '2024' : '2014' };
+
+  // A table stated in the class's own text: every spell on the list counts, as in the 2024 rules.
+  const own = preparedTable(p.features.filter((x) => x.level <= Math.max(1, p.level)));
+  if (own) {
+    const known = spells.filter((s) => s.v.level > 0).length;
+    return { mode: 'known', max: own[lvl - 1], source: 'table', basis: `${label} table (Prepared Spells column)`, count: known, cantrips, edition: '2024' };
+  }
 
   if (!edition2024) {
     const f = preparedFormula(p.features.filter((x) => x.level <= p.level));
