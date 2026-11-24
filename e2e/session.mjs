@@ -5,7 +5,8 @@
 //
 // Step kinds:
 //   tap     press the button, tab, link or list entry with this name (entry: a list entry or card whose
-//           spoken name continues after this, such as "Fireball, Level 3")
+//           spoken name continues after this, such as "Fireball, Level 3"; below: the one under this
+//           field, not the field itself)
 //   fill    type into the field with this name (clearing it first)
 //   choose  pick an entry from the dropdown with this name
 //   tick    tick the checkbox with this name
@@ -29,7 +30,7 @@ export const steps = [
 
   // Look a spell up, as players do mid-game.
   { fill: 'Search spells', text: 'Fireball' },
-  { tap: 'Fireball', entry: true },
+  { tap: 'Fireball', entry: true, below: 'Search spells' },
   { see: 'A bright streak flashes', seconds: 10 },
   { shot: '03-compendium-fireball' },
 

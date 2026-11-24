@@ -6,6 +6,8 @@ UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=j
 xcrun simctl list devices available | grep "$UDID"
 xcrun simctl boot "$UDID" || true
 xcrun simctl bootstatus "$UDID" -b
+# A new Simulator shows a one-time "slide to type" keyboard tutorial over the app; mark it as seen.
+xcrun simctl spawn "$UDID" defaults write com.apple.keyboard.preferences DidShowContinuousPathIntroduction -bool true || true
 xcrun simctl install "$UDID" "$APP"
 # Open Files once so its "On My iPhone" folder exists, then copy the compendium into it.
 xcrun simctl launch "$UDID" com.apple.DocumentsApp || true

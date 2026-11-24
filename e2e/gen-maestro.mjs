@@ -60,12 +60,19 @@ add(`- extendedWaitUntil:\n    visible: "Characters"\n    timeout: 60000`);
 for (const [i, s] of steps.entries()) {
   add(`# step ${i}: ${JSON.stringify(s)}`);
   if (s.shot) add(`- takeScreenshot: out/${s.shot}`);
-  else if (s.tap) { const t = s.entry ? starts(s.tap) : exact(s.tap); reveal(t); add(`- tapOn: ${t}`); }
+  else if (s.tap) {
+    const t = s.entry ? starts(s.tap) : exact(s.tap);
+    reveal(t);
+    add(s.below ? `- tapOn:\n    text: ${t}\n    below:\n      text: ${starts(s.below)}` : `- tapOn: ${t}`);
+  }
   else if (s.fill) {
     reveal(starts(s.fill));
     add(`- tapOn: ${starts(s.fill)}`);
     add(`- eraseText: 60`);
     add(`- inputText: ${q(s.text)}`);
+    if (platform === 'ios' && !out.some((l) => l.includes('keyboard tutorial'))) {
+      add(`# dismiss the Simulator's one-time keyboard tutorial if it still shows\n- tapOn:\n    text: "Continue"\n    optional: true`);
+    }
     add(platform === 'android' ? `- hideKeyboard` : `- hideKeyboard:\n    optional: true`);
   } else if (s.choose) {
     reveal(starts(s.choose));
