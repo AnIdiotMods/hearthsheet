@@ -45,7 +45,7 @@ export function CharactersView({ records, onOpen, onCreate, onImport, onExport, 
           const summary = summaries.get(r.id) ?? summarize(r, options);
           return (
             <div key={r.id} className="card" onClick={() => onOpen(r)}>
-              <h3>{summary.name} <TooHighTag items={summary.over} /></h3>
+              <h3>{summary.name} <TooHighTag items={summary.over} /></h3><span className="sr-only">, </span>
               <p className="muted">{summary.line || 'No class yet'}</p>
               <div className="row card-actions" onClick={(e) => e.stopPropagation()}>
                 <button className="link" aria-label={`Export ${summary.name}`} onClick={() => onExport(r)}>Export</button>
