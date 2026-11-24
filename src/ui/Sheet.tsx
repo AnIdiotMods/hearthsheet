@@ -24,7 +24,7 @@ import {
   ExpertisePicker, ExtraChoicesPicker, ExtraValues, OptionGroupsPicker, SubclassFeatures, applyExtraChoices, emptyExtras, extraNeeds,
   optionContext, subclassOptionLabel,
 } from './Options';
-import { Field, Modal, Mutate, NumberInput, RollChip, TextToggle, TooHighTag, confirmOverLimit, signed, useApp } from './common';
+import { Field, Modal, Mutate, NumberInput, RollChip, TextInput, TextToggle, TooHighTag, confirmOverLimit, signed, useApp } from './common';
 import { CreateFlow } from './Creator';
 import { ask, tell } from './dialogs';
 import { useBackHandler } from './back';
@@ -119,7 +119,7 @@ export function Sheet({ record, onSave, onBack, onExport }: {
       <header className="sheet-head">
         <button className="link" onClick={onBack}>← Characters</button>
         <div className="title">
-          <input className="name-input" value={c.name} onChange={(e) => mutate((ch) => { ch.name = e.target.value; })} aria-label="Character name" />
+          <TextInput className="name-input" value={c.name} onChange={(v) => mutate((ch) => { ch.name = v; })} aria-label="Character name" />
           <TooHighTag items={s.overLimits} />
           <div className="muted">{[c.race && childText(c.race, 'name'), classesLine, c.background && childText(c.background, 'name')].filter(Boolean).join(' · ')}</div>
         </div>
@@ -644,7 +644,7 @@ function NotesTab({ c, mutate }: { c: Character; mutate: Mutate }) {
       {c.notes.map((n, i) => (
         <section key={i} className="panel">
           <div className="row between">
-            <input className="note-title" aria-label="Note title" value={childText(n, 'name')} onChange={(e) => mutate(() => setChildText(n, 'name', e.target.value))} />
+            <TextInput className="note-title" aria-label="Note title" value={childText(n, 'name')} onChange={(v) => mutate(() => setChildText(n, 'name', v))} />
             <button className="link danger" onClick={() => mutate((ch) => ch.remove(n))}>Delete</button>
           </div>
           <textarea rows={6} aria-label={`${childText(n, 'name') || 'Note'} text`} value={childTexts(n, 'text').join('\n')} onChange={(e) => mutate(() => setChildText(n, 'text', e.target.value))} />

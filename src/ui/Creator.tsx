@@ -13,7 +13,7 @@ import {
 } from '../model/homebrew';
 import { XElement, attr, child, childText, cloneEl, el, elements, parseXml, serializeXml, setAttr, setChildText, textOf } from '../xml/xml';
 import { EntryDetail } from './CompendiumView';
-import { Field, Modal, useApp } from './common';
+import { Field, Modal, TextInput, useApp } from './common';
 import { ask } from './dialogs';
 
 const pretty = (e: XElement) => serializeXml({ prolog: [], root: e, epilog: [] }, { pretty: true }).replace(/^<\?xml[^>]*>\s*/, '');
@@ -393,13 +393,13 @@ function BlockList({ e, tag, label, attack, change }: { e: XElement; tag: string
       {blocks.map((b, i) => (
         <div key={i} className="block-item">
           <div className="row">
-            <input value={childText(b, 'name')} placeholder="Name" aria-label={`${label} name`} onChange={(x) => change(() => setChildText(b, 'name', x.target.value))} />
+            <TextInput value={childText(b, 'name')} placeholder="Name" aria-label={`${label} name`} onChange={(v) => change(() => setChildText(b, 'name', v))} />
             <button className="link danger small" onClick={() => change(() => { e.children.splice(e.children.indexOf(b), 1); })}>remove</button>
           </div>
           <TextsField e={b} change={change} label="Text" />
           {attack && (
             <Field label="Attack roll (name|to hit|damage), optional">
-              <input value={childText(b, 'attack')} placeholder="Bite|+4|1d6+2" onChange={(x) => change(() => setChildText(b, 'attack', x.target.value))} />
+              <TextInput value={childText(b, 'attack')} placeholder="Bite|+4|1d6+2" aria-label={`${label} attack`} onChange={(v) => change(() => setChildText(b, 'attack', v))} />
             </Field>
           )}
         </div>
@@ -490,7 +490,7 @@ function ClassLevels({ e, change }: { e: XElement; change: Change }) {
             {feats.map(({ al, f }, i) => (
               <div key={i} className="block-item">
                 <div className="row">
-                  <input value={childText(f, 'name')} placeholder="Feature name" aria-label={`Level ${L} feature name`} onChange={(x) => change(() => setChildText(f, 'name', x.target.value))} />
+                  <TextInput value={childText(f, 'name')} placeholder="Feature name" aria-label={`Level ${L} feature name`} onChange={(v) => change(() => setChildText(f, 'name', v))} />
                   <label className="check small" title="Optional features are choices: subclass features and options such as fighting styles">
                     <input type="checkbox" checked={/^(yes|1|true)$/i.test(attr(f, 'optional') ?? childText(f, 'optional'))}
                       onChange={(x) => change(() => setAttr(f, 'optional', x.target.checked ? 'YES' : undefined))} /> optional
