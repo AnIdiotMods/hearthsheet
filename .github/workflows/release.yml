@@ -53,7 +53,7 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm libfuse2 xdg-utils
       - run: npm ci
 
       - name: Import the Linux GPG signing key
@@ -77,6 +77,30 @@ jobs:
       - name: Install Azure Trusted Signing tool
         if: matrix.platform == 'windows-latest' && env.HAS_AZURE_SIGNING == 'true'
         run: cargo install trusted-signing-cli --locked
+      - name: Export the signing secrets that are set
+        # Tauri treats a variable that exists but is empty as "sign with this", so only set the ones that have values.
+        shell: bash
+        env:
+          S_AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          S_AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          S_AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          S_APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          S_APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          S_APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          S_APPLE_ID: ${{ secrets.APPLE_ID }}
+          S_APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          S_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          S_SIGN_KEY: ${{ secrets.LINUX_GPG_KEY_ID }}
+          S_APPIMAGETOOL_SIGN_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
+        run: |
+          for v in AZURE_CLIENT_ID AZURE_CLIENT_SECRET AZURE_TENANT_ID APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD \
+                   APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID SIGN_KEY APPIMAGETOOL_SIGN_PASSPHRASE; do
+            val="S_$v"
+            if [ -n "${!val}" ]; then
+              { echo "$v<<__END__"; echo "${!val}"; echo "__END__"; } >> "$GITHUB_ENV"
+            fi
+          done
+          if [ -n "$S_SIGN_KEY" ]; then echo "SIGN=1" >> "$GITHUB_ENV"; fi
       - name: Signing settings
         env:
           AZURE_SIGNING_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
@@ -87,21 +111,9 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Windows (Azure Trusted Signing)
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          # macOS: Developer ID signing and notarization
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          # Linux: GPG-signed AppImage
-          SIGN: ${{ secrets.LINUX_GPG_KEY_ID != '' && '1' || '' }}
-          SIGN_KEY: ${{ secrets.LINUX_GPG_KEY_ID }}
-          APPIMAGETOOL_SIGN_PASSPHRASE: ${{ secrets.LINUX_GPG_PASSPHRASE }}
+          # AppImage tools run without FUSE on the build machines; stripping breaks on newer libraries.
+          APPIMAGE_EXTRACT_AND_RUN: 1
+          NO_STRIP: true
         with:
           tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
           releaseName: 'Hearthsheet ${{ github.ref_name }}'
@@ -132,6 +144,7 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 17 }
       - uses: android-actions/setup-android@v3
+        with: { packages: 'platform-tools' }
       - run: sdkmanager "ndk;27.2.12479018" "platforms;android-35" "build-tools;35.0.0"
       - uses: dtolnay/rust-toolchain@stable
         with: { targets: 'aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android' }
@@ -200,6 +213,21 @@ jobs:
       - name: Unsigned build
         if: env.HAS_APPLE_SIGNING != 'true'
         run: |
+          npm run build
+          # The generated Xcode project compiles the Rust code through `tauri ios xcode-script`, which only works
+          # while `tauri ios build` (which needs signing) is running. Build the library here and copy it to where
+          # Xcode links it from, then regenerate the project with that step replaced.
+          cargo build --manifest-path src-tauri/Cargo.toml --release --lib --target aarch64-apple-ios --features tauri/custom-protocol
+          python3 - <<'PY'
+          import re, pathlib
+          p = pathlib.Path('src-tauri/gen/apple/project.yml')
+          s = p.read_text()
+          s = re.sub(r'(script: )npm run -- tauri ios xcode-script[^\n]*',
+                     r'\1mkdir -p "$SRCROOT/Externals/arm64/${CONFIGURATION}" && cp "$SRCROOT/../../target/aarch64-apple-ios/release/libhearthsheet_lib.a" "$SRCROOT/Externals/arm64/${CONFIGURATION}/libapp.a"', s)
+          assert 'xcode-script' not in s, 'the Rust build step in project.yml was not replaced'
+          p.write_text(s)
+          PY
+          (cd src-tauri/gen/apple && xcodegen generate)
           PROJECT=$(ls -d src-tauri/gen/apple/*.xcodeproj | head -1)
           SCHEME=$(xcodebuild -list -project "$PROJECT" | awk '/Schemes:/{f=1;next} f&&NF{print $1; exit}')
           xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration release -sdk iphoneos \
