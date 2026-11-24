@@ -64,6 +64,9 @@ jobs:
           mkdir -p data && curl -fsSL "$COMPENDIUM_URL" -o data/download
           if [[ "$COMPENDIUM_URL" == *.xz ]]; then xz -dc data/download > data/Complete_1.xml; else mv data/download data/Complete_1.xml; fi
           rm -f data/download; ls -l data
+      - name: Check the app starts with WebView2 debugging
+        shell: pwsh
+        run: ./e2e/windows-diagnose.ps1 -App "$env:APP_EXE" -Out out
       - name: Play the session
         shell: pwsh
         run: |
