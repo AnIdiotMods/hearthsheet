@@ -15,6 +15,8 @@ closes windows and screens.
 
 ## Install
 
+Download the latest builds from the [`builds` branch](https://github.com/AnIdiotMods/hearthsheet/tree/builds).
+
 | Platform | Package | Notes |
 | --- | --- | --- |
 | Windows 10/11 | `Hearthsheet_0.4.0_x64-setup.exe` | Installs for the current user. Uses the Edge WebView2 runtime (built into Windows 11; downloaded if missing). |
