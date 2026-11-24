@@ -443,3 +443,6 @@ button.primary.danger-fill { background: var(--danger); border-color: var(--dang
 .checks:has(.check-label) { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 .feature-text { flex-basis: 100%; font-size: 13px; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; margin: 2px 0 6px 24px; }
 .details-link { padding: 0 4px; }
+
+/* Read by screen readers, not shown: separates words that the layout separates visually. */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

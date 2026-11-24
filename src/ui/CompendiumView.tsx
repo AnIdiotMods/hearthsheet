@@ -76,7 +76,7 @@ export function CompendiumView({ files, onImport, onLoadSample, onToggle, onRemo
             <ul className="entry-list">
               {list.slice(0, 2000).map((e) => (
                 <li key={e.name} className={sel?.el === e.el ? 'active' : ''} onClick={() => setSel(e)}>
-                  <span>{e.name}</span><span className="muted small">{subtitle(e)}</span>
+                  <span>{e.name}</span><span className="sr-only">, </span><span className="muted small">{subtitle(e)}</span>
                 </li>
               ))}
             </ul>
