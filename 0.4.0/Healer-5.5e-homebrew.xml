@@ -1,0 +1,1912 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Healer (5.5e) v2.0 and the Healer Expansion Pack v1.0 by Spaghetti0 (homebrew), converted for Hearthsheet. -->
+<compendium version="5" auto_indent="NO">
+  <class>
+    <name>Healer</name>
+    <hd>6</hd>
+    <proficiency>Intelligence, Wisdom, Arcana, Investigation, History, Medicine, Nature, Persuasion, Sleight of Hand, Survival</proficiency>
+    <numSkills>2</numSkills>
+    <armor>Light Armor</armor>
+    <weapons>Simple Weapons</weapons>
+    <tools>Herbalism Kit</tools>
+    <spellAbility>Intelligence</spellAbility>
+    <autolevel level="1">
+      <slots>2,2,0,0,0,0,0,0,0,0</slots>
+      <feature optional="YES">
+        <name>Starting Healer</name>
+        <text>Primary Ability: Intelligence. Hit Point Die: D6 per Healer level. Saving Throw Proficiencies: Intelligence and Wisdom. Skill Proficiencies: choose 2 of Arcana, Investigation, History, Medicine, Nature, Persuasion, Sleight of Hand, Survival. Tool Proficiencies: Herbalism Kit. Weapon Proficiencies: Simple weapons. Armor Training: Light armor.</text>
+        <text>Starting Equipment: Choose A or B: (A) Leather Armor, Arcane Focus (Quarterstaff), Scholar's Pack, Herbalism Kit, and 5 GP; or (B) 65 GP.</text>
+        <text>Healers study the magic of vitality, a power which they learn to manipulate with the ultimate altruistic intent - to preserve lives. Many Healers find occupations as physicians, combat medics, or researchers in medicine: healing the sick and the wounded using their powers for philanthropic or gainful employment. Some, however, find their talents best utilised by supporting others in a life of adventure.</text>
+        <text>For the life of an adventurer is inherently dangerous, constantly facing threats from nature, adversaries and the forces of evil, and greatly benefits from any available source of protection. While the role of the supporter is not the most glorious, Healers appreciate that it is often the most vital, for there is no glory in an avoidable death. Adventuring Healers excel at keeping their allies alive, treating their ailments, and augmenting their capabilities with their unique brand of magic.</text>
+        <text>This is a Support Class.</text>
+        <text>Unlike other classes with elements that push characters toward a support role, the Healer is designed to solely occupy that role. It has no strictly offensive spells, and is not recommended for campaigns with only one player character.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Multiclass Healer</name>
+        <text>As a multiclass character, you gain the following traits from the Core Healer Traits table: Hit Point Die and training with Light armor. You also gain the Healer's level 1 features. See the multiclassing rules to determine your available spell slots (the Healer is a full spellcaster).</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature>
+        <name>Spellcasting</name>
+        <text>Your studies into the magic of vitality allow you to cast spells. The information below details how you use the rules of Spellcasting with Healer spells, which appear in the Healer spell list later in this class's description.</text>
+        <text>Cantrips. You know two cantrips of your choice from the Healer spell list. Buff (described in this document) and Guidance are recommended.</text>
+        <text>Whenever you gain a Healer level, you can replace one of your cantrips with another cantrip of your choice from the Healer spell list.</text>
+        <text>When you reach Healer levels 4 and 10, you learn another cantrip of your choice from the Healer spell list, as shown in the Cantrips column of the Healer Features table.</text>
+        <text>Spell Slots. The Healer Features table shows how many spell slots you have to cast your level 1+ spells. You regain all expended slots when you finish a Long Rest.</text>
+        <text>Prepared Spells of Level 1+. You prepare the list of level 1+ spells that are available for you to cast with this feature. To start, choose four level 1 Healer spells. Cure Wounds, Jump, Heroism and Shield are recommended.</text>
+        <text>The number of spells on your list increases as you gain Healer levels, as shown in the Prepared Spells column of the Healer Features table. Whenever that number increases, choose additional Healer spells until the number of spells on your list matches the number in the Healer Features table. The chosen spells must be of a level for which you have spell slots. For example, if you’re a level 3 Healer, your list of prepared spells can include six Healer spells of level 1 or 2 in any combination.</text>
+        <text>If another Healer feature gives you spells that you always have prepared, those spells don't count against the number of spells you can prepare with this feature, but those spells otherwise count as Healer spells for you.</text>
+        <text>Changing Your Prepared Spells. Whenever you finish a Long Rest, you can replace one spell on your list with another Healer spell for which you have spell slots.</text>
+        <text>Spellcasting Ability. Intelligence is your spellcasting ability for your Healer spells.</text>
+        <text>Spellcasting Focus. You can use an Arcane Focus as a Spellcasting Focus for your Healer spells.</text>
+        <text>Prepared Spells: 4, 5, 6, 7, 9, 10, 11, 12, 14, 15, 16, 16, 17, 17, 18, 18, 19, 20, 21, 22</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature>
+        <name>Expert Physician</name>
+        <text>Select one of the following skills: Medicine, Nature, Sleight of Hand, or Survival. You gain a bonus to ability checks you make with the chosen skill equal to your Intelligence modifier (minimum bonus +1).</text>
+        <text>This is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.</text>
+        <text>Healer Features.</text>
+        <text>| Level | Proficiency | Features | Healer's | Cantrips | Prepared |--- Spell Slots Per Spell Level ---||||||||| | ^| Bonus ^| ^| Dice ^| ^| Spells ^|1st |2nd |3rd |4th |5th |6th |7th |8th |9th | |:-----:|:-----------:|:------24%-------|:----12%--:|:--------:|:---------:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:| | 1 | +2 | Combat Supporter, Expert Physician, Spellcasting | — | 2 | 4 | 2 | — | — | — | — | — | — | — | — | — | | 2 | +2 | Life Tether | 4D8 (Max 1) | 2 | 5 | 3 | — | — | — | — | — | — | — | — | | 3 | +2 | Healer Subclass | 6D8 (Max 1) | 2 | 6 | 4 | 2 | — | — | — | — | — | — | — | | 4 | +2 | Ability Score Improvement | 8D8 (Max 1) | 3 | 7 | 4 | 3 | — | — | — | — | — | — | — | | 5 | +3 | Master Healer | 10D8 (Max 2) | 3 | 9 | 4 | 3 | 2 | — | — | — | — | — | — | | 6 | +3 | Subclass Feature | 12D8 (Max 2) | 3 | 10 | 4 | 3 | 3 | — | — | — | — | — | — | | 7 | +3 | Restoring Tether | 14D8 (Max 2) | 3 | 11 | 4 | 3 | 3 | 1 | — | — | — | — | — | | 8 | +3 | Ability Score Improvement | 16D8 (Max 2) | 3 | 12 | 4 | 3 | 3 | 2 | — | — | — | — | — | | 9 | +4 | — | 18D8 (Max 2) | 3 | 14 | 4 | 3 | 3 | 2 | 1 | — | — | — | — | | 10 | +4 | Empowering Tether | 20D8 (Max 2) | 4 | 15 | 4 | 3 | 3 | 2 | 1 | — | — | — | — | | 11 | +4 | Combat Supporter (+2) | 22D8 (Max 3) | 4 | 16 | 4 | 3 | 3 | 2 | 1 | 1 | — | — | — | | 12 | +4 | Ability Score Improvement | 24D8 (Max 3) | 4 | 16 | 4 | 3 | 3 | 2 | 1 | 1 | — | — | — | | 13 | +5 | Restoring Tether Improvement | 26D8 (Max 3) | 4 | 17 | 4 | 3 | 3 | 2 | 1 | 1 | 1 | — | — | | 14 | +5 | Subclass Feature | 28D8 (Max 3) | 4 | 17 | 4 | 3 | 3 | 2 | 1 | 1 | 1 | — | — | | 15 | +5 | — | 30D8 (Max 3) | 4 | 18 | 4 | 3 | 3 | 2 | 1 | 1 | 1 | 1 | — | | 16 | +5 | Ability Score Improvement | 32D8 (Max 3) | 4 | 18 | 4 | 3 | 3 | 2 | 1 | 1 | 1 | 1 | — | | 17 | +6 | Combat Supporter (+3) | 34D8 (Max 4) | 4 | 19 | 4 | 3 | 3 | 2 | 1 | 1 | 1 | 1 | 1 | | 18 | +6 | Subclass Feature | 36D8 (Max 4) | 4 | 20 | 4 | 3 | 3 | 3 | 1 | 1 | 1 | 1 | 1 | | 19 | +6 | Epic Boon | 38D8 (Max 4) | 4 | 21 | 4 | 3 | 3 | 3 | 2 | 2 | 1 | 1 | 1 | | 20 | +6 | Multitether | 40D8 (Max 4) | 4 | 22 | 4 | 3 | 3 | 3 | 2 | 2 | 2 | 1 | 1 |</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature>
+        <name>Combat Supporter</name>
+        <text>Once per turn when you cast a level 1+ Healer spell that targets an ally, that ally gains a +1 bonus to attack rolls and to the saving throw DCs of its spells and other abilities until the start of your next turn. If the spell targets multiple allies, you choose which one gains this benefit.</text>
+        <text>This bonus increases to +2 when you reach level 11, and to +3 when you reach level 17 as a Healer.</text>
+        <text>Rules Clarification: Am I My Own Ally?</text>
+        <text>For the purposes of this class' features, you do not count as your own ally, unless specified otherwise. The Healer is designed to be a support-oriented character, putting their allies ahead of themself.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+    </autolevel>
+    <autolevel level="2">
+      <slots>2,3,0,0,0,0,0,0,0,0</slots>
+      <feature>
+        <name>Life Tether</name>
+        <text>As a Bonus Action, you can create a magical tether of life energy which extends from your space and attaches to one ally you can see within 60 feet of yourself. The tether is severed if you end it (no action required), if you use this feature to attach a tether to a different creature, or if you have the Incapacitated condition. The tether is also severed if you are ever more than 60 feet away from the target or if you are separated by Total Cover. Your Life Tether has the following properties.</text>
+        <text>Healer's Dice. You have a pool of four d8s, called your Healer's Dice. You can only expend one of these dice at a time, unless a feature specifies otherwise, and you regain all expended dice when you finish a Long Rest. The number of Healer's Dice you have and the maximum number that you can expend at once both increase as you gain levels in this class, as shown in the Healer's Dice column of the Healer Features table.</text>
+        <text>Healing Tether. When you attach the tether to a creature, or as a Bonus Action while it is attached, you can expend and roll a number of your Healer's Dice and restore Hit Points to the tethered creature equal to the total rolled.</text>
+        <text>Alternatively, you can take a Bonus Action to heal yourself in this way, even if the tether isn't attached.</text>
+        <text>Healer’s Protection. When the tethered creature makes a saving throw, you can take a Reaction to expend one Healer's Die and grant it Advantage on that roll.</text>
+        <text>Life’s Embrace. You can target the tethered creature with your Healer spells as if it was within 5 feet of you, including spells with a range of 'Touch'.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <counter>
+        <name>Healer's Dice</name>
+        <value>4</value>
+        <reset>L</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="3">
+      <slots>2,4,2,0,0,0,0,0,0,0</slots>
+      <feature>
+        <name>Healer Subclass</name>
+        <text>You gain a Healer subclass of your choice. Subclasses are detailed after this class' description. A subclass is a specialization that grants you special abilities at certain Healer levels. For the rest of your career, you gain each of your subclass’ features that are of your Healer level or lower.</text>
+        <text>This is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.</text>
+        <text>Choose one of the following subclasses: Vow of the Apothecary, Vow of the Augmenter, Vow of the Diplomat, Vow of the Martyr, Vow of the Protector, Vow of the Siphon, Vow of the Tactician, or Vow of the Vile.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Healer Subclass: Vow of the Augmenter</name>
+        <text>Enhance the Capabilities of your Allies.</text>
+        <text>Healers who take the Vow of the Augmenter dedicate themselves to the study of life's potency. Dissatisfied with the limitations of their allies and themselves, they learn transformative magics which make their team-mates stronger, faster and more effective at whatever role they claim. An adventurer never inhabits their full potential until they travel with one of these Healers.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Augmenter: Augmenter Spells</name>
+        <text>When you reach a Healer level specified in the Augmenter Spells table, you thereafter always have the listed spells prepared.</text>
+        <text>Healer Level | Spells</text>
+        <text>3rd | Bless, Buff, Enhance Ability, Enlarge/Reduce, Jump</text>
+        <text>5th | Fly, Haste</text>
+        <text>7th | Stoneskin, Unlock Potential</text>
+        <text>9th | Greater Enhance Ability, Jotunn Transformation</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Augmenter: Enhancing Tether</name>
+        <text>Whenever you use your Healing Tether feature, you can cast the Buff spell on that ally as part of the same Bonus Action.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Healer Subclass: Vow of the Martyr</name>
+        <text>Exemplify Self Sacrifice.</text>
+        <text>Healers that take the Vow of the Martyr embody selflessness in its truest form. Through relentless study and practice, they wield powers to spare others from suffering, but at their own expense. The heroism of these Healers has inspired many great works of art, and continues to inspire acts of bravery on the battlefield.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Martyr: Martyr Spells</name>
+        <text>When you reach a Healer level specified in the Martyr Spells table, you thereafter always have the listed spells prepared.</text>
+        <text>Healer Level | Spells</text>
+        <text>3rd | Compelled Duel, Shield of Faith, Warding Bond, Zone of Truth</text>
+        <text>5th | Dispel Magic, Life Transference</text>
+        <text>7th | Guardian of Faith, Heroic Sacrifice</text>
+        <text>9th | Circle of Power, Mass Cure Wounds</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Martyr: Martyr's Endurance</name>
+        <text>Your Hit Point maximum increases by 3, and it increases by 1 whenever you gain another Healer level. Furthermore, your self-sacrificing nature improves your Life Tether in the following ways.</text>
+        <text>Endurance. Whenever you use your Healing Tether on an ally, you gain Temporary Hit Points equal to half the amount rolled on the Healer's Dice (round up).</text>
+        <text>Anguish. Whenever a creature that is attached to your Life Tether takes damage, you can choose to reduce the damage it takes by half (round down), and take the other half of the damage yourself (no action required).</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Healer Subclass: Vow of the Protector</name>
+        <text>Protect the Innocent, No Matter the Cost.</text>
+        <text>Healers who take the Vow of the Protector are honor-bound to protect their allies from danger in all forms that it takes. Their abjurative magic empowers their healing and conjures radiant barriers to shield their companions from every threat. Their companions rarely fall - and only after the world itself has tried.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Protector: Protector Spells</name>
+        <text>When you reach a Healer level specified in the Protector Spells table, you thereafter always have the listed spells prepared.</text>
+        <text>Healer Level | Spells</text>
+        <text>3rd | Aid, Prayer of Healing, Sanctuary, Shield</text>
+        <text>5th | Beacon of Hope, Revivify</text>
+        <text>7th | Death Ward, Otiluke's Resilient Sphere</text>
+        <text>9th | Greater Restoration, Wall of Force</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Protector: Tether of Protection</name>
+        <text>Whenever you use your Healing Tether on a creature, it gains a bonus to its saving throws until the start of your next turn. The bonus is equal to one plus the number of Healer's Dice you spent.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Protector: Shield of the Protector</name>
+        <text>You gain the following benefits.</text>
+        <text>Free Casting. You can cast the Shield spell without expending a spell slot. Once you cast the spell with this feature, you can't do so again until you finish a Short or Long Rest.</text>
+        <text>Protective Shield. When a creature attached to your Life Tether is hit by an attack, you can take a Reaction to cast Shield, granting the benefits of the spell to the target instead of yourself.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Healer Subclass: Vow of the Siphon</name>
+        <text>Steal and Redistribute Foes' Vitality.</text>
+        <text>Healers who take the Vow of the Siphon see all living creatures as a bountiful source of energy, prime for reaping. Inspired by the medicinal and magical properties of leeches, they unearth dark powers which allow them to steal vitality from their enemies, leaving them weakened and vulnerable. While these dark practitioners are shunned from many Healer communities, their abilities prove indispensable to adventurers seeking to vanquish great foes.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Siphon: Siphon Spells</name>
+        <text>When you reach a Healer level specified in the Siphon Spells table, you thereafter always have the listed spells prepared.</text>
+        <text>In addition, Necromancy spells from the Wizard spell list are added to the Healer spell list for you.</text>
+        <text>Healer Level | Spells</text>
+        <text>3rd | Bane, Blindness/Deafness, Hold Person, Inflict Wounds</text>
+        <text>5th | Counterspell, Vampiric Touch</text>
+        <text>7th | Blight, Confusion</text>
+        <text>9th | Contagion, Hold Monster</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Siphon: Harmful Tether</name>
+        <text>You can attach your Life Tether to foes, rather than allies, granting the following effects.</text>
+        <text>Leeching Tether. When you use your Healing Tether, you can deal an amount of Necrotic damage equal to the healing roll to the target instead of restoring Hit Points to it.</text>
+        <text>Sap Strength. Whenever the target of your Life Tether deals damage to another creature, you can take a Reaction to reduce that damage by an amount equal to your Intelligence modifier (minimum 1 damage reduced).</text>
+        <text>Starting at Healer level 10, you can use this feature without using your Reaction.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Healer Subclass: Vow of the Apothecary</name>
+        <text>Heal with Potions, Tinctures and Balms.</text>
+        <text>Healers who take the Vow of the Apothecary learn ancient alchemical recipes to distil their life-saving magics into substances which can be stored and distributed. These practitioners value precision, and preparedness above all other virtues as they ready specialised tinctures to aid adventurers toward chemically-assisted success.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Apothecary: Apothecary Spells</name>
+        <text>When you reach a Healer level specified in the Apothecary Spells table, you thereafter always have the listed spells prepared.</text>
+        <text>Healer Level | Spells</text>
+        <text>3rd | Adrenaline Rush, Cure Wounds, Elemental Strikes, Lesser Restoration</text>
+        <text>5th | Gaseous Form, Strength of Jahdore</text>
+        <text>7th | Death Ward, Stoneskin</text>
+        <text>9th | Greater Enhance Ability, Greater Restoration</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Apothecary: Liquid Healing</name>
+        <text>You are well trained in the formulation of potions that cure ailments.</text>
+        <text>Tool Proficiency. You gain proficiency with Alchemist’s Supplies.</text>
+        <text>Potion Brewing. When you finish a Long Rest, you can expend a number of your Healer’s Dice to create a number of special healing potions up to your Intelligence modifier (minimum +1). You must have Alchemist’s Supplies or a Herbalism Kit on hand for the duration of the rest.</text>
+        <text>You spend Healer’s Dice separately for each potion, which are stored within empty flasks. A potion can’t store more Healer’s Dice than your normal maximum.</text>
+        <text>When you finish a Short Rest, you can also create one potion in this way.</text>
+        <text>Spoiling Potions. Each potion created by this feature can only be drunk once, any that remain spoil when you next finish a Long Rest, losing its potency.</text>
+        <text>Drinking the Potion. A creature holding one of these potions can take a Bonus Action to drink it or administer it to another creature within 5 feet of it. The drinker regains Hit Points equal to one roll of the Healer’s Dice stored in the potion, plus your Intelligence modifier (minimum 1 Hit Point restored).</text>
+        <text>Potion of Curing. Starting at Healer level 7, when you use this feature to create a potion, you can make it one that ends a condition on being drunk, instead of restoring Hit Points. To do so, select one condition that you can cure with your Restoring Tether feature, and expend the number of Healer’s Dice you would need to spend to cure it with that feature.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Apothecary: Chemical Tether</name>
+        <text>While a creature is attached to your Life Tether, if it regains Hit Points from drinking a potion, it can re-roll any 1s or 2s on any dice rolled to determine how many Hit Points it regains, until they each roll a 3 or higher.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Healer Subclass: Vow of the Diplomat</name>
+        <text>Advocate Peace &amp; Nonviolence.</text>
+        <text>Healers who take the Vow of the Diplomat believe that nearly any conflict can be resolved with words. In pursuit of this ideal, they utilise enchantment magic to bewitch their would-be foes into states of non-violence, making way for calm and reasonable discussion. These Healers are widely sought out diplomatic missions, with skills to both keep the peace and argue for alliances.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Diplomat: Diplomat Spells</name>
+        <text>When you reach a Healer level specified in the Diplomat Spells table, you thereafter always have the listed spells prepared.</text>
+        <text>Healer Level | Spells</text>
+        <text>3rd | Calm Emotions, Charm Person, Dissuade Violence, Zone of Truth</text>
+        <text>5th | Counterspell, Fodir’s Friendly Facade</text>
+        <text>7th | Charm Monster, Locate Creature</text>
+        <text>9th | Contact Other Plane, Dominate Person</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Diplomat: Skilled Communicator</name>
+        <text>You gain proficiency with one of the following skills of your choice: Deception, Insight, Intimidation or Persuasion. Regardless of your choice, whenever you make an ability check with one of these skills, you can use your Intelligence modifier in place of the normal one.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Diplomat: Tether of Nonviolence</name>
+        <text>Your Life Tether feature improves, granting the following benefits.</text>
+        <text>Peace Tether. When you attach or move your Life Tether on to an ally, you can attach a second tether to a different creature. This tether shares all the same properties as your Life Tether, but can’t be attached to your allies: only your foes.</text>
+        <text>Negate Violence. Once per turn when the target of your Peace Tether rolls for damage, you can expend your Healer’s Dice and roll them (no action required). Add 2 to the result for each die spent. The target must subtract the result from the damage roll, to a minimum of 0 damage. If you reduce the damage to 0, the target takes Psychic damage equal to the roll’s result.</text>
+        <text>Charmer. The target of your Peace tether can’t benefit from Advantage on saving throws to avoid or end the Charmed condition if you are the charmer.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Healer Subclass: Vow of the Tactician</name>
+        <text>Lead Allies to Victory with Tactical Superiority.</text>
+        <text>Healers who take the Vow of the Tactician are constantly devising and scheming battle tactics, carefully considering the strengths, abilities and synergies of their allies, and ways they can use their magic to shape the battlefield. Given enough time to prepare, a team led by one of these Healers is unstoppable.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Tactician: Tactician Spells</name>
+        <text>When you reach a Healer level specified in the Tactician Spells table, you thereafter always have the listed spells prepared.</text>
+        <text>Healer Level | Spells</text>
+        <text>3rd | Faerie Fire, Fog Cloud, Silence, Web</text>
+        <text>5th | Sleet Storm, Synergize</text>
+        <text>7th | Dimension Door, Ilnera’s Gambit</text>
+        <text>9th | Hold Monster, Wall of Stone</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Tactician: Well Prepared</name>
+        <text>You gain proficiency in one of the following skills of your choice: History, Investigation or Religion. In addition, you gain a bonus to your Initiative rolls equal to your Intelligence modifier (minimum +1).</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Tactician: Tactical Tether</name>
+        <text>Your Life Tether feature improves, granting the following benefits.</text>
+        <text>All Part of the Plan. The creature attached to the tether automatically succeeds on its saving throws against your Tactician spells.</text>
+        <text>Reposition. When you use your Healing Tether on an ally, you can command the ally to reposition. When you do, the target can immediately move up to 10 feet for each Healer’s Die spent without provoking Opportunity Attacks, provided its Speed isn’t 0. In addition, you can choose to grant it Temporary Hit Points equal to the healing roll, instead of restoring its Hit Points.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Healer Subclass: Vow of the Vile</name>
+        <text>Encourage Sinful Behaviour.</text>
+        <text>Healers who take the Vow of the Vile have typically spent significant time in the Hells, and have been thoroughly exposed to the darkest corners of peoples' souls. They encourage allies to give in to their sinful tendencies, granting dark powers in exchange for the delight of corrupting their good natures. While their practices are dark and taboo, adventuring parties often struggle to let go of these Healers. It's just fun to be bad sometimes.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Vile: Infernal Spells</name>
+        <text>When you reach a Healer level specified in the Infernal Spells table, you thereafter always have the listed spells prepared.</text>
+        <text>Healer Level | Spells</text>
+        <text>3rd | Armor of Agathys, Finedd’s Deception, Heat Metal, Hellish Rebuke</text>
+        <text>5th | Dispel Magic, Gaseous Form</text>
+        <text>7th | Fire Shield, Protection from Malady</text>
+        <text>9th | Mislead, Scrying</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Vile: Infernal Knowledge</name>
+        <text>You learn the Infernal language. If you already know Infernal, you learn one other language of your choice. In addition, you have Advantage on Intelligence checks made to recall knowledge of the Nine Hells or one of the other lower planes.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Vile: Sinful Tether</name>
+        <text>You can provoke sinfulness within your allies. Select three Sins from the Sin Effects options, listed later in this subclass. Whenever you attach your Life Tether to one of your allies, you can grant it the benefit of one Sin until the tether is no longer attached to it.</text>
+        <text>Whenever you gain a Healer level, you can exchange one sin you know for another. You learn another Sin at Healer levels 6 (4 Sins), 10 (5 Sins), 14 (6 Sins) and 18 (7 Sins).</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Vile: Sin Effects</name>
+        <text>Your Sinful Tether can grant one of the following Sins. Each has a Deadly Sin enhancement, used by your Deadly Sin feature.</text>
+        <text>Envy. The target becomes envious of others' success. Whenever it sees another creature within 30 feet of it roll a 20 on the d20 of a D20 Test, it gains Advantage on all attack rolls it makes against that creature until the end of its next turn. Deadly Sin. The target can trigger this effect whenever it sees another creature succeed on a D20 Test, regardless of the rolled number. It can't do so again until the start of its next turn.</text>
+        <text>Gluttony. The target gains an insatiable desire to consume nourishing substances. Whenever it regains Hit Points from drinking a potion or rolling Hit Dice, it regains the maximum amount of Hit Points, instead of rolling. Deadly Sin. The target can trigger this effect with any source of healing, not just potions and Hit Dice.</text>
+        <text>Greed. The target becomes covetous of the powers you grant it. Each time you cast a level 1+ spell on the target or heal it with your Healing Tether, it gains 1 Greed Point. Whenever the target rolls for a damage roll, an attack roll or a saving throw, it can choose to expend any number of Greed Points and add them to the roll. These points disappear when either of you start a Short or Long Rest, or if the target is detached to your Life Tether. Deadly Sin. When the target expends Greed Points, it can retain one of the expended points. It also doesn't lose the points if it becomes detached from the Life Tether, but it does lose them if the Deadly Sin ends without it attached.</text>
+        <text>Lust. The target becomes self-possessed and lecherous. It has Advantage on saving throws against the Charmed condition, and gains a +1 bonus to its Charisma (Persuasion) checks. Deadly Sin. The target gains Immunity to the Charmed condition.</text>
+        <text>Pride. The target becomes bold, self assured, and cocky. It has Advantage on saving throws against the Frightened condition, and gains a +1 bonus to its Charisma (Deception) checks. Deadly Sin. The target gains Immunity to the Frightened condition.</text>
+        <text>Sloth. The target begins to resent unnecessary movement. If the target ends its turn without having moved or spending any of its movement, it gains Temporary Hit Points equal to your Healer level, which last until the start of its next turn. Deadly Sin. While the target has these Temporary Hit Points, it has Resistance to all damage.</text>
+        <text>Wrath. The target becomes aggressive, with an insatiable urge to bring others to harm. Its attacks score a Critical Hit on a d20 roll 1 lower than normal. Deadly Sin. The target’s attacks deal an additional 1d8 Force damage.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <counter>
+        <name>Healer's Dice</name>
+        <value>6</value>
+        <reset>L</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="4" scoreImprovement="YES">
+      <slots>3,4,3,0,0,0,0,0,0,0</slots>
+      <feature>
+        <name>Ability Score Improvement</name>
+        <text>You gain the Ability Score Improvement feat or another feat of your choice for which you qualify. You gain this feature again at levels 8, 12, and 16.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <counter>
+        <name>Healer's Dice</name>
+        <value>8</value>
+        <reset>L</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="5">
+      <slots>3,4,3,2,0,0,0,0,0,0</slots>
+      <feature>
+        <name>Master Healer</name>
+        <text>You gain the following benefits.</text>
+        <text>Dice Restoration. Whenever you finish a Short Rest, you regain a number of expended Healer's Dice equal to your Intelligence modifier (minimum one die).</text>
+        <text>In addition, you can expend a spell slot to regain a number of expended Healer's Dice equal to twice the level of the spell slot (no action required).</text>
+        <text>Extra Healing. Whenever you restore Hit Points to one or more creatures with a Healer spell, you can expend and roll a number of your Healer's Dice and add the result to the healing total.</text>
+        <text>Vital Substitution. When you cast a Healer spell from the Abjuration or Necromancy school that has a Material component with a cost specified, you can expend Healer's Dice to ignore that material component. You must expend one die for every 50 GP of the component's cost. You are not limited in the number of dice you can expend in this way.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <counter>
+        <name>Healer's Dice</name>
+        <value>10</value>
+        <reset>L</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="6">
+      <slots>3,4,3,3,0,0,0,0,0,0</slots>
+      <feature optional="YES">
+        <name>Vow of the Augmenter: Dual Augmentation</name>
+        <text>When you take the Magic action to cast one of the spells from your Augmenter Spells feature, you can cast a second Augmenter spell that you have prepared as part of the same action, but using a separate spell slot. Each spell can only target a single, separate ally, but both targets gain the benefits of your Combat Supporter feature.</text>
+        <text>You can simultaneously concentrate on both spells; if you need to roll to maintain Concentration, you only roll once, and lose both spells on a failure.</text>
+        <text>Once you use this feature, you can't use it again until you finish a Short or Long Rest.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Martyr: Exemplar</name>
+        <text>When you take damage in place of another creature through the use of a feature like Anguish or a spell like Warding Bond, your act of selflessness can inspire an ally of your choice within 60 feet of yourself that can see you (no action required). Until the end of its next turn, the ally has Advantage on attack rolls and Wisdom saving throws. Once you use this feature, you can't use it again until the start of your next turn.</text>
+        <text>You can use this feature a number of times equal to your Intelligence modifier (minimum of once). You regain all expended uses when you finish a Long Rest.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Protector: Vigilant Protector</name>
+        <text>When an ally within 60 feet of you is hit by an attack or makes a saving throw, you can take a Reaction to attach your Life Tether to it. You can use your Protective Shield or Healer's Protection as part of this Reaction.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Protector: Warding Essence</name>
+        <text>Whenever you finish a Short or Long Rest, you can choose two damage types, two conditions, or one of each from the lists below. You and creatures attached to your Life Tether have Resistance to the chosen damage types, and Advantage on saving throws to avoid or end the chosen conditions until you use this feature again.</text>
+        <text>Damage Types. Acid, Cold, Fire, Lightning, Poison, Thunder.</text>
+        <text>Conditions. Blinded, Deafened, Charmed, Frightened, Poisoned, Prone, Restrained.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Siphon: Life Leech</name>
+        <text>When you use your Leeching Tether you can restore Hit Points to yourself or to one creature of your choice within 15 feet of the target. The amount of Hit Points is equal to half the damage taken by the target (round up).</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Apothecary: Medicinal Master</name>
+        <text>You and any creature attached to your Life Tether have Resistance to Poison and Necrotic damage.</text>
+        <text>In addition, whenever you cure a creature of a condition from the list below using a Healer feature (including the potions you create with this subclass) or a Healer spell, it has Advantage on saving throws to avoid or end the same condition for the next hour.</text>
+        <text>The conditions eligible for this feature are: Blinded, Charmed, Deafened, Frightened, Paralyzed, Poisoned and Stunned.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Diplomat: Peacekeeper</name>
+        <text>When you attach your Life and Peace Tethers, you can cause the targets to have Disadvantage on attack rolls against one another, and to have Advantage on saving throws against effects created by the other. This effect lasts until one of the targets is no longer attached to their tether, or until you end it (no action required).</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Tactician: Plan to Execution</name>
+        <text>You are constantly devising plans and stratagems for your party to execute in combat, and you can use your supportive magic to execute these plans with supernatural synchronicity.</text>
+        <text>The Team. Over the course of a Long Rest, you can devise a plan for the creatures who participate in the rest with you. The creatures must be within 30 feet of you for the full duration of the rest, and the maximum number of creatures you can include is equal to your Intelligence modifier (minimum 1 creature). All creatures forget the plan when you next finish a Long Rest.</text>
+        <text>The Plan. For each creature involved, select one action or Bonus Action that it can take to be its planned action.</text>
+        <text>If a planned action is the Attack action, it can only involve one attack, and if it is the Magic action, it can only be to cast a spell of level 2 or lower, or to activate a magic item. The spell is selected in advance.</text>
+        <text>The Execution. As a Magic action, you can execute the plan. Each creature involved that is within 60 feet of you can immediately take a Reaction to move up to half its Speed and use its planned action. You decide the order in which the actions take place.</text>
+        <text>On a creature’s next turn after taking this Reaction, it is unable to use its action or Bonus Action (whichever it took during the Reaction).</text>
+        <text>Uses. Once you execute a plan, you can’t do so again until you finish a Long Rest.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Vile: Infernal Retribution</name>
+        <text>When you use your Healing Tether, you can cause roiling flames to surround the target for 10 minutes. Note down the healing roll. If the target takes damage from a creature while the flames still surround it, the flames leap to that creature and deal Fire damage to it equal to the healing roll plus your Intelligence modifier. The flames then extinguish.</text>
+        <text>You can use this feature a number of times equal to your Intelligence modifier (minimum once), and you regain all expended uses when you finish a Long Rest.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <counter>
+        <name>Healer's Dice</name>
+        <value>12</value>
+        <reset>L</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="7">
+      <slots>3,4,3,3,1,0,0,0,0,0</slots>
+      <feature>
+        <name>Restoring Tether</name>
+        <text>When you use your Healing Tether on a creature, instead of restoring Hit Points to it you can expend two Healer's Dice to remove one of the following conditions from it: Blinded, Deafened, Frightened or Poisoned.</text>
+        <text>Starting at level 13, you can expend three Healer's Dice to remove one of the following conditions instead: Charmed, Paralyzed or Stunned.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <counter>
+        <name>Healer's Dice</name>
+        <value>14</value>
+        <reset>L</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="8" scoreImprovement="YES">
+      <slots>3,4,3,3,2,0,0,0,0,0</slots>
+      <feature>
+        <name>Ability Score Improvement</name>
+        <text>You gain the Ability Score Improvement feat or another feat of your choice for which you qualify.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <counter>
+        <name>Healer's Dice</name>
+        <value>16</value>
+        <reset>L</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="9">
+      <slots>3,4,3,3,2,1,0,0,0,0</slots>
+      <counter>
+        <name>Healer's Dice</name>
+        <value>18</value>
+        <reset>L</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="10">
+      <slots>4,4,3,3,2,1,0,0,0,0</slots>
+      <feature>
+        <name>Empowering Tether</name>
+        <text>The range of your Life Tether increases to 90 feet.</text>
+        <text>In addition, while an ally is attached to your Life Tether, its attacks are empowered. Each time it hits with an attack, it can add 1d8 to the damage roll.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <counter>
+        <name>Healer's Dice</name>
+        <value>20</value>
+        <reset>L</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="11">
+      <slots>4,4,3,3,2,1,1,0,0,0</slots>
+      <feature>
+        <name>Combat Supporter Improvement</name>
+        <text>The bonus from your Combat Supporter feature increases to +2.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <counter>
+        <name>Healer's Dice</name>
+        <value>22</value>
+        <reset>L</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="12" scoreImprovement="YES">
+      <slots>4,4,3,3,2,1,1,0,0,0</slots>
+      <feature>
+        <name>Ability Score Improvement</name>
+        <text>You gain the Ability Score Improvement feat or another feat of your choice for which you qualify.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <counter>
+        <name>Healer's Dice</name>
+        <value>24</value>
+        <reset>L</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="13">
+      <slots>4,4,3,3,2,1,1,1,0,0</slots>
+      <feature>
+        <name>Restoring Tether Improvement</name>
+        <text>You can expend three Healer's Dice with your Restoring Tether to remove one of the following conditions instead: Charmed, Paralyzed or Stunned.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <counter>
+        <name>Healer's Dice</name>
+        <value>26</value>
+        <reset>L</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="14">
+      <slots>4,4,3,3,2,1,1,1,0,0</slots>
+      <feature optional="YES">
+        <name>Vow of the Augmenter: Greater Empowerment</name>
+        <text>The damage die for your Empowering Tether increases to a d12. Furthermore, creatures attached to your Life Tether score a Critical Hit on an attack roll with a d20 roll of one lower than normal.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Martyr: Selfless Sacrifice</name>
+        <text>You can cast Heroic Sacrifice by expending 4 Healer's Dice instead of a spell slot.</text>
+        <text>If you cast Heroic Sacrifice on a creature attached to your Life Tether, you have Advantage on the incurred saving throw. If you succeed on the save, the attached creature also gains Heroic Inspiration if it lacks it.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Protector: Bountiful Healing</name>
+        <text>When you use the Extra Healing benefit of your Master Healer feature, you can replace one of more of the Healer's Dice with a d6, instead of expending them.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Siphon: Improved Sap Strength</name>
+        <text>When you use your Sap Strength, you can take a Reaction to add half your Healer level (round up) to the amount of damage reduced.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Siphon: Sap Defenses</name>
+        <text>As a Magic action, you can attempt to rob the defenses of one creature attached to your Life Tether. Choose one damage type. The target must make a Constitution saving throw against your spell save DC. On a failure, it gains Vulnerability to the damage type you chose until the start of your next turn. This Vulnerability bypasses Resistance, but the target automatically succeeds on its save if it has Immunity.</text>
+        <text>Once a creature fails its save against this ability, you can't use it again until you finish a Long Rest.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Apothecary: Spell-Imbued Potions</name>
+        <text>When you finish a Short or Long Rest, you can touch an empty flask and cast one of your Apothecary spells, expending a spell slot and any consumed Material components as normal. Instead of producing the effects of the spell immediately, they are stored within the flask as a special potion.</text>
+        <text>A creature can drink the potion as a Bonus Action, granting itself the benefits of the spell for its full duration without requiring Concentration.</text>
+        <text>An unconsumed potion spoils when you finish a Long Rest, or if you create another one. If this happens, you can recover a consumed Material component from the flask.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Diplomat: Enchanter</name>
+        <text>You have mastered magic to sway the minds of others. You gain the following benefits.</text>
+        <text>Magical Diplomat. You can cast your Diplomat Spells without expending a spell slot by expending Healer’s Dice instead. The amount of dice you need to spend is equal to twice the spell’s level. You are not limited in the number of dice you can expend in this way.</text>
+        <text>Swayed Inaction. When you give a creature the Charmed condition, you can also lull it into total inaction, giving it the Incapacitated condition as well. The condition ends when the creature loses the Charmed condition, or if it takes any damage.</text>
+        <text>You can use this benefit a number of times equal to your Intelligence modifier (minimum once), and you regain all expended uses when you finish a Long Rest.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Tactician: Grandmaster</name>
+        <text>You no longer allow obstacles to impede your tactical repositioning. When you use your Reposition feature, instead of the target moving, you can cause it to teleport the distance it would have moved to an unoccupied space you can see, even if its Speed is 0.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Tactician: Shifting Tactics</name>
+        <text>Over the course of 1 minute, you can help one of your allies to re-prepare one of its features as if it had finished a Long Rest. The ally must remain within 5 feet of you for the duration of this process.</text>
+        <text>For example, if the target can change which spells it has prepared through the Spellcasting feature when it finishes a Long Rest, it could change which spells it has prepared, or a target could change the weapons it has selected with the Weapon Mastery feature.</text>
+        <text>Once an ally benefits from this feature, it can’t benefit from it again until it finishes a Long Rest.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Vile: Deadly Sin</name>
+        <text>As a Magic action, you can enhance one of the Sin effects you have acting on one of your allies. For the next 10 minutes, the target gains the Sin's Deadly Sin enhancement, and the Sin persists on the target, even if it becomes disconnected from your life Tether. Once you use this feature, you can’t use it again until you finish a Long Rest, unless you expend a level 6+ spell slot to use it again (no action required).</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <counter>
+        <name>Healer's Dice</name>
+        <value>28</value>
+        <reset>L</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="15">
+      <slots>4,4,3,3,2,1,1,1,1,0</slots>
+      <counter>
+        <name>Healer's Dice</name>
+        <value>30</value>
+        <reset>L</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="16" scoreImprovement="YES">
+      <slots>4,4,3,3,2,1,1,1,1,0</slots>
+      <feature>
+        <name>Ability Score Improvement</name>
+        <text>You gain the Ability Score Improvement feat or another feat of your choice for which you qualify.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <counter>
+        <name>Healer's Dice</name>
+        <value>32</value>
+        <reset>L</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="17">
+      <slots>4,4,3,3,2,1,1,1,1,1</slots>
+      <feature>
+        <name>Combat Supporter Improvement</name>
+        <text>The bonus from your Combat Supporter feature increases to +3.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <counter>
+        <name>Healer's Dice</name>
+        <value>34</value>
+        <reset>L</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="18">
+      <slots>4,4,3,3,3,1,1,1,1,1</slots>
+      <feature optional="YES">
+        <name>Vow of the Augmenter: Master Augmenter</name>
+        <text>When you target a creature with the Buff spell, it gains all three benefits at once, instead of you having to choose one.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Martyr: True Martyrdom</name>
+        <text>Your Martyr's Endurance feature improves, replacing the previous benefits.</text>
+        <text>Endurance. Whenever you use your Healing Tether on an ally, you gain Temporary Hit Points equal to the amount rolled on the Healer's Dice, instead of half as much.</text>
+        <text>Anguish. Whenever a creature that is attached to your Life Tether takes damage, you can choose to reduce the damage they take by any amount (you choose when you use this feature), and then you take damage equal to half the amount you reduced (round down, no action required).</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Protector: Improved Life Tether</name>
+        <text>Your Life Tether improves.</text>
+        <text>Total Protection. When you use your Life Tether's Healer's Protection Reaction, you can cause the ally to automatically succeed on the saving throw. If you are also making a saving throw against the same effect, you can also gain this benefit.</text>
+        <text>Once you use this benefit, you can't use it again until you finish a Short or Long Rest.</text>
+        <text>Expansive Ward. You can now choose any damage type or condition for your Warding Essence feature.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Siphon: Leech Conduit</name>
+        <text>You always have the Life Siphon spell prepared. While you are concentrating on Life Siphon, a creature attached to your Life Tether automatically fails its saves against the spell, and takes an additional 1d12 damage.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Apothecary: Panacea</name>
+        <text>The potions you create with your Liquid Healing feature improve, depending on whether it heals the target or ends a condition on it.</text>
+        <text>Healing. You add an extra d4 to the healing roll for each Healer’s Die spent.</text>
+        <text>Inoculation. The drinker gains Immunity to the removed condition for 1 hour.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Diplomat: Ambassador</name>
+        <text>Inescapable Charm. While a creature is attached to your Peace Tether, it can be Charmed by you even if it has Immunity to the Charmed condition.</text>
+        <text>Resourceful Diplomat. When you cast one of your Diplomat Spells by expending Healer’s Dice, the number of dice you need to spend is reduced by 2, to a minimum of 1 die.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Tactician: Perfected Plans</name>
+        <text>When you use your Plan to Execution feature, a planned Attack action is no longer limited in the number of attacks the creature can make, and a planned Magic action can now be to cast a spell up to level 5.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <feature optional="YES">
+        <name>Vow of the Vile: Bad Influence</name>
+        <text>When you attach your Life Tether to one of your allies, you can now grant it the benefits of two Sins, instead of one.</text>
+        <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <counter>
+        <name>Healer's Dice</name>
+        <value>36</value>
+        <reset>L</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="19">
+      <slots>4,4,3,3,3,2,2,1,1,1</slots>
+      <feature>
+        <name>Epic Boon</name>
+        <text>You gain an Epic Boon feat or another feat of your choice for which you qualify. Boon of Spell Recall is recommended.</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <counter>
+        <name>Healer's Dice</name>
+        <value>38</value>
+        <reset>L</reset>
+      </counter>
+    </autolevel>
+    <autolevel level="20">
+      <slots>4,4,3,3,3,2,2,2,1,1</slots>
+      <feature>
+        <name>Multitether</name>
+        <text>As a Bonus Action, you can temporarily increase the number of Life Tethers you can maintain to an amount equal to your Intelligence modifier (minimum 2 tethers). You can attach any number of these tethers to eligible creatures as part of the same Bonus Action.</text>
+        <text>Duration. You can maintain multiple tethers in this way for 1 minute, or until you have the Incapacitated condition. After this duration has elapsed, you can choose one tether to remain, if any still exist.</text>
+        <text>Switching Targets. If you use your Bonus Action to attach a tether to a new creature, you can do so with any number of tethers simultaneously.</text>
+        <text>Shared Healing. When you use your Healing Tether or Restoring Tether features, each tethered creature gains the benefit at no additional Healer's Dice cost. The same is true when you use your Healer's Protection Reaction, provided each creature is making a save against the same effect.</text>
+        <text>Uses. Once you use this feature, you can't use it again until you finish a Long Rest. You can also restore its use by expending a level 6+ spell slot (no action required).</text>
+        <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+      </feature>
+      <counter>
+        <name>Healer's Dice</name>
+        <value>40</value>
+        <reset>L</reset>
+      </counter>
+      <counter>
+        <name>Multitether</name>
+        <value>1</value>
+        <reset>L</reset>
+      </counter>
+    </autolevel>
+  </class>
+  <spell>
+    <name>Adrenaline Rush</name>
+    <level>2</level>
+    <school>T</school>
+    <time>1 action</time>
+    <range>60 feet</range>
+    <components>V, S</components>
+    <duration>1 round</duration>
+    <classes>Healer</classes>
+    <text>You briefly fill one creature you can see within range with surging energy. Until the start of your next turn, the target's Speed increases by 20 feet, and each time it hits with an attack roll and deals damage, it can add 1d10 to the damage roll.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+    <roll description="Extra damage">1d10</roll>
+  </spell>
+  <spell>
+    <name>Buff</name>
+    <level>0</level>
+    <school>T</school>
+    <time>1 action</time>
+    <range>60 feet</range>
+    <components>V, S</components>
+    <duration>1 round</duration>
+    <classes>Healer</classes>
+    <text>You briefly enhance the capabilities of one creature other than yourself that you can see within range. Select one of the following enhancements, which lasts until the start of your next turn.</text>
+    <text>Amplified Attacks. The next time the target hits with an attack roll and deals damage, it can add 1d8 to the damage roll.</text>
+    <text>Fleeting Protection. The target gains 1d8 Temporary Hit Points. These Temporary Hit Points vanish if any remain when the spell ends.</text>
+    <text>Speedy Flight. The target's Speed increases by 5 feet and Opportunity Attacks are made against it with Disadvantage.</text>
+    <text>Cantrip Upgrade. The damage of Amplified Attacks and the Temporary Hit Points of Fleeting Protection increase by 1d8 when you reach levels 5 (2d8), 11 (3d8) and 17 (4d8). The Speed boost of Speedy Flight also increases by 5 feet when you reach levels 5 (10 feet), 11 (15 feet) and 17 (20 feet).</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+    <roll description="Amplified Attacks / Fleeting Protection" level="0">1d8</roll>
+    <roll description="Amplified Attacks / Fleeting Protection" level="5">2d8</roll>
+    <roll description="Amplified Attacks / Fleeting Protection" level="11">3d8</roll>
+    <roll description="Amplified Attacks / Fleeting Protection" level="17">4d8</roll>
+  </spell>
+  <spell>
+    <name>Elemental Body</name>
+    <level>7</level>
+    <school>T</school>
+    <time>1 action</time>
+    <range>60 feet</range>
+    <components>V, S</components>
+    <duration>Concentration, up to 1 minute</duration>
+    <classes>Healer, Sorcerer, Wizard</classes>
+    <text>You infuse one creature you can see within range with elemental energy, transforming its physical form into a living embodiment of that element. Choose one of the following damage types: Acid, Cold, Fire, Lightning, Thunder, Radiant or Necrotic. The target gains the following benefits for the duration.</text>
+    <text>Flight. The target gains a Fly Speed equal to its Speed, and can hover.</text>
+    <text>Fluid Form. The target can move through a space as narrow as 1 inch without expending extra movement to do so, and it can move through another creature's space and end its turn there. The first time the target enters a creature's space on a turn, that creature takes 3d8 damage of the type you chose.</text>
+    <text>Immunities. The target gains Immunity to the Grappled, Restrained and Poisoned conditions, and to the damage type you chose.</text>
+    <text>Infused Attacks. Whenever the target hits with an attack roll, it can deal an extra 2d8 damage of the type you chose to the attack's target.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+    <roll description="Fluid Form damage">3d8</roll>
+    <roll description="Infused Attacks">2d8</roll>
+  </spell>
+  <spell>
+    <name>Exoskeleton</name>
+    <level>6</level>
+    <school>T</school>
+    <time>1 action</time>
+    <range>30 feet</range>
+    <components>V, S, M (crushed insects)</components>
+    <duration>Concentration, up to 1 minute</duration>
+    <classes>Druid, Healer, Warlock</classes>
+    <text>You cause one creature you can see within range to grow a magically protective exoskeletal carapace. For the duration, the target has Resistance to every damage type except for Psychic, and it cannot be moved or have the Prone condition against its will.</text>
+    <text>Using a Higher-Level Spell Slot. You can target one additional creature per spell slot level above 6.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+  </spell>
+  <spell>
+    <name>Greater Aid</name>
+    <level>8</level>
+    <school>A</school>
+    <time>1 action</time>
+    <range>30 feet</range>
+    <components>V, S, M (a strip of white cloth)</components>
+    <duration>8 hours</duration>
+    <classes>Bard, Cleric, Druid, Healer</classes>
+    <text>Choose up to four creatures within range. Each target's Hit Point maximum and current Hit Points increase by 50 for the duration. If a target is also benefiting from the Aid spell, that spell's effects are suppressed on the target until this spell ends on it.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+  </spell>
+  <spell>
+    <name>Greater Enhance Ability</name>
+    <level>5</level>
+    <school>T</school>
+    <time>1 action</time>
+    <range>Touch</range>
+    <components>V, S, M (A gilded tuft of fur or feather)</components>
+    <duration>Concentration, up to 1 hour</duration>
+    <classes>Bard, Cleric, Druid, Healer</classes>
+    <text>You touch a creature and choose Strength, Dexterity, Constitution, Intelligence, Wisdom or Charisma. For the duration, the target has Advantage on all D20 Tests using the chosen ability.</text>
+    <text>Using a Higher-Level Spell Slot. You can target one additional creature for each spell slot level above 5. You can choose a different ability for each target.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+  </spell>
+  <spell>
+    <name>Helping Hand</name>
+    <level>1</level>
+    <school>T</school>
+    <time>1 reaction, which you take when another creature within range makes a D20 Test</time>
+    <range>30 feet</range>
+    <components>V, S</components>
+    <duration>Instantaneous</duration>
+    <classes>Healer</classes>
+    <text>You embolden the triggering creature, which can roll 1d8 and add the result to the D20 Test. You choose to cast this spell before the roll is made. If the roll is an attack roll, on a hit the attacker can also add the result of the d8 to the damage roll.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+    <roll description="Bonus">1d8</roll>
+  </spell>
+  <spell>
+    <name>Heroic Sacrifice</name>
+    <level>4</level>
+    <school>A</school>
+    <time>1 reaction, which you take when you see another creature within range fail a saving throw against a spell or magical effect</time>
+    <range>60 feet</range>
+    <components>V, S</components>
+    <duration>Instantaneous</duration>
+    <classes>Cleric, Healer, Paladin</classes>
+    <text>You interpose yourself against the triggering magic, causing it to affect you instead of the original target. The triggering creature is no longer affected by the spell or magical effect, and you become its target, even if you would normally be out of its range. You immediately make the required saving throw against the effect, suffering its consequences on a failure. You do not suffer any effects on a successful save.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+  </spell>
+  <spell>
+    <name>Instant Refreshment</name>
+    <level>7</level>
+    <school>A</school>
+    <time>1 action</time>
+    <range>Touch</range>
+    <components>V, S, M (A fine beverage worth 200+ GP, which the spell consumes)</components>
+    <duration>Instantaneous</duration>
+    <classes>Healer</classes>
+    <text>You touch a creature and flood it with healing energy, refreshing and rejuvenating its body and mind, causing it to instantly gain the benefits of a Short Rest.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+  </spell>
+  <spell>
+    <name>Jotunn Transformation</name>
+    <level>5</level>
+    <school>T</school>
+    <time>1 action</time>
+    <range>60 feet</range>
+    <components>V, S, M (a piece of stone inscribed with a giant rune)</components>
+    <duration>Concentration, up to 1 minute</duration>
+    <classes>Druid, Healer</classes>
+    <text>Select one creature you can see within range, which is infused with essence of a giant. The target gains the following benefits for the duration.</text>
+    <text>Giant Size. Its size increases to Huge, if it was not already larger. If there is no room for it to grow, the spell fails. The target's equipment grows with it. Attacks with Unarmed Strikes or a weapon enlarged in this manner deal an extra 1d12 damage.</text>
+    <text>Giant's Strength. Its Strength score increases to 11 plus twice the spell's level, if it was not already higher.</text>
+    <text>Giant's Endurance. It gains a number of Temporary Hit Points equal to 10 times the spell's level.</text>
+    <text>Using a Higher-Level Spell Slot. Use the spell slot's level for the spell's level in the Giant's Strength and Giant's Endurance benefits. If cast with a level 7+ slot, the target becomes Gargantuan instead of Huge and the extra damage increases to 2d12.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+    <roll description="Extra damage">1d12</roll>
+  </spell>
+  <spell>
+    <name>Life Siphon</name>
+    <level>7</level>
+    <school>N</school>
+    <time>1 action</time>
+    <range>60 feet</range>
+    <components>V, S, M (one leech for each target)</components>
+    <duration>Concentration, up to 1 minute</duration>
+    <classes>Healer</classes>
+    <text>Choose up to four willing creatures that you can see within range. For the duration, at the end of each of a recipient's turns, it can select one creature that it can see within 30 feet of it. The selected creature must make a Constitution saving throw. On a failure, it takes 4d12 Radiant or Necrotic damage (your choice when you cast the spell) or half as much on a success. Success or failure, the recipient regains Hit Points equal to the amount of damage taken.</text>
+    <text>Once a creature takes this damage, it is immune to this spell's effects until the start of its next turn.</text>
+    <text>Using a Higher-Level Spell Slot. The damage increases by 1d12 for each spell slot level above 7.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+    <roll description="Damage" level="7">4d12</roll>
+    <roll description="Damage" level="8">5d12</roll>
+    <roll description="Damage" level="9">6d12</roll>
+  </spell>
+  <spell>
+    <name>Protection from Malady</name>
+    <level>4</level>
+    <school>A</school>
+    <time>1 action</time>
+    <range>60 feet</range>
+    <components>V, S</components>
+    <duration>10 minutes</duration>
+    <classes>Healer, Paladin</classes>
+    <text>You ward one creature you can see within range against harmful effects. Select one of the following conditions: Blinded, Charmed, Deafened, Frightened, Stunned, Paralyzed or Poisoned.</text>
+    <text>The target has Immunity to the chosen condition for the duration. If the creature already has the condition when you cast this spell, the condition does not end, but the target has Advantage on any saving throw it makes to end that condition for the duration.</text>
+    <text>Using a Higher-Level Spell Slot. You can target one additional creature for each spell slot level above 4. You can choose a different condition for each target.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+  </spell>
+  <spell>
+    <name>Synergize</name>
+    <level>3</level>
+    <school>T</school>
+    <time>1 action</time>
+    <range>60 feet</range>
+    <components>V, S</components>
+    <duration>Concentration, up to 1 minute</duration>
+    <classes>Healer</classes>
+    <text>Select two to three willing creatures that you can see within range. For the duration, each target is linked, making it more aware of and capable of helping its fellow linked creatures. Linked creatures gain the following benefits.</text>
+    <text>- Whenever a linked creature fails a D20 Test, another linked creature within 30 feet of it can take a Reaction to allow it to re-roll the test. It must use the new result. - When a linked creature rolls damage for an attack, it can add 1d6 to the damage roll for each other linked creature within 30 feet of it, as those allies contribute to the strike. It can do so only once per turn.</text>
+    <text>Using a Higher-Level Spell Slot. You can target one additional creature for each spell slot level above 3.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+    <roll description="Extra damage per linked ally">1d6</roll>
+  </spell>
+  <spell>
+    <name>Total Refreshment</name>
+    <level>9</level>
+    <school>A</school>
+    <time>1 minute</time>
+    <range>Touch</range>
+    <components>V, S, M (A fine beverage worth 999+ GP, which the spell consumes)</components>
+    <duration>Instantaneous</duration>
+    <classes>Healer</classes>
+    <text>You channel immense healing energy into a creature you touch, instantly revitalising it. The target gains the benefits of a Long Rest.</text>
+    <text>Completing a Long Rest in this way does not restore expended level 7+ spell slots, nor uses of features which allow a creature to cast a level 7+ spell without a spell slot (e.g. Mystic Arcanum from the Warlock class). Furthermore, once a creature is affected by this spell, it can't be affected by it again until it naturally finishes 1d4 Long Rests.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+  </spell>
+  <spell>
+    <name>Unlock Potential</name>
+    <level>4</level>
+    <school>T</school>
+    <time>1 action</time>
+    <range>Touch</range>
+    <components>V, S</components>
+    <duration>Concentration, up to 1 minute</duration>
+    <classes>Healer</classes>
+    <text>You touch a creature other than yourself and unlock the latent potential within it. Select either Unlocked Spellcasting or Unlocked Attacks. The target gains the benefits for the duration.</text>
+    <text>Unlocked Spellcasting. When the target casts a spell using a spell slot, it can treat the spell as if it was cast with a spell slot of one level higher. Spells cast with a level 5+ spell slot aren't affected.</text>
+    <text>Unlocked Attacks. When the target takes the Attack action, it can make one additional attack as part of that action. In addition, it deals an extra 1d6 Force damage to the target whenever it hits with an attack roll.</text>
+    <text>Using a Higher-Level Spell Slot. You can concentrate on the spell for longer: for 10 minutes (level 5-6 slot), for 1 hour (level 7 slot) or for 8 hours (level 8 slot). If you use a level 9 slot, the spell doesn't require Concentration, and its duration becomes 24 hours.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+    <roll description="Force damage">1d6</roll>
+  </spell>
+  <spell>
+    <name>Accelerate Time</name>
+    <level>3</level>
+    <school>T</school>
+    <time>1 action</time>
+    <range>Touch</range>
+    <components>V, S, M (an hourglass filled with quicksilver, worth 300+ GP)</components>
+    <duration>Instantaneous</duration>
+    <classes>Healer, Wizard</classes>
+    <text>You touch a willing creature and it immediately experiences one minute of time’s passage. The target ages one minute, and any effect it is under progress one minute, reducing its remaining duration and potentially ending the effect early if its duration is lapsed. Anything that would normally occur on the creature’s turn that doesn’t require it to act, such as making a saving throw, occurs in rapid succession.</text>
+    <text>Using a Higher-Level Spell Slot. The amount of time that passes for the target increases to one hour with a level 6-8 spell slot, and to 24 hours with a level 9 spell slot. The target cannot benefit from a Short or Long Rest from time passing in this way.</text>
+    <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+  </spell>
+  <spell>
+    <name>Cleanroom</name>
+    <level>5</level>
+    <school>T</school>
+    <ritual>YES</ritual>
+    <time>1 action</time>
+    <range>Self (60 foot Emanation)</range>
+    <components>V, S, M (vinegar)</components>
+    <duration>Instantaneous</duration>
+    <classes>Healer</classes>
+    <text>All objects and surfaces within a 60 foot Emanation centered on yourself become immaculately clean, and free of any toxins or diseases they may have been carrying. The Emanation does not extend beyond the room you are in.</text>
+    <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+  </spell>
+  <spell>
+    <name>Dissuade Violence</name>
+    <level>1</level>
+    <school>EN</school>
+    <time>1 reaction, which you take when you are hit by an attack roll</time>
+    <range>Self</range>
+    <components>V, S</components>
+    <duration>1 round</duration>
+    <classes>Healer</classes>
+    <text>You invoke guilt into a creature that attacks you, causing it to pull its punches. The triggering attacker re-rolls the attack, and must use the new roll. You have Resistance to damage from that creature's attacks until the end of your next turn, including against the triggering attack, if it still hits.</text>
+    <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+  </spell>
+  <spell>
+    <name>Finedd's Deception</name>
+    <level>2</level>
+    <school>D</school>
+    <time>1 reaction, which you take when you or one of your allies begins saying something you know to be a lie.</time>
+    <range>30 feet</range>
+    <components>S</components>
+    <duration>Instantaneous</duration>
+    <classes>Bard, Healer, Warlock</classes>
+    <text>You fill the triggering speaker’s mind with knowledge of the nuance and semantics utilised by devils to tell misleading but technical truths. The lie spoken by the target twists into a sentence that is technically true, but still conveys the original meaning of the lie. The target gains a +10 bonus to any Charisma (Deception) check it makes for telling the lie in this moment, and the lie holds up to the scrutiny of the Zone of Truth spell.</text>
+    <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+  </spell>
+  <spell>
+    <name>Fodir's Friendly Facade</name>
+    <level>3</level>
+    <school>I</school>
+    <time>1 action</time>
+    <range>60 feet</range>
+    <components>V</components>
+    <duration>Concentration, up to 1 minute</duration>
+    <classes>Bard, Healer, Sorcerer</classes>
+    <text>You craft an enchanting glamour for one ally that you can see within range, which makes it an unappealing target for its foes. Each creature within 20 feet of the target must succeed on a Wisdom saving throw or have the Charmed condition for the duration, with the target as the charmer. A Charmed creature can repeat the saving throw at the end of each of its turns, ending the effect on a success.</text>
+    <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+  </spell>
+  <spell>
+    <name>Ilnera's Gambit</name>
+    <level>4</level>
+    <school>C</school>
+    <time>1 action</time>
+    <range>100 feet</range>
+    <components>V, S,M (a dragonchess piece)</components>
+    <duration>Instantaneous</duration>
+    <classes>Bard, Cleric, Healer</classes>
+    <text>You shunt an ally through space, as if it were a piece on a game board, granting it an ideal opportunity to strike. Select one willing creature that you can see within range, other than yourself. That creature is teleported to an unoccupied space you can see within range. Immediately after teleporting, the creature can take a Reaction to make one attack with a weapon or an Unarmed Strike against a target of your choice; if this attack hits, the target takes an extra 3d10 Force damage.</text>
+    <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+    <roll description="Force damage">3d10</roll>
+  </spell>
+  <spell>
+    <name>Invigorate</name>
+    <level>4</level>
+    <school>A</school>
+    <time>1 action</time>
+    <range>30 feet</range>
+    <components>V, S, M (holly berries)</components>
+    <duration>Instantaneous</duration>
+    <classes>Healer</classes>
+    <text>You flood one willing creature you can see with surging vitality. The target regains 8d6 plus your spellcasting modifier Hit Points, and if it is restored to full Hit Points, it gains the remaining points as Temporary Hit Points. In addition, the first time the target hits with an attack on its next turn, it deals an extra 4d6 damage.</text>
+    <text>Using a Higher-Level Spell Slot. The healing and damage rolls increase by 2d6 for each slot level above 4.</text>
+    <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+    <roll description="Healing" level="4">8d6+SPELL</roll>
+    <roll description="Healing" level="5">10d6+SPELL</roll>
+    <roll description="Healing" level="6">12d6+SPELL</roll>
+    <roll description="Healing" level="7">14d6+SPELL</roll>
+    <roll description="Healing" level="8">16d6+SPELL</roll>
+    <roll description="Healing" level="9">18d6+SPELL</roll>
+  </spell>
+  <spell>
+    <name>Rejuvinate</name>
+    <level>8</level>
+    <school>T</school>
+    <time>24 Hours</time>
+    <range>Touch</range>
+    <components>S, M (ambrosia worth 1000+ GP)</components>
+    <duration>Instantaneous</duration>
+    <classes>Healer</classes>
+    <text>You undergo a rigorous process of permanently reversing the ravages of time within one willing creature, who must remain within your reach for the full duration of the spell's casting, causing it to become younger. You determine the final age of the target, although you can't de-age it into pre-maturity.</text>
+    <text>The first time a creature is affected by this spell, it suffers no adverse effects. Each subsequent time, it must roll 1d20. If it rolls the number of times it has been targeted by this spell or lower, it suffers total amnesia, which is permanent and irreversible, even by means of a Wish spell.</text>
+    <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+  </spell>
+  <spell>
+    <name>Reverse Wounds</name>
+    <level>5</level>
+    <school>T</school>
+    <time>1 reaction, which you take when a creature you can see within range takes damage.</time>
+    <range>60 feet</range>
+    <components>V, S</components>
+    <duration>Instantaneous</duration>
+    <classes>Healer</classes>
+    <text>You manipulate the transfer of vitality within the damaged creature, undoing harm to it. The target immediately regains the Hit Points it lost from the triggering damage.</text>
+    <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+  </spell>
+  <spell>
+    <name>Strength of Jahdore</name>
+    <level>3</level>
+    <school>T</school>
+    <time>1 action</time>
+    <range>30 feet</range>
+    <components>V, S, M (spinach)</components>
+    <duration>Concentration, up to 1 minute</duration>
+    <classes>Healer, Paladin</classes>
+    <text>You imbue one willing creature you can see within range with supernatural strength. Until the spell ends, the creature’s Strength score increases to 21, unless it was already higher. In addition, whenever the affected creature hits with a melee attack roll, it can push the target 10 feet away from it, provided the target is no more than one size category larger than it.</text>
+    <text>This spell does not confer any additional uses of features based on the target’s Strength score, if it has any.</text>
+    <text>Using a Higher-Level Spell Slot. The target’s Strength score increases to 18 plus the spell slot’s level, instead of 21.</text>
+    <text>Source: Healer Expansion Pack v1.0, Spaghetti0 Homebrew</text>
+  </spell>
+  <spell>
+    <name>Blade Ward</name>
+    <level>0</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Elementalism</name>
+    <level>0</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Friends</name>
+    <level>0</level>
+    <school>EN</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Guidance</name>
+    <level>0</level>
+    <school>D</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Light</name>
+    <level>0</level>
+    <school>EV</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Mage Hand</name>
+    <level>0</level>
+    <school>C</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Mending</name>
+    <level>0</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Message</name>
+    <level>0</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Resistance</name>
+    <level>0</level>
+    <school>D</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Spare the Dying</name>
+    <level>0</level>
+    <school>N</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Mold Earth</name>
+    <level>0</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Shape Water</name>
+    <level>0</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Alarm</name>
+    <level>1</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Bless</name>
+    <level>1</level>
+    <school>EN</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Comprehend Languages</name>
+    <level>1</level>
+    <school>D</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Create or Destroy Water</name>
+    <level>1</level>
+    <school>C</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Cure Wounds</name>
+    <level>1</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Detect Magic</name>
+    <level>1</level>
+    <school>D</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Detect Poison and Disease</name>
+    <level>1</level>
+    <school>D</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Expeditious Retreat</name>
+    <level>1</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Faerie Fire</name>
+    <level>1</level>
+    <school>EV</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>False Life</name>
+    <level>1</level>
+    <school>N</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Feather Fall</name>
+    <level>1</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Healing Word</name>
+    <level>1</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Heroism</name>
+    <level>1</level>
+    <school>EN</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Jump</name>
+    <level>1</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Longstrider</name>
+    <level>1</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Mage Armor</name>
+    <level>1</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Protection from Evil and Good</name>
+    <level>1</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Purify Food and Drink</name>
+    <level>1</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Sanctuary</name>
+    <level>1</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Shield of Faith</name>
+    <level>1</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Absorb Elements</name>
+    <level>1</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Aid</name>
+    <level>2</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Calm Emotions</name>
+    <level>2</level>
+    <school>EN</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Darkvision</name>
+    <level>2</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Enhance Ability</name>
+    <level>2</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Enlarge/Reduce</name>
+    <level>2</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Gentle Repose</name>
+    <level>2</level>
+    <school>N</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Invisibility</name>
+    <level>2</level>
+    <school>I</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Lesser Restoration</name>
+    <level>2</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Locate Animals or Plants</name>
+    <level>2</level>
+    <school>D</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Magic Weapon</name>
+    <level>2</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Misty Step</name>
+    <level>2</level>
+    <school>C</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Prayer of Healing</name>
+    <level>2</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Protection from Poison</name>
+    <level>2</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Rope Trick</name>
+    <level>2</level>
+    <school>C</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>See Invisibility</name>
+    <level>2</level>
+    <school>D</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Silence</name>
+    <level>2</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Spider Climb</name>
+    <level>2</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Warding Bond</name>
+    <level>2</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Air Bubble</name>
+    <level>2</level>
+    <school>C</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Borrowed Knowledge</name>
+    <level>2</level>
+    <school>D</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Death Armor</name>
+    <level>2</level>
+    <school>N</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Healing Spirit</name>
+    <level>2</level>
+    <school>C</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Regenerating Ward</name>
+    <level>2</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Vortex Warp</name>
+    <level>2</level>
+    <school>C</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Aura of Vitality</name>
+    <level>3</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Beacon of Hope</name>
+    <level>3</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Counterspell</name>
+    <level>3</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Create Food and Water</name>
+    <level>3</level>
+    <school>C</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Daylight</name>
+    <level>3</level>
+    <school>EV</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Dispel Magic</name>
+    <level>3</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Feign Death</name>
+    <level>3</level>
+    <school>N</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Fly</name>
+    <level>3</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Haste</name>
+    <level>3</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Leomund's Tiny Hut</name>
+    <level>3</level>
+    <school>EV</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Mass Healing Word</name>
+    <level>3</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Protection from Energy</name>
+    <level>3</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Remove Curse</name>
+    <level>3</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Revivify</name>
+    <level>3</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Sending</name>
+    <level>3</level>
+    <school>D</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Speak with Dead</name>
+    <level>3</level>
+    <school>N</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Tongues</name>
+    <level>3</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Water Breathing</name>
+    <level>3</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Catnap</name>
+    <level>3</level>
+    <school>EN</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Intellect Fortress</name>
+    <level>3</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Life Transference</name>
+    <level>3</level>
+    <school>N</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Aura of Life</name>
+    <level>4</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Aura of Purity</name>
+    <level>4</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Death Ward</name>
+    <level>4</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Dimension Door</name>
+    <level>4</level>
+    <school>C</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Fire Shield</name>
+    <level>4</level>
+    <school>EV</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Freedom of Movement</name>
+    <level>4</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Greater Invisibility</name>
+    <level>4</level>
+    <school>I</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Locate Creature</name>
+    <level>4</level>
+    <school>D</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Mordenkainen's Private Sanctum</name>
+    <level>4</level>
+    <school>C</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Otiluke's Resilient Sphere</name>
+    <level>4</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Stoneskin</name>
+    <level>4</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Antilife Shell</name>
+    <level>5</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Awaken</name>
+    <level>5</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Circle of Power</name>
+    <level>5</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Contact Other Plane</name>
+    <level>5</level>
+    <school>D</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Creation</name>
+    <level>5</level>
+    <school>I</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Greater Restoration</name>
+    <level>5</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Legend Lore</name>
+    <level>5</level>
+    <school>D</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Mass Cure Wounds</name>
+    <level>5</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Raise Dead</name>
+    <level>5</level>
+    <school>N</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Reincarnate</name>
+    <level>5</level>
+    <school>N</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Telekinesis</name>
+    <level>5</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Teleportation Circle</name>
+    <level>5</level>
+    <school>C</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Alustriel's Mooncloak</name>
+    <level>5</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Holy Weapon</name>
+    <level>5</level>
+    <school>EV</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Skill Empowerment</name>
+    <level>5</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Spirit Lantern</name>
+    <level>5</level>
+    <school>N</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Find the Path</name>
+    <level>6</level>
+    <school>D</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Forbiddance</name>
+    <level>6</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Globe of Invulnerability</name>
+    <level>6</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Heal</name>
+    <level>6</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Heroes' Feast</name>
+    <level>6</level>
+    <school>C</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Tasha's Bubbling Cauldron</name>
+    <level>6</level>
+    <school>C</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>True Seeing</name>
+    <level>6</level>
+    <school>D</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Word of Recall</name>
+    <level>6</level>
+    <school>C</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Fizban's Platinum Shield</name>
+    <level>6</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Aura of Evasion</name>
+    <level>7</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Etherealness</name>
+    <level>7</level>
+    <school>C</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Mordenkainen's Magnificent Mansion</name>
+    <level>7</level>
+    <school>C</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Power Word Fortify</name>
+    <level>7</level>
+    <school>EN</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Regenerate</name>
+    <level>7</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Resurrection</name>
+    <level>7</level>
+    <school>N</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Simbul's Synostodweomer</name>
+    <level>7</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Teleport</name>
+    <level>7</level>
+    <school>C</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Antimagic Field</name>
+    <level>8</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Demiplane</name>
+    <level>8</level>
+    <school>C</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Holy Aura</name>
+    <level>8</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Iron Body</name>
+    <level>8</level>
+    <school>T</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Mind Blank</name>
+    <level>8</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Telepathy</name>
+    <level>8</level>
+    <school>D</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Foresight</name>
+    <level>9</level>
+    <school>D</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Mass Heal</name>
+    <level>9</level>
+    <school>D</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Power Word Heal</name>
+    <level>9</level>
+    <school>D</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>True Resurrection</name>
+    <level>9</level>
+    <school>D</school>
+    <classes>Healer</classes>
+  </spell>
+  <spell>
+    <name>Invulnerability</name>
+    <level>9</level>
+    <school>A</school>
+    <classes>Healer</classes>
+  </spell>
+  <item>
+    <name>Asclepius Staff</name>
+    <type>ST</type>
+    <magic>YES</magic>
+    <detail>uncommon (+1), rare (+2), very rare (+3) (requires attunement by a Healer)</detail>
+    <text>This fine wooden staff is decorated with reliefs of snakes twisting along its shaft, which faintly glow when you heal a creature.</text>
+    <text>You can use the staff as a Spellcasting Focus for your spells, and while you are holding it you gain a bonus to the saving throw DCs of your Healer spells. This bonus is determined by the staff’s rarity.</text>
+    <text>In addition, whenever you roll a number that is equal to this staff's bonus or lower on a Healer's Die, you can re-roll the die and must use the new roll.</text>
+    <text>The Healer can also attune to: Cauldron of Rebirth, Staff of Healing, Staff of Charming, Talisman of Pure Good.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+  </item>
+  <item>
+    <name>Bandages of Support</name>
+    <type>W</type>
+    <magic>YES</magic>
+    <detail>rare (requires attunement by a Healer)</detail>
+    <text>These bandages are worn by wrapping them around the forearms, and they strengthen your connections to those you heal. While wearing them, the range of your Life Tether increases by 30 feet, and when an ally gains the benefits of your Combat Supporter feature, it retains the benefit for one additional round.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+  </item>
+  <item>
+    <name>Bandolier of Buffs</name>
+    <type>W</type>
+    <magic>YES</magic>
+    <detail>rare</detail>
+    <text>This leather bandolier contains 1d6 enclosed glass capsules filled with mysterious differently colored liquids. As a Magic action while wearing the bandolier, you can extract one of these capsules and throw it at a creature you can see within 30 feet of yourself. The capsule shatters and target gains the benefits of a spell that's stored within that container, which last for the full duration of that spell. If the spell has multiple possible effects, the target chooses which one to be affected by.</text>
+    <text>When you find the bandolier, the DM randomly determines the contents of each capsule using the table below. A casting of Identify can reveal what spell is stored within one of the capsules.</text>
+    <text>d20 | Spell: 1-2 Bless; 3-4 Enhance Ability; 5-6 Enlarge/Reduce; 7-8 Fly; 9-10 Haste; 11-12 Strength of Jahdore; 13-14 Freedom of Movement; 15-16 Unlock Potential; 17 Jotunn Transformation; 18 Greater Enhance Ability; 19 Exoskeleton; 20 Elemental Body.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+  </item>
+  <item>
+    <name>Mask of the Plague Doctor</name>
+    <type>W</type>
+    <magic>YES</magic>
+    <detail>uncommon (requires attunement)</detail>
+    <text>This mask covers the entire face, and features a long beak-like protrusion, which is filled with pleasant smelling substances.</text>
+    <text>While wearing the mask, you have Advantage on saving throws to avoid or end the Poisoned condition, and you automatically succeed on saves made to avoid being Poisoned by gases and airborne poisons and diseases, such as the Stinking Cloud spell.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+  </item>
+  <item>
+    <name>Robe of the Pacifist</name>
+    <type>W</type>
+    <magic>YES</magic>
+    <detail>rare (requires attunement)</detail>
+    <text>This fine robe is adorned with symbols meaning 'Peace' from various cultures. When you don these robes for the first time on a day, you immediately gain the benefits of the Sanctuary spell (DC 15), which last until you doff the robes or until you take an action that would end the spell.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+  </item>
+  <item>
+    <name>Roulette Potion</name>
+    <type>P</type>
+    <magic>YES</magic>
+    <detail>common</detail>
+    <text>When you drink this potion, roll 1d6. On a roll of 1-5, you regain 2d8 + 3 Hit Points. On a 6, you take 2d8 + 3 Poison damage. The potion's red liquid contains anywhere between 1 and 6 bubbles, the number changing each time it is shaken.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+    <roll description="Healing or poison damage">2d8+3</roll>
+  </item>
+  <item>
+    <name>Superior Roulette Potion</name>
+    <type>P</type>
+    <magic>YES</magic>
+    <detail>very rare</detail>
+    <text>When you drink this potion, roll 1d6. On a roll of 1-5, you gain the benefits of the Heal spell. On a roll of 6, you are targeted by the effects of the Harm spell (DC 17). The potion's red liquid contains anywhere between 1 and 6 bubbles, the number changing each time it is shaken.</text>
+    <text>Source: Healer (5.5e) v2.0, Spaghetti0 Homebrew</text>
+  </item>
+</compendium>
