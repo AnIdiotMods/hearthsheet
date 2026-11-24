@@ -1,13 +1,25 @@
 # Builds Hearthsheet for Windows, macOS, Linux, Android and iOS from the same code.
 # Push a tag such as v0.4.0 to build everything and attach it to a draft GitHub release, or run it
-# by hand from the Actions tab. Signing uses repository secrets when they exist (docs/SIGNING.md);
-# without them the builds are produced unsigned.
+# by hand from the Actions tab (Run workflow), where you can build just some of the apps and pick
+# the kind of Mac to build on. Signing uses repository secrets when they exist
+# (docs/SIGNING.md); without them the builds are produced unsigned.
 name: Release
 
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      platforms:
+        description: Which apps to build (apple = macOS and iPhone; others = Windows, Linux and Android)
+        type: choice
+        options: [all, apple, macos, ios, android, others]
+        default: all
+      apple_runner:
+        description: Mac to build the macOS and iPhone apps on (Intel Macs usually have no queue; Apple-silicon Macs are faster once they start)
+        type: choice
+        options: [macos-latest, macos-15-intel]
+        default: macos-latest
 
 permissions:
   contents: write
@@ -25,17 +37,13 @@ jobs:
 
   desktop:
     needs: test
+    if: ${{ !contains(fromJSON('["ios", "android"]'), inputs.platforms) }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - platform: windows-latest
-            args: ''
-          - platform: macos-latest
-            args: '--target universal-apple-darwin'
-          - platform: ubuntu-22.04
-            args: ''
-    runs-on: ${{ matrix.platform }}
+        # "apple" builds only macOS here (iOS has its own job); "others" builds Windows and Linux.
+        include: ${{ fromJSON((inputs.platforms == 'apple' || inputs.platforms == 'macos') && '[{"os":"macos","args":"--target universal-apple-darwin"}]' || inputs.platforms == 'others' && '[{"os":"windows","args":""},{"os":"linux","args":""}]' || '[{"os":"windows","args":""},{"os":"macos","args":"--target universal-apple-darwin"},{"os":"linux","args":""}]') }}
+    runs-on: ${{ matrix.os == 'windows' && 'windows-latest' || matrix.os == 'linux' && 'ubuntu-22.04' || inputs.apple_runner || 'macos-latest' }}
     env:
       HAS_WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
       HAS_AZURE_SIGNING: ${{ secrets.AZURE_SIGNING_ENDPOINT != '' }}
@@ -46,23 +54,23 @@ jobs:
         with: { node-version: 22, cache: npm }
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.os == 'macos' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
       - uses: swatinem/rust-cache@v2
         with: { workspaces: src-tauri -> target }
       - name: Linux build libraries
-        if: matrix.platform == 'ubuntu-22.04'
+        if: matrix.os == 'linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm libfuse2 xdg-utils
       - run: npm ci
 
       - name: Import the Linux GPG signing key
-        if: matrix.platform == 'ubuntu-22.04' && env.HAS_LINUX_GPG_KEY == 'true'
+        if: matrix.os == 'linux' && env.HAS_LINUX_GPG_KEY == 'true'
         env:
           LINUX_GPG_PRIVATE_KEY: ${{ secrets.LINUX_GPG_PRIVATE_KEY }}
         run: echo "$LINUX_GPG_PRIVATE_KEY" | gpg --batch --import
       - name: Import the Windows code-signing certificate
-        if: matrix.platform == 'windows-latest' && env.HAS_WINDOWS_CERTIFICATE == 'true'
+        if: matrix.os == 'windows' && env.HAS_WINDOWS_CERTIFICATE == 'true'
         shell: pwsh
         env:
           WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
@@ -75,7 +83,7 @@ jobs:
           Remove-Item $pfx
           "WINDOWS_CERTIFICATE_THUMBPRINT=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Install Azure Trusted Signing tool
-        if: matrix.platform == 'windows-latest' && env.HAS_AZURE_SIGNING == 'true'
+        if: matrix.os == 'windows' && env.HAS_AZURE_SIGNING == 'true'
         run: cargo install trusted-signing-cli --locked
       - name: Export the signing secrets that are set
         # Tauri treats a variable that exists but is empty as "sign with this", so only set the ones that have values.
@@ -121,7 +129,7 @@ jobs:
           args: --config src-tauri/tauri.signing.json ${{ matrix.args }}
       - uses: actions/upload-artifact@v4
         with:
-          name: hearthsheet-${{ matrix.platform }}
+          name: hearthsheet-${{ matrix.os }}
           path: |
             src-tauri/target/**/release/bundle/**/*.exe
             src-tauri/target/**/release/bundle/**/*.msi
@@ -134,6 +142,7 @@ jobs:
 
   android:
     needs: test
+    if: ${{ !contains(fromJSON('["apple", "macos", "ios"]'), inputs.platforms) }}
     runs-on: ubuntu-24.04
     env:
       HAS_ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE != '' }}
@@ -142,7 +151,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: 17 }
+        with: { distribution: temurin, java-version: 17, cache: gradle }
       - uses: android-actions/setup-android@v3
         with: { packages: 'platform-tools' }
       - run: sdkmanager "ndk;27.2.12479018" "platforms;android-35" "build-tools;35.0.0"
@@ -151,6 +160,37 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with: { workspaces: src-tauri -> target }
       - run: npm ci
+      - name: Fetch Maven Central through Google's mirror
+        # Maven Central often answers the shared build machines with "429 Too Many Requests".
+        run: |
+          mkdir -p ~/.gradle/init.d
+          cat > ~/.gradle/init.d/central-mirror.gradle <<'EOF'
+          def MIRROR = 'https://maven-central.storage-download.googleapis.com/maven2/'
+          def mirror = { RepositoryHandler repos ->
+            repos.withType(MavenArtifactRepository).configureEach { r ->
+              def u = r.url.toString()
+              if (u.startsWith('https://repo.maven.apache.org') || u.startsWith('https://repo1.maven.org')) r.url = MIRROR
+            }
+          }
+          def mirrorFirst = { RepositoryHandler repos ->
+            if (!repos.findByName('centralMirror')) {
+              def r = repos.maven { name = 'centralMirror'; url = MIRROR }
+              repos.remove(r)
+              repos.addFirst(r)
+            }
+          }
+          beforeSettings { s ->
+            def pm = s.pluginManagement.repositories
+            mirror(pm)
+            if (pm.isEmpty()) pm.gradlePluginPortal()
+            mirrorFirst(pm)
+            mirror(s.dependencyResolutionManagement.repositories)
+          }
+          allprojects { p ->
+            mirror(p.repositories)
+            p.buildscript { mirror(repositories); mirrorFirst(repositories) }
+          }
+          EOF
       - name: Release signing key
         if: env.HAS_ANDROID_KEYSTORE == 'true'
         env:
@@ -177,7 +217,8 @@ jobs:
 
   ios:
     needs: test
-    runs-on: macos-latest
+    if: ${{ !contains(fromJSON('["macos", "android", "others"]'), inputs.platforms) }}
+    runs-on: ${{ inputs.apple_runner || 'macos-latest' }}
     env:
       HAS_APPLE_SIGNING: ${{ secrets.APPLE_API_KEY_P8 != '' && secrets.APPLE_TEAM_ID != '' }}
     steps:
@@ -185,7 +226,9 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - uses: dtolnay/rust-toolchain@stable
-        with: { targets: 'aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios' }
+        with: { targets: aarch64-apple-ios }
+      - uses: swatinem/rust-cache@v2
+        with: { workspaces: src-tauri -> target }
       - run: npm ci
       - run: brew install xcodegen
       - name: Generate the Xcode project
