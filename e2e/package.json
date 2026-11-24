@@ -1,0 +1,9 @@
+{
+  "name": "hearthsheet-e2e",
+  "private": true,
+  "type": "commonjs",
+  "description": "End-to-end player session, run against the built app on each system",
+  "dependencies": {
+    "selenium-webdriver": "4.51.0"
+  }
+}

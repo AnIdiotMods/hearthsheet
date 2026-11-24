@@ -1,0 +1,268 @@
+# End-to-end player session (e2e/session.mjs) on every system Hearthsheet runs on: Windows and macOS
+# virtual machines, Ubuntu, the Android emulator and the iOS Simulator. Each job builds the app from
+# this commit, installs it fresh, plays the same session (import a compendium, make and level a
+# character, export it, restart) and uploads screenshots, a report and the exported character.
+name: E2E
+on:
+  push:
+    branches: [e2e]
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: Systems to test (comma-separated)
+        default: windows,linux,macos,android,ios
+      compendium_url:
+        description: Compendium file to import (.xml or .xml.xz)
+        default: https://github.com/AnIdiotMods/hearthsheet/raw/e2e-data/Complete_1.xml.xz
+permissions:
+  contents: read
+env:
+  COMPENDIUM_URL: ${{ inputs.compendium_url || 'https://github.com/AnIdiotMods/hearthsheet/raw/e2e-data/Complete_1.xml.xz' }}
+  PLATFORMS: ${{ inputs.platforms || 'windows,linux,macos,android,ios' }}
+
+jobs:
+  windows:
+    if: ${{ contains(inputs.platforms || 'windows', 'windows') }}
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with: { workspaces: src-tauri -> target, cache-directories: ~/.cargo/bin }
+      - run: npm ci
+      - name: Build the installer
+        run: npx tauri build --bundles nsis
+      - name: Install it, as a player would (current user, default folder)
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe | Select-Object -First 1
+          Start-Process $setup.FullName -ArgumentList '/S' -Wait
+          $exe = Get-ChildItem "$env:LOCALAPPDATA" -Recurse -Filter hearthsheet.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) { throw 'The installed app was not found.' }
+          "APP_EXE=$($exe.FullName)" >> $env:GITHUB_ENV
+          Write-Host "Installed: $($exe.FullName)"
+      - name: WebDriver for the app's WebView2
+        shell: pwsh
+        run: |
+          $v = (Get-ItemProperty 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' -ErrorAction SilentlyContinue).pv
+          Write-Host "WebView2 $v"
+          $ok = $false
+          foreach ($h in @("https://msedgedriver.microsoft.com", "https://msedgedriver.azureedge.net")) {
+            try { Invoke-WebRequest "$h/$v/edgedriver_win64.zip" -OutFile edgedriver.zip; $ok = $true; break } catch { Write-Host "$h failed" }
+          }
+          if ($ok) { Expand-Archive edgedriver.zip -DestinationPath edgedriver -Force; $d = (Resolve-Path edgedriver/msedgedriver.exe).Path }
+          else { $d = 'C:\SeleniumWebDrivers\EdgeDriver\msedgedriver.exe' }
+          "EDGE_DRIVER=$d" >> $env:GITHUB_ENV
+          if (-not (Get-Command tauri-driver -ErrorAction SilentlyContinue)) { cargo install tauri-driver --locked }
+      - name: Get the compendium
+        shell: bash
+        run: |
+          mkdir -p data && curl -fsSL "$COMPENDIUM_URL" -o data/download
+          if [[ "$COMPENDIUM_URL" == *.xz ]]; then xz -dc data/download > data/Complete_1.xml; else mv data/download data/Complete_1.xml; fi
+          rm -f data/download; ls -l data
+      - name: Play the session
+        shell: pwsh
+        run: |
+          cd e2e; npm ci; cd ..
+          node e2e/run-desktop.mjs --app "$env:APP_EXE" --files data --out out --native-driver "$env:EDGE_DRIVER"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: e2e-windows, path: out }
+
+  linux:
+    if: ${{ contains(inputs.platforms || 'linux', 'linux') }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with: { workspaces: src-tauri -> target, cache-directories: ~/.cargo/bin }
+      - name: Build libraries and test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf webkit2gtk-driver xvfb xdotool
+          command -v tauri-driver || cargo install tauri-driver --locked
+      - run: npm ci
+      - name: Build and install the .deb package
+        run: |
+          npx tauri build --bundles deb
+          sudo apt-get install -y ./src-tauri/target/release/bundle/deb/*.deb
+          echo "APP_BIN=$(command -v hearthsheet)" >> "$GITHUB_ENV"
+      - name: Get the compendium
+        run: |
+          mkdir -p data && curl -fsSL "$COMPENDIUM_URL" -o data/download
+          if [[ "$COMPENDIUM_URL" == *.xz ]]; then xz -dc data/download > data/Complete_1.xml; else mv data/download data/Complete_1.xml; fi
+          rm -f data/download
+      - name: Play the session
+        run: |
+          (cd e2e && npm ci)
+          xvfb-run -a -s "-screen 0 1440x900x24" node e2e/run-desktop.mjs --app "$APP_BIN" --files data --out out
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: e2e-linux, path: out }
+
+  macos:
+    if: ${{ contains(inputs.platforms || 'macos', 'macos') }}
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with: { workspaces: src-tauri -> target }
+      - run: npm ci
+      - name: Build the app and copy it to Applications
+        run: |
+          node scripts/signing-config.mjs
+          npx tauri build --bundles app --config src-tauri/tauri.signing.json
+          cp -R src-tauri/target/release/bundle/macos/Hearthsheet.app /Applications/
+          codesign -dv /Applications/Hearthsheet.app 2>&1 | grep -E "Identifier|Signature"
+      - name: Accessibility driver
+        run: swiftc -O e2e/mac/axdrive.swift -o axdrive
+      - name: Get the compendium
+        run: |
+          mkdir -p data && curl -fsSL "$COMPENDIUM_URL" -o data/download
+          if [[ "$COMPENDIUM_URL" == *.xz ]]; then xz -dc data/download > data/Complete_1.xml; else mv data/download data/Complete_1.xml; fi
+          rm -f data/download
+      - name: Play the session
+        run: |
+          (cd e2e && npm ci)
+          node e2e/run-mac.mjs --app /Applications/Hearthsheet.app --files "$PWD/data" --out "$PWD/out" --ax "$PWD/axdrive"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: e2e-macos, path: out }
+
+  android:
+    if: ${{ contains(inputs.platforms || 'android', 'android') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17, cache: gradle }
+      - uses: android-actions/setup-android@v3
+        with: { packages: 'platform-tools' }
+      - run: sdkmanager "ndk;27.2.12479018" "platforms;android-35" "build-tools;35.0.0"
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: x86_64-linux-android }
+      - uses: swatinem/rust-cache@v2
+        with: { workspaces: src-tauri -> target }
+      - run: npm ci
+      - name: Fetch Maven Central through Google's mirror
+        run: |
+          mkdir -p ~/.gradle/init.d
+          cat > ~/.gradle/init.d/central-mirror.gradle <<'EOF'
+          def MIRROR = 'https://maven-central.storage-download.googleapis.com/maven2/'
+          def mirror = { RepositoryHandler repos ->
+            repos.withType(MavenArtifactRepository).configureEach { r ->
+              def u = r.url.toString()
+              if (u.startsWith('https://repo.maven.apache.org') || u.startsWith('https://repo1.maven.org')) r.url = MIRROR
+            }
+          }
+          def mirrorFirst = { RepositoryHandler repos ->
+            if (!repos.findByName('centralMirror')) {
+              def r = repos.maven { name = 'centralMirror'; url = MIRROR }
+              repos.remove(r)
+              repos.addFirst(r)
+            }
+          }
+          beforeSettings { s ->
+            def pm = s.pluginManagement.repositories
+            mirror(pm)
+            if (pm.isEmpty()) pm.gradlePluginPortal()
+            mirrorFirst(pm)
+            mirror(s.dependencyResolutionManagement.repositories)
+          }
+          allprojects { p ->
+            mirror(p.repositories)
+            p.buildscript { mirror(repositories); mirrorFirst(repositories) }
+          }
+          EOF
+      - name: Build the app (emulator architecture) and sign it with a throwaway test key
+        env:
+          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
+        run: |
+          npx tauri android build --apk --target x86_64
+          APK=$(find src-tauri/gen/android/app/build/outputs/apk -name '*.apk' | head -1); echo "$APK"
+          keytool -genkeypair -keystore test.jks -alias test -keyalg RSA -keysize 2048 -validity 30 -storepass testtest -keypass testtest -dname "CN=Hearthsheet test"
+          BT=$ANDROID_HOME/build-tools/35.0.0
+          $BT/zipalign -f -p 4 "$APK" app-aligned.apk
+          $BT/apksigner sign --ks test.jks --ks-pass pass:testtest --out app.apk app-aligned.apk
+      - name: Get the compendium
+        run: |
+          mkdir -p data && curl -fsSL "$COMPENDIUM_URL" -o data/download
+          if [[ "$COMPENDIUM_URL" == *.xz ]]; then xz -dc data/download > data/Complete_1.xml; else mv data/download data/Complete_1.xml; fi
+          rm -f data/download
+      - name: Install Maestro and write the flow
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+          node e2e/gen-maestro.mjs android > flow.yaml
+      - name: Enable KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          ram-size: 4096M
+          cores: 4
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash e2e/mobile.sh android
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: e2e-android, path: out, include-hidden-files: true }
+
+  ios:
+    if: ${{ contains(inputs.platforms || 'ios', 'ios') }}
+    runs-on: macos-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - name: Pick the Simulator architecture
+        run: |
+          if [ "$(uname -m)" = arm64 ]; then T=aarch64-apple-ios-sim; A=arm64; else T=x86_64-apple-ios; A=x86_64; fi
+          echo "SIM_TRIPLE=$T" >> "$GITHUB_ENV"; echo "SIM_ARCH=$A" >> "$GITHUB_ENV"
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: 'aarch64-apple-ios-sim,x86_64-apple-ios' }
+      - uses: swatinem/rust-cache@v2
+        with: { workspaces: src-tauri -> target }
+      - run: npm ci
+      - run: brew install xcodegen
+      - name: Build the app for the iOS Simulator
+        run: bash e2e/ios-sim-build.sh
+      - name: Get the compendium
+        run: |
+          mkdir -p data && curl -fsSL "$COMPENDIUM_URL" -o data/download
+          if [[ "$COMPENDIUM_URL" == *.xz ]]; then xz -dc data/download > data/Complete_1.xml; else mv data/download data/Complete_1.xml; fi
+          rm -f data/download
+      - name: Install Maestro and write the flow
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+          node e2e/gen-maestro.mjs ios > flow.yaml
+      - name: Start an iPhone Simulator, install the app, put the compendium in Files
+        run: bash e2e/ios-sim-start.sh
+      - run: bash e2e/mobile.sh ios
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: e2e-ios, path: out, include-hidden-files: true }
