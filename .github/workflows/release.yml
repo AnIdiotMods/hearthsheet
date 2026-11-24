@@ -218,15 +218,22 @@ jobs:
           # while `tauri ios build` (which needs signing) is running. Build the library here and copy it to where
           # Xcode links it from, then regenerate the project with that step replaced.
           cargo build --manifest-path src-tauri/Cargo.toml --release --lib --target aarch64-apple-ios --features tauri/custom-protocol
+          grep -n -B2 -A2 "xcode-script" src-tauri/gen/apple/project.yml || true
           python3 - <<'PY'
           import re, pathlib
           p = pathlib.Path('src-tauri/gen/apple/project.yml')
-          s = p.read_text()
-          s = re.sub(r'(script: )npm run -- tauri ios xcode-script[^\n]*',
-                     r'\1mkdir -p "$SRCROOT/Externals/arm64/${CONFIGURATION}" && cp "$SRCROOT/../../target/aarch64-apple-ios/release/libhearthsheet_lib.a" "$SRCROOT/Externals/arm64/${CONFIGURATION}/libapp.a"', s)
+          lines = p.read_text().split('\n')
+          cmd = ('mkdir -p "$SRCROOT/Externals/arm64/${CONFIGURATION}" && cp "$SRCROOT/../../target/aarch64-apple-ios/release/'
+                 'libhearthsheet_lib.a" "$SRCROOT/Externals/arm64/${CONFIGURATION}/libapp.a"')
+          for i, line in enumerate(lines):
+              if 'xcode-script' in line:
+                  m = re.match(r'^(\s*(?:- )?script:\s*)', line)
+                  lines[i] = (m.group(1) if m else re.match(r'^\s*', line).group(0)) + cmd
+          s = '\n'.join(lines)
           assert 'xcode-script' not in s, 'the Rust build step in project.yml was not replaced'
           p.write_text(s)
           PY
+          grep -n -B2 -A2 "libhearthsheet_lib" src-tauri/gen/apple/project.yml
           (cd src-tauri/gen/apple && xcodegen generate)
           PROJECT=$(ls -d src-tauri/gen/apple/*.xcodeproj | head -1)
           SCHEME=$(xcodebuild -list -project "$PROJECT" | awk '/Schemes:/{f=1;next} f&&NF{print $1; exit}')
