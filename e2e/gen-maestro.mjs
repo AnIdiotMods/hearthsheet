@@ -10,6 +10,9 @@ const APP_ID = 'org.hearthsheet.app';
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const q = (s) => JSON.stringify(s);
 const exact = (s) => q(esc(s));
+// Fields and list entries: Android reads a field as "<label> <placeholder>" and an entry as
+// "Fireball, Level 3", so these match the name followed by anything after a non-letter.
+const starts = (s) => q(`${esc(s)}(\\W.*)?`);
 const out = [];
 const add = (yaml) => out.push(yaml);
 
@@ -57,16 +60,16 @@ add(`- extendedWaitUntil:\n    visible: "Characters"\n    timeout: 60000`);
 for (const [i, s] of steps.entries()) {
   add(`# step ${i}: ${JSON.stringify(s)}`);
   if (s.shot) add(`- takeScreenshot: out/${s.shot}`);
-  else if (s.tap) { reveal(exact(s.tap)); add(`- tapOn: ${exact(s.tap)}`); }
+  else if (s.tap) { const t = s.entry ? starts(s.tap) : exact(s.tap); reveal(t); add(`- tapOn: ${t}`); }
   else if (s.fill) {
-    reveal(exact(s.fill));
-    add(`- tapOn: ${exact(s.fill)}`);
+    reveal(starts(s.fill));
+    add(`- tapOn: ${starts(s.fill)}`);
     add(`- eraseText: 60`);
     add(`- inputText: ${q(s.text)}`);
     add(platform === 'android' ? `- hideKeyboard` : `- hideKeyboard:\n    optional: true`);
   } else if (s.choose) {
-    reveal(exact(s.choose));
-    add(`- tapOn: ${exact(s.choose)}`);
+    reveal(starts(s.choose));
+    add(`- tapOn: ${starts(s.choose)}`);
     const opt = q(`${esc(s.option)}( \\[.*\\])?`);
     add(`- scrollUntilVisible:\n    element:\n      text: ${opt}\n    timeout: 30000\n    optional: true`);
     add(`- tapOn: ${opt}`);

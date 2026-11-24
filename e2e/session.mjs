@@ -4,7 +4,8 @@
 // file dialogs.
 //
 // Step kinds:
-//   tap     press the button, tab, link or list entry with this name
+//   tap     press the button, tab, link or list entry with this name (entry: a list entry or card whose
+//           spoken name continues after this, such as "Fireball, Level 3")
 //   fill    type into the field with this name (clearing it first)
 //   choose  pick an entry from the dropdown with this name
 //   tick    tick the checkbox with this name
@@ -28,7 +29,7 @@ export const steps = [
 
   // Look a spell up, as players do mid-game.
   { fill: 'Search spells', text: 'Fireball' },
-  { tap: 'Fireball' },
+  { tap: 'Fireball', entry: true },
   { see: 'A bright streak flashes', seconds: 10 },
   { shot: '03-compendium-fireball' },
 
@@ -145,7 +146,7 @@ export const steps = [
   // Close the app and open it again: everything should still be there.
   { restart: true },
   { see: 'Thorin Oakenshield', seconds: 60 },
-  { tap: 'Thorin Oakenshield' },
+  { tap: 'Thorin Oakenshield', entry: true },
   { see: 'Dwarf (Hill) · Cleric 3 (Life Domain) · Acolyte' },
   { value: 'Hit points', is: '30 / 30' },
   { value: 'Armor class', is: '18' },
