@@ -2,6 +2,7 @@
 # virtual machines, Ubuntu, the Android emulator and the iOS Simulator. Each job builds the app from
 # this commit, installs it fresh, plays the same session (import a compendium, make and level a
 # character, export it, restart) and uploads screenshots, a report and the exported character.
+# A push whose commit message contains "[only windows macos]" (for example) tests just those systems.
 name: E2E
 on:
   push:
@@ -22,7 +23,7 @@ env:
 
 jobs:
   windows:
-    if: ${{ contains(inputs.platforms || 'windows', 'windows') }}
+    if: ${{ inputs.platforms && contains(inputs.platforms, 'windows') || !inputs.platforms && (!contains(github.event.head_commit.message, '[only ') || contains(github.event.head_commit.message, 'windows')) }}
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
@@ -73,7 +74,7 @@ jobs:
         with: { name: e2e-windows, path: out }
 
   linux:
-    if: ${{ contains(inputs.platforms || 'linux', 'linux') }}
+    if: ${{ inputs.platforms && contains(inputs.platforms, 'linux') || !inputs.platforms && (!contains(github.event.head_commit.message, '[only ') || contains(github.event.head_commit.message, 'linux')) }}
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
@@ -108,7 +109,7 @@ jobs:
         with: { name: e2e-linux, path: out }
 
   macos:
-    if: ${{ contains(inputs.platforms || 'macos', 'macos') }}
+    if: ${{ inputs.platforms && contains(inputs.platforms, 'macos') || !inputs.platforms && (!contains(github.event.head_commit.message, '[only ') || contains(github.event.head_commit.message, 'macos')) }}
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
@@ -141,7 +142,7 @@ jobs:
         with: { name: e2e-macos, path: out }
 
   android:
-    if: ${{ contains(inputs.platforms || 'android', 'android') }}
+    if: ${{ inputs.platforms && contains(inputs.platforms, 'android') || !inputs.platforms && (!contains(github.event.head_commit.message, '[only ') || contains(github.event.head_commit.message, 'android')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:
@@ -229,7 +230,7 @@ jobs:
         with: { name: e2e-android, path: out, include-hidden-files: true }
 
   ios:
-    if: ${{ contains(inputs.platforms || 'ios', 'ios') }}
+    if: ${{ inputs.platforms && contains(inputs.platforms, 'ios') || !inputs.platforms && (!contains(github.event.head_commit.message, '[only ') || contains(github.event.head_commit.message, 'ios')) }}
     runs-on: macos-latest
     timeout-minutes: 75
     steps:

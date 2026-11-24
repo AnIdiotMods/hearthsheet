@@ -27,13 +27,40 @@ for (const d of dataDirs) rmSync(d, { recursive: true, force: true });
 const exported = join(OUT, EXPORT_NAME);
 rmSync(exported, { force: true });
 
-const driverArgs = arg('native-driver') ? ['--native-driver', arg('native-driver')] : [];
-const tauriDriver = spawn(arg('tauri-driver', 'tauri-driver'), driverArgs, { stdio: ['ignore', 'inherit', 'inherit'] });
+// Linux: tauri-driver starts the app and hands it to WebKitWebDriver. Windows: the app is started here
+// with WebView2's debugging port on, and Microsoft Edge WebDriver attaches to it (Microsoft's documented
+// way to automate a running WebView2 app), which also lets the session close and reopen the app itself.
+const DEBUG_PORT = 9222;
+let appProc = null;
+async function startApp() {
+  appProc = spawn(APP, [], {
+    stdio: 'ignore',
+    env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --remote-debugging-port=${DEBUG_PORT}` },
+  });
+  for (let i = 0; i < 240; i++) {
+    try { if ((await fetch(`http://127.0.0.1:${DEBUG_PORT}/json/version`)).ok) return; } catch { /* not yet */ }
+    await sleep(250);
+  }
+  throw new Error('the app did not open its WebView2 debugging port');
+}
+async function closeApp() {
+  // Close the window the way a person does (its close button), then make sure it has exited.
+  try { execFileSync('powershell', ['-NoProfile', '-Command', "Get-Process hearthsheet -ErrorAction SilentlyContinue | ForEach-Object { $_.CloseMainWindow() | Out-Null }"]); } catch { /* gone */ }
+  for (let i = 0; i < 40 && appProc && appProc.exitCode === null; i++) await sleep(250);
+  if (appProc && appProc.exitCode === null) appProc.kill();
+  await sleep(1500);
+}
+const driverProc = WIN
+  ? spawn(arg('native-driver', 'msedgedriver'), ['--port=4444'], { stdio: ['ignore', 'inherit', 'inherit'] })
+  : spawn(arg('tauri-driver', 'tauri-driver'), [], { stdio: ['ignore', 'inherit', 'inherit'] });
 await sleep(2000);
 
 const newSession = async () => {
-  const d = await new Builder().usingServer('http://127.0.0.1:4444/')
-    .withCapabilities({ browserName: 'wry', 'tauri:options': { application: APP } }).build();
+  if (WIN) await startApp();
+  const caps = WIN
+    ? { browserName: 'webview2', 'ms:edgeOptions': { debuggerAddress: `127.0.0.1:${DEBUG_PORT}` } }
+    : { browserName: 'wry', 'tauri:options': { application: APP } };
+  const d = await new Builder().usingServer('http://127.0.0.1:4444/').withCapabilities(caps).build();
   // Wait for the app's first screen.
   for (let i = 0; i < 120; i++) {
     if (await d.executeScript("return !!document.querySelector('.topbar')").catch(() => false)) break;
@@ -125,6 +152,7 @@ async function run(step) {
   }
   if (step.restart) {
     await d.quit();
+    if (WIN) await closeApp();
     await sleep(1500);
     d = await newSession();
     return;
@@ -146,7 +174,8 @@ for (const [i, step] of steps.entries()) {
 }
 const snapshot = await page('snapshot').catch(() => null);
 await d.quit().catch(() => {});
-tauriDriver.kill();
+if (WIN) await closeApp();
+driverProc.kill();
 const failed = results.filter((r) => !r.ok);
 const report = {
   system: WIN ? 'Windows' : 'Linux', app: APP, seconds: Math.round((Date.now() - t0) / 1000),
