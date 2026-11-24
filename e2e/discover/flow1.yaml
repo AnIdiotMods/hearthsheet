@@ -1,0 +1,15 @@
+appId: org.hearthsheet.app
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Characters"
+    timeout: 60000
+- takeScreenshot: out/d1-launch
+- tapOn: "Compendium"
+- takeScreenshot: out/d2-compendium
+- tapOn: "Add SRD sample"
+- takeScreenshot: out/d3-srd
+- tapOn: "Characters"
+- tapOn: "New character"
+- takeScreenshot: out/d4-new
