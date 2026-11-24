@@ -39,7 +39,10 @@ const baseName = (p: string) => {
 
 /** Let the player pick files. `extensions` without dots, e.g. ["xml"]. */
 export async function pickFiles(label: string, extensions: string[], multiple = true): Promise<PickedFile[]> {
-  if (isNative()) {
+  // Android's document picker gives the app only an address such as ".../document/msf:1000000016",
+  // without the file's name, so files would be listed as "1000000016". The web file picker, which the
+  // app's WebView answers with the same system picker, reports the real name, so Android uses it.
+  if (isNative() && platformName() !== 'Android') {
     const { open } = await import('@tauri-apps/plugin-dialog');
     const { readFile } = await import('@tauri-apps/plugin-fs');
     // Phone pickers filter by file type unreliably (XML files often show greyed out), so they are not
@@ -52,7 +55,9 @@ export async function pickFiles(label: string, extensions: string[], multiple = 
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = extensions.map((e) => `.${e}`).join(',');
+    // Phone pickers filter by file type unreliably (an XML file can be greyed out), so phones show
+    // every file; the importers check the content anyway.
+    if (!isMobile()) input.accept = extensions.map((e) => `.${e}`).join(',');
     input.multiple = multiple;
     input.style.display = 'none';
     document.body.appendChild(input);
