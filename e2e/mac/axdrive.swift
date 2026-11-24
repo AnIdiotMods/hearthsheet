@@ -148,6 +148,9 @@ func handle(_ c: [String: Any]) -> [String: Any] {
     AXUIElementSetAttributeValue(n.el, kAXFocusedAttribute as CFString, kCFBooleanTrue)
     usleep(150_000)
     if text(n.el, kAXFocusedAttribute) != "1" { click(n.el) }
+    // With "focusOnly", the caller types through System Events (keystrokes posted by this helper can
+    // be dropped where it lacks the separate permission to post keyboard events).
+    if c["focusOnly"] as? Bool == true { return ["ok": true] }
     key("cmd+a"); key("delete")
     typeText(c["text"] as? String ?? "")
     return ["ok": true]

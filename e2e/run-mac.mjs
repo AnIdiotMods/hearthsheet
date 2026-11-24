@@ -50,6 +50,17 @@ const quit = async () => {
   }
 };
 const shot = (name) => execFileSync('screencapture', ['-x', join(OUT, `${name}.png`)]);
+// Keystrokes go through System Events, as AppleScript users and UI tests do.
+const osa = (script) => execFileSync('osascript', ['-e', `tell application "System Events" to ${script}`]);
+const keystroke = (text) => osa(`keystroke ${JSON.stringify(text)}`);
+const KEY = { return: 36, delete: 51, escape: 53 };
+const press = (combo) => {
+  const parts = combo.split('+');
+  const k = parts.pop();
+  const using = parts.map((m) => ({ cmd: 'command down', shift: 'shift down', alt: 'option down', ctrl: 'control down' })[m]);
+  const mods = using.length ? ` using {${using.join(', ')}}` : '';
+  osa(k in KEY ? `key code ${KEY[k]}${mods}` : `keystroke ${JSON.stringify(k)}${mods}`);
+};
 const until = async (what, seconds, check) => {
   const end = Date.now() + seconds * 1000;
   let last;
@@ -64,21 +75,27 @@ const until = async (what, seconds, check) => {
 /** The system's Open or Save panel: go to the location with ⌘⇧G, then confirm. */
 async function answerPanel(kind, path) {
   await sleep(1500);
-  await send({ cmd: 'keys', keys: ['cmd+shift+g'] });
-  await sleep(800);
-  await send({ cmd: 'keys', keys: ['cmd+a'] });
-  await send({ cmd: 'type', text: kind === 'save' ? dirname(path) : path });
-  await sleep(500);
-  await send({ cmd: 'keys', keys: ['return'] });
+  await send({ cmd: 'frontmost' });
+  press('cmd+shift+g');
   await sleep(1000);
-  await send({ cmd: 'keys', keys: ['return'] });
-  await sleep(1000);
+  press('cmd+a');
+  keystroke(kind === 'save' ? dirname(path) : path);
+  await sleep(700);
+  press('return');
+  await sleep(1200);
+  press('return');
+  await sleep(1500);
 }
 
 async function run(step) {
   if (step.shot) return shot(step.shot);
   if (step.tap) return until(`"${step.tap}"`, step.seconds ?? 15, () => send({ cmd: 'press', name: step.tap }));
-  if (step.fill) return until(`field "${step.fill}"`, 15, () => send({ cmd: 'fill', name: step.fill, text: step.text }));
+  if (step.fill) {
+    await until(`field "${step.fill}"`, 15, () => send({ cmd: 'fill', name: step.fill, focusOnly: true }));
+    press('cmd+a'); press('delete');
+    keystroke(step.text);
+    return;
+  }
   if (step.choose) return until(`"${step.option}" in "${step.choose}"`, 15, () => send({ cmd: 'choose', name: step.choose, option: step.option }));
   if (step.tick) return until(`checkbox "${step.tick}"`, 15, () => send({ cmd: 'tick', name: step.tick }));
   if (step.see) return until(`text "${step.see}"`, step.seconds ?? 15, () => send({ cmd: 'seen', text: step.see }));

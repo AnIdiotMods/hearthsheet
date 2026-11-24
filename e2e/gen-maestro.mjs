@@ -73,7 +73,9 @@ for (const [i, s] of steps.entries()) {
     if (platform === 'ios' && !out.some((l) => l.includes('keyboard tutorial'))) {
       add(`# dismiss the Simulator's one-time keyboard tutorial if it still shows\n- tapOn:\n    text: "Continue"\n    optional: true`);
     }
-    add(platform === 'android' ? `- hideKeyboard` : `- hideKeyboard:\n    optional: true`);
+    // Android: Back closes the keyboard. iOS: the keyboard bar's Done (Maestro's own hide gesture can
+    // land on the page and tap something).
+    add(platform === 'android' ? `- hideKeyboard` : `- tapOn:\n    text: "Done"\n    optional: true`);
   } else if (s.choose) {
     reveal(starts(s.choose));
     add(`- tapOn: ${starts(s.choose)}`);
