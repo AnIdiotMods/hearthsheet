@@ -427,5 +427,9 @@ button.primary.danger-fill { background: var(--danger); border-color: var(--dang
 /* Feature descriptions opened with "details" (tooltips do not work on touch screens). */
 .checks label { flex-wrap: wrap; }
 .checks label:has(.feature-text) { grid-column: 1 / -1; }
+/* Long feature names wrap beside their checkbox instead of dropping below it. */
+.checks label > input { flex: none; }
+.checks label > .check-label { flex: 1 1 0; min-width: 0; }
+.checks:has(.check-label) { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 .feature-text { flex-basis: 100%; font-size: 13px; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; margin: 2px 0 6px 24px; }
 .details-link { padding: 0 4px; }

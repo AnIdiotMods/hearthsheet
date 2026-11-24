@@ -735,7 +735,7 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
 
   const FeatureCheck = ({ f }: { f: ClassFeature }) => (
     <label>
-      <input type="checkbox" checked={picked.includes(f.name)} onChange={(e) => toggle(f.name, e.target.checked)} /> {f.name}
+      <input type="checkbox" checked={picked.includes(f.name)} onChange={(e) => toggle(f.name, e.target.checked)} /> <span className="check-label">{f.name}</span>
       <TextToggle text={f.text} label={f.name} />
     </label>
   );
@@ -784,7 +784,7 @@ function LevelUpModal({ c, onClose, mutate }: { c: Character; onClose: () => voi
               <div className="checks">
                 {lo.optionalRules.map((f) => (
                   <label key={f.name}>
-                    <input type="checkbox" checked={picked.includes(f.name)} onChange={(e) => toggle(f.name, e.target.checked)} /> {f.name}
+                    <input type="checkbox" checked={picked.includes(f.name)} onChange={(e) => toggle(f.name, e.target.checked)} /> <span className="check-label">{f.name}</span>
                     <TextToggle text={f.text} label={f.name} />
                     {/replaces? the ([\w' ]+?) feature/i.exec(f.text) && <span className="muted small"> · replaces {/replaces? the ([\w' ]+?) feature/i.exec(f.text)![1]}</span>}
                   </label>

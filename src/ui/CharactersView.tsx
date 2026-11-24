@@ -318,7 +318,7 @@ function NewCharacter({ onClose, onCreate }: { onClose: () => void; onCreate: (c
               <label key={f.name}>
                 <input type="checkbox" checked={choices.includes(f.name)}
                   onChange={(e) => setChoices(e.target.checked ? [...choices, f.name] : choices.filter((x) => x !== f.name))} />
-                {f.name} <TextToggle text={f.text} label={f.name} />
+                <span className="check-label">{f.name}</span> <TextToggle text={f.text} label={f.name} />
               </label>
             ))}
           </div>
@@ -330,7 +330,7 @@ function NewCharacter({ onClose, onCreate }: { onClose: () => void; onCreate: (c
           <div className="checks">
             {lo.optionalRules.map((f) => (
               <label key={f.name}>
-                <input type="checkbox" checked={choices.includes(f.name)} onChange={(e) => setChoices(e.target.checked ? [...choices, f.name] : choices.filter((x) => x !== f.name))} /> {f.name}
+                <input type="checkbox" checked={choices.includes(f.name)} onChange={(e) => setChoices(e.target.checked ? [...choices, f.name] : choices.filter((x) => x !== f.name))} /> <span className="check-label">{f.name}</span>
                 <TextToggle text={f.text} label={f.name} />
               </label>
             ))}

@@ -171,13 +171,32 @@ export function applyLevelUp(c: Character, plan: LevelUpPlan, rollDie: (sides: n
   return ce;
 }
 
-/** "3rd | protection from evil and good, sanctuary" rows of an "Oath Spells" / "Domain Spells" style table. */
+const SPELL_ROW = /^\s*(\d+)(?:st|nd|rd|th)\s*(?:\||:|\t)\s*(.+)$/i;
+/** A table heading such as "Life Domain Spells" or "Gloom Stalker Spells" (not "… Expanded Spells"). */
+const SPELL_HEADING = /^[^.|:]{1,60}\bspells$/i;
+
+/**
+ * "3rd | protection from evil and good, sanctuary" rows of an "Oath Spells" / "Domain Spells" style table:
+ * either a feature of that name, or a table under such a heading inside another feature's text (many
+ * files put domain spells in the subclass introduction and ranger spells in "… Magic").
+ */
 export function featureSpellTable(f: { name: string; text: string }): { level: number; spells: string[] }[] {
   const name = stripLevelPrefix(f.name);
-  if (!/\bspells$/i.test(name) || /expanded spell/i.test(name)) return [];
+  if (/expanded spell/i.test(name)) return [];
+  let lines = f.text.split('\n');
+  if (!/\bspells$/i.test(name)) {
+    const start = lines.findIndex((l) => SPELL_HEADING.test(l.trim()) && !/expanded spell/i.test(l));
+    if (start < 0) return [];
+    const table: string[] = [];
+    for (const l of lines.slice(start + 1)) {
+      if (SPELL_ROW.test(l) || l.includes('|')) table.push(l);
+      else if (l.trim() || table.some((t) => SPELL_ROW.test(t))) break;
+    }
+    lines = table;
+  }
   const rows: { level: number; spells: string[] }[] = [];
-  for (const line of f.text.split('\n')) {
-    const m = /^\s*(\d+)(?:st|nd|rd|th)\s*(?:\||:|\t)\s*(.+)$/i.exec(line);
+  for (const line of lines) {
+    const m = SPELL_ROW.exec(line);
     if (!m) continue;
     rows.push({ level: +m[1], spells: m[2].split(/\s*[,;]\s*/).map((x) => x.replace(/\*+$/, '').trim()).filter(Boolean) });
   }
