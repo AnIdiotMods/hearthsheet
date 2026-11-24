@@ -40,7 +40,11 @@ automatically once they are added as repository secrets).
 - `npm run android:build`, `npm run ios:build` (iOS on macOS only).
 - `npm test`: unit tests (plus `tests/local/` when the local test files are present).
 - **All platforms at once:** push a tag such as `v0.4.0`; `.github/workflows/release.yml` builds
-  Windows, macOS, Linux, Android (and iOS when enabled) and attaches them to a draft release.
+  Windows, macOS, Linux, Android and iOS and attaches them to a draft release.
+- **Some platforms, by hand:** on GitHub, open **Actions → Release → Run workflow**. Choose which
+  apps to build (`all`, `apple`, `macos`, `ios`, `android` or `others`) and which Mac to build on.
+  If the Apple-silicon queue (`macos-latest`) is long, `macos-15-intel` usually starts at once.
+  The finished apps are under **Artifacts** at the bottom of the run's page.
 
 Data is stored locally on each device (the app's own storage). Export characters and compendiums to
 back them up or move them between devices; the files are the same on every platform.
