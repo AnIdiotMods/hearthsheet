@@ -233,14 +233,14 @@ function NewCharacter({ onClose, onCreate }: { onClose: () => void; onCreate: (c
           return (
             <div key={a} className="score-pick">
               <b>{ABBR[a]}</b>
-              {method === 'manual' && <NumberInput value={scores[a]} min={1} max={30} onChange={(n) => setScores({ ...scores, [a]: n })} />}
+              {method === 'manual' && <NumberInput value={scores[a]} min={1} max={30} ariaLabel={`${ABBR[a]} score`} onChange={(n) => setScores({ ...scores, [a]: n })} />}
               {method === 'pointbuy' && (
-                <select value={scores[a]} onChange={(e) => setScores({ ...scores, [a]: +e.target.value })}>
+                <select aria-label={`${ABBR[a]} score`} value={scores[a]} onChange={(e) => setScores({ ...scores, [a]: +e.target.value })}>
                   {Object.keys(POINT_BUY_COST).map((v) => <option key={v} value={v}>{v}</option>)}
                 </select>
               )}
               {(method === 'standard' || method === 'roll') && (
-                <select value={scores[a]} onChange={(e) => swap(a, +e.target.value)}>
+                <select aria-label={`${ABBR[a]} score`} value={scores[a]} onChange={(e) => swap(a, +e.target.value)}>
                   {[...new Set(pool)].map((v) => <option key={v} value={v}>{v}</option>)}
                 </select>
               )}

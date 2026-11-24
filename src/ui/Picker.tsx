@@ -31,7 +31,7 @@ export function Picker({ kind, onClose, onPick, has, filterHint, subclasses = []
   return (
     <Modal title={`Add ${KIND_LABEL[kind].toLowerCase()}`} onClose={onClose} wide>
       <div className="row wrap">
-        <input type="search" autoFocus placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input type="search" autoFocus placeholder="Search…" aria-label="Search" value={q} onChange={(e) => setQ(e.target.value)} />
         {filterHint && filterHint.length > 0 && <label><input type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} /> Only {filterHint.join(' / ')} spells</label>}
         {maxSpellLevel !== undefined && (
           <label><input type="checkbox" checked={castableOnly} onChange={(e) => setCastableOnly(e.target.checked)} /> Only levels you can cast ({maxSpellLevel ? `up to ${levelLabel(maxSpellLevel)}` : 'cantrips'})</label>
