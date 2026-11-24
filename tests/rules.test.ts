@@ -339,3 +339,29 @@ describe('dice', () => {
   it('advantage on a d20', () => expect(roll('1d20+2 adv', seq(3, 17)).total).toBe(19));
   it('rejects garbage', () => expect(() => roll('2d6+foo')).toThrow());
 });
+
+describe('hit point bonuses that are not stored in hpMax (Dwarven Toughness)', () => {
+  const full = (c: Character) => deriveSheet(c, emptyAppState(), opts).hpMax;
+  it('a new Hill Dwarf starts at full hit points, and stays full through level ups', () => {
+    const c = build('Dwarf (Hill)', 'Fighter', 1, [15, 14, 13, 12, 10, 8]);
+    // d10 + Con +2 (13 + 2 racial) = 12 base, +1 Dwarven Toughness.
+    expect(full(c)).toBe(13);
+    expect(c.hpCurrent).toBe(13);
+    applyLevelUp(c, { existing: c.classes[0], hp: { method: 'average' } }, avg, opts);
+    expect(full(c)).toBe(13 + 6 + 2 + 1);
+    expect(c.hpCurrent).toBe(full(c));
+  });
+  it('a wounded Hill Dwarf gains the whole increase, toughness included', () => {
+    const c = build('Dwarf (Hill)', 'Fighter', 1, [15, 14, 13, 12, 10, 8]);
+    c.hpCurrent = 5;
+    applyLevelUp(c, { existing: c.classes[0], hp: { method: 'average' } }, avg, opts);
+    expect(c.hpCurrent).toBe(5 + 6 + 2 + 1);
+  });
+  it('removing a level keeps a full Hill Dwarf at the new full hit points', () => {
+    const c = build('Dwarf (Hill)', 'Fighter', 3, [15, 14, 13, 12, 10, 8]);
+    expect(c.hpCurrent).toBe(full(c));
+    removeLevel(c, c.classes[0], opts);
+    expect(full(c)).toBe(13 + 6 + 2 + 1);
+    expect(c.hpCurrent).toBe(full(c));
+  });
+});

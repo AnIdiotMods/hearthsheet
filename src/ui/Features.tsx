@@ -249,7 +249,7 @@ function AddClassFeature({ classEl, cv, groups, onClose, onAddFromClass, onAddOp
                   <span>{f.name}</span> <span className="muted small">level {f.level}{f.optional ? ' · option' : ''}</span>
                   {open === f.name && <RichText text={f.text} />}
                 </div>
-                <button className="small" onClick={(e) => { e.stopPropagation(); onAddFromClass(f); }}>Add</button>
+                <button className="small" aria-label={`Add ${f.name}`} onClick={(e) => { e.stopPropagation(); onAddFromClass(f); }}>Add</button>
               </li>
             ))}
           </ul>

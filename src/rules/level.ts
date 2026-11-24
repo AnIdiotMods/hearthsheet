@@ -163,9 +163,11 @@ export function applyLevelUp(c: Character, plan: LevelUpPlan, rollDie: (sides: n
   // A higher Constitution modifier also raises the hit points of every earlier level.
   const retro = firstCharacterLevel ? 0 : (con - before.mods.constitution) * previousLevel;
   const delta = Math.max(1, gain + con) + retro;
-  const wasFull = c.hpCurrent >= c.hpMax;
+  // Compare with the full maximum, which adds bonuses not stored in hpMax (Dwarven Toughness, Tough).
+  const wasFull = c.hpCurrent >= before.hpMax;
   c.hpMax = Math.max(1, c.hpMax + delta);
-  c.hpCurrent = wasFull ? c.hpMax : Math.max(0, c.hpCurrent + delta);
+  const fullMax = deriveSheet(c, emptyAppState(), opts).hpMax;
+  c.hpCurrent = wasFull ? fullMax : Math.max(0, c.hpCurrent + fullMax - before.hpMax);
   return ce;
 }
 
@@ -226,15 +228,19 @@ export function removeLevel(c: Character, ce: XElement, opts: RulesOptions = def
   if (lv <= 0) return;
   const con = deriveSheet(c, emptyAppState(), opts).mods.constitution;
   const loss = c.totalLevel === 1 ? c.hpMax : Math.max(1, averageHp(cv.hd) + con);
+  const wasFull = c.hpCurrent >= deriveSheet(c, emptyAppState(), opts).hpMax;
   c.hpMax = Math.max(0, c.hpMax - loss);
-  c.hpCurrent = Math.min(c.hpCurrent, c.hpMax);
-  if (lv === 1) { c.remove(ce); return; }
-  // Drop features gained at the removed level (optional choices included).
-  const atLevel = new Set(cv.features.filter((f) => f.level === lv).map((f) => f.name));
-  for (const f of classFeats(ce)) if (atLevel.has(f.name)) removeClassFeat(ce, f.name);
-  setClassLevel(ce, lv - 1);
-  setHdCurrent(ce, Math.min(hdCurrent(ce), lv - 1));
-  syncClassSlots(ce, cv);
+  if (lv === 1) c.remove(ce);
+  else {
+    // Drop features gained at the removed level (optional choices included).
+    const atLevel = new Set(cv.features.filter((f) => f.level === lv).map((f) => f.name));
+    for (const f of classFeats(ce)) if (atLevel.has(f.name)) removeClassFeat(ce, f.name);
+    setClassLevel(ce, lv - 1);
+    setHdCurrent(ce, Math.min(hdCurrent(ce), lv - 1));
+    syncClassSlots(ce, cv);
+  }
+  const fullMax = deriveSheet(c, emptyAppState(), opts).hpMax;
+  c.hpCurrent = wasFull ? fullMax : Math.min(c.hpCurrent, fullMax);
 }
 
 /** XP thresholds for character levels 1-20. */

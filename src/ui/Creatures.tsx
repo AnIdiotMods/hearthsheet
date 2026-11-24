@@ -214,7 +214,7 @@ function BlockEditor({ cr, tag, mutate }: { cr: XElement; tag: BlockTag; mutate:
     <section>
       <div className="row between">
         <h3>{BLOCK_LABEL[tag]}</h3>
-        <button className="small" onClick={() => mutate(() => { addBlockEntry(cr, tag, `New ${BLOCK_LABEL[tag].toLowerCase().replace(/s$/, '')}`); })}>Add</button>
+        <button className="small" aria-label={`Add ${BLOCK_LABEL[tag].toLowerCase().replace(/s$/, '')}`} onClick={() => mutate(() => { addBlockEntry(cr, tag, `New ${BLOCK_LABEL[tag].toLowerCase().replace(/s$/, '')}`); })}>Add</button>
       </div>
       {list.map((b, i) => (
         <div key={i} className="block-edit">

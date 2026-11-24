@@ -46,7 +46,7 @@ export function Picker({ kind, onClose, onPick, has, filterHint, subclasses = []
                 {isSpell && <span className={`muted small ${maxSpellLevel !== undefined && level > maxSpellLevel ? 'danger' : ''}`}> · {levelLabel(level)}</span>}
                 {tag && <>{' '}<span className="tag unofficial">{tag}</span></>}
               </span>
-              <button className="small" disabled={isSpell && has(e.name)}
+              <button className="small" disabled={isSpell && has(e.name)} aria-label={`${isSpell && has(e.name) ? 'Added' : 'Add'} ${e.name}`}
                 onClick={async (ev) => {
                   ev.stopPropagation();
                   if (beforePick && !(await beforePick(e))) return;
