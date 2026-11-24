@@ -107,6 +107,20 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   return <label className="field"><span>{label}</span>{children}</label>;
 }
 
+/**
+ * A text field for stored text that is tidied when read back (trimmed, or "Unnamed" when empty). While
+ * the player types, it shows exactly what they typed, so a space before the next word is not removed.
+ */
+export function TextInput({ value, onChange, ...rest }: { value: string; onChange: (v: string) => void }
+  & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <input {...rest} value={draft ?? value}
+      onChange={(e) => { setDraft(e.target.value); onChange(e.target.value); }}
+      onBlur={(e) => { setDraft(null); rest.onBlur?.(e); }} />
+  );
+}
+
 export function NumberInput({ value, onChange, min, max, className, ariaLabel }: {
   value: number; onChange: (n: number) => void; min?: number; max?: number; className?: string; ariaLabel?: string;
 }) {
