@@ -43,8 +43,8 @@ export function CompendiumView({ files, onImport, onLoadSample, onToggle, onRemo
             <li key={f.id}>
               <label><input type="checkbox" checked={f.enabled} onChange={() => onToggle(f)} /> {f.fileName}</label>
               <span className="muted">{new Date(f.importedAt).toLocaleDateString()}</span>
-              <button className="link" onClick={() => exportText(f.fileName, f.xml)}>Export</button>
-              <button className="link danger" onClick={() => onRemove(f)}>Remove</button>
+              <button className="link" aria-label={`Export ${f.fileName}`} onClick={() => exportText(f.fileName, f.xml)}>Export</button>
+              <button className="link danger" aria-label={`Remove ${f.fileName}`} onClick={() => onRemove(f)}>Remove</button>
             </li>
           ))}
         </ul>
