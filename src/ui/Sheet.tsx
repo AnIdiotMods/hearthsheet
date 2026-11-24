@@ -469,8 +469,8 @@ function SpellsTab({ c, app, sheet, mutate, rollF }: { c: Character; app: AppSta
                     {v.level > castableOf(g.ce) && !childText(el, 'grantedBy') && <>{' '}<span className="tag too-high" title="Above the highest level you can cast">too high</span></>}
                     <div className="muted small">{[v.level ? ordinal(v.level) : 'Cantrip', v.time, v.range, v.duration, v.ritual && 'ritual'].filter(Boolean).join(' · ')}</div></td>
                   <td>{spellRolls(v, sheet.level).map((r, i) => <button key={i} className="roll" title={r.title} onClick={() => rollF(r.formula, v.name)}>{resolveFormula(r.formula, sheet.formula)}</button>)}</td>
-                  <td>{v.level > 0 && <button onClick={() => cast(v.level)}>Cast</button>}</td>
-                  <td><button className="link danger" onClick={() => mutate(() => { const i = g.ce.children.indexOf(el); if (i >= 0) g.ce.children.splice(i, 1); })}>Remove</button></td>
+                  <td>{v.level > 0 && <button aria-label={`Cast ${v.name}`} onClick={() => cast(v.level)}>Cast</button>}</td>
+                  <td><button className="link danger" aria-label={`Remove ${v.name}`} onClick={() => mutate(() => { const i = g.ce.children.indexOf(el); if (i >= 0) g.ce.children.splice(i, 1); })}>Remove</button></td>
                 </tr>
               ))}
             </tbody>
@@ -580,7 +580,7 @@ function InventoryTab({ c, sheet, mutate, rollF }: { c: Character; sheet: SheetD
                 <td>{v.weight ? Math.round(v.weight * qty * 100) / 100 : ''}</td>
                 <td>
                   {v.rolls[0] && <button className="roll" onClick={() => rollF(v.rolls[0].formula, v.name)}>{v.rolls[0].formula}</button>}
-                  <button className="link danger" onClick={() => mutate((ch) => ch.remove(el))}>Remove</button>
+                  <button className="link danger" aria-label={`Remove ${v.name}`} onClick={() => mutate((ch) => ch.remove(el))}>Remove</button>
                 </td>
               </tr>
             ))}

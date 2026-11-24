@@ -48,9 +48,9 @@ export function CharactersView({ records, onOpen, onCreate, onImport, onExport, 
               <h3>{summary.name} <TooHighTag items={summary.over} /></h3>
               <p className="muted">{summary.line || 'No class yet'}</p>
               <div className="row card-actions" onClick={(e) => e.stopPropagation()}>
-                <button className="link" onClick={() => onExport(r)}>Export</button>
-                <button className="link" onClick={() => onDuplicate(r)}>Duplicate</button>
-                <button className="link danger" onClick={async () => { if (await ask(`Delete ${summary.name}? This cannot be undone.`, { ok: 'Delete', danger: true })) onDelete(r); }}>Delete</button>
+                <button className="link" aria-label={`Export ${summary.name}`} onClick={() => onExport(r)}>Export</button>
+                <button className="link" aria-label={`Duplicate ${summary.name}`} onClick={() => onDuplicate(r)}>Duplicate</button>
+                <button className="link danger" aria-label={`Delete ${summary.name}`} onClick={async () => { if (await ask(`Delete ${summary.name}? This cannot be undone.`, { ok: 'Delete', danger: true })) onDelete(r); }}>Delete</button>
               </div>
             </div>
           );
