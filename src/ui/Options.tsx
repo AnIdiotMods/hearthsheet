@@ -161,7 +161,7 @@ export function SubclassFeatures({ cv, subclass, level, picked, setPicked }: {
       <div className="checks">
         {all.filter((f) => !inGroup.has(f.name)).map((f) => (
           <label key={f.name}>
-            <input type="checkbox" checked={picked.includes(f.name)} onChange={(e) => toggle(f.name, e.target.checked)} /> {f.name}
+            <input type="checkbox" checked={picked.includes(f.name)} onChange={(e) => toggle(f.name, e.target.checked)} /> <span className="check-label">{f.name}</span>
             <TextToggle text={f.text} label={f.name} />
           </label>
         ))}
@@ -178,7 +178,7 @@ export function SubclassFeatures({ cv, subclass, level, picked, setPicked }: {
                     const on = e.target.checked;
                     if (on && n >= g.count && !(await confirmOverLimit(`${g.parent.name} lets you choose ${g.count}, and this would make ${n + 1}.`))) return;
                     toggle(f.name, on);
-                  }} /> {stripLevelPrefix(f.name).replace(/^[^:]+:\s*/, '')}
+                  }} /> <span className="check-label">{stripLevelPrefix(f.name).replace(/^[^:]+:\s*/, '')}</span>
                   <TextToggle text={f.text} label={f.name} />
                 </label>
               ))}

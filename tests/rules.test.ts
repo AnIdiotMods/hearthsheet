@@ -9,7 +9,7 @@ import {
 } from '../src/model/character';
 import { proficiencyCode, proficiencyName, propertyMask, propertiesFromMask, itemTypeCode, hdDie } from '../src/model/codes';
 import { casterKind, deriveSheet, multiclassSlots, defaultOptions } from '../src/rules/derive';
-import { applyLevelUp, levelOptions, removeLevel } from '../src/rules/level';
+import { applyLevelUp, featureSpellTable, levelOptions, removeLevel } from '../src/rules/level';
 import { roll, resolveFormula } from '../src/rules/dice';
 import { canonical, childText, elements, parseXml, serializeXml } from '../src/xml/xml';
 
@@ -363,5 +363,35 @@ describe('hit point bonuses that are not stored in hpMax (Dwarven Toughness)', (
     removeLevel(c, c.classes[0], opts);
     expect(full(c)).toBe(13 + 6 + 2 + 1);
     expect(c.hpCurrent).toBe(full(c));
+  });
+});
+
+describe('always-prepared spell tables inside a feature text', () => {
+  const intro = (name: string, heading: string) => ({
+    name,
+    text: `A short description of the subclass.\nAt each indicated level, you add the listed spells to your spells prepared.\n\n${heading}\nClass Level | Spells\n1st | bless, cure wounds\n3rd | lesser restoration, spiritual weapon\n\nSource: test`,
+  });
+  it('reads the table under a "… Spells" heading in the subclass introduction', () => {
+    expect(featureSpellTable(intro('Divine Domain: Test Domain', 'Test Domain Spells'))).toEqual([
+      { level: 1, spells: ['bless', 'cure wounds'] },
+      { level: 3, spells: ['lesser restoration', 'spiritual weapon'] },
+    ]);
+    expect(featureSpellTable(intro('Test Stalker: Test Stalker Magic', 'Test Stalker Spells'))).toHaveLength(2);
+  });
+  it('ignores expanded spell lists (they only add choices) and text without a heading', () => {
+    expect(featureSpellTable(intro('Otherworldly Patron: The Test', 'Test Expanded Spells'))).toEqual([]);
+    expect(featureSpellTable({ name: 'Divine Domain: Test', text: 'You learn some spells.\n1st | not a table under a heading' })).toEqual([]);
+  });
+  it('grants the domain spells to a new level 1 character', () => {
+    const c = Character.create('Test');
+    const cls = parseXml(`<class><name>Testcleric</name><hd>8</hd><spellAbility>Wisdom</spellAbility>
+      <autolevel level="1"><slots>3,2</slots></autolevel>
+      <autolevel level="1"><feature optional="YES"><name>Divine Domain: Test Domain</name><text>${intro('', 'Test Domain Spells').text.replace(/\n/g, '</text><text>')}</text></feature></autolevel>
+      </class>`).doc.root;
+    const spells = new Map(['Bless', 'Cure Wounds'].map((n) => [n.toLowerCase(), parseXml(`<spell><name>${n}</name><level>1</level><classes>Testcleric</classes></spell>`).doc.root]));
+    const o = { ...opts, classLookup: () => cls, spellLookup: (n: string) => spells.get(n.toLowerCase()) };
+    const ce = applyLevelUp(c, { newClass: cls, hp: { method: 'average' }, choices: ['Divine Domain: Test Domain'], subclass: 'Test Domain' }, avg, o);
+    const granted = elements(ce, 'spell').filter((s) => childText(s, 'grantedBy'));
+    expect(granted.map((s) => childText(s, 'name'))).toEqual(['Bless', 'Cure Wounds']);
   });
 });
