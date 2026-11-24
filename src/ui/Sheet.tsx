@@ -156,7 +156,7 @@ export function Sheet({ record, onSave, onBack, onExport }: {
         <Stat label="Passive Perception" value={s.passivePerception} />
         <div className="stat">
           <span className="label">Inspiration</span>
-          <input type="checkbox" checked={app.current.inspiration} onChange={(e) => mutate((_, a) => { a.inspiration = e.target.checked; })} />
+          <input type="checkbox" aria-label="Inspiration" checked={app.current.inspiration} onChange={(e) => mutate((_, a) => { a.inspiration = e.target.checked; })} />
         </div>
       </div>
 
@@ -335,13 +335,13 @@ function HitPoints({ c, app, max, mutate }: { c: Character; app: AppState; max: 
     <div className="stat hp">
       <span className="label">Hit Points</span>
       <span className="value">
-        <NumberInput className="hp-cur" value={c.hpCurrent} onChange={(v) => mutate((ch) => { ch.hpCurrent = v; })} />
+        <NumberInput className="hp-cur" value={c.hpCurrent} ariaLabel="Current hit points" onChange={(v) => mutate((ch) => { ch.hpCurrent = v; })} />
         <span className="muted"> / </span>
         <span title="Edit stored maximum below">{max}</span>
         {app.hpTemp > 0 && <span className="tag">+{app.hpTemp} temp</span>}
       </span>
       <span className="row small">
-        <input className="hp-amt" placeholder="±" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        <input className="hp-amt" placeholder="±" aria-label="Hit points to add or remove" value={amount} onChange={(e) => setAmount(e.target.value)} />
         <button disabled={!(n > 0)} onClick={damage}>Damage</button>
         <button disabled={!(n > 0)} onClick={heal}>Heal</button>
         <button disabled={!(n > 0)} onClick={() => mutate((_, a) => { a.hpTemp = Math.max(a.hpTemp, n); })}>Temp</button>
@@ -430,7 +430,7 @@ function SpellsTab({ c, app, sheet, mutate, rollF }: { c: Character; app: AppSta
               <div key={l} className="slot-level">
                 <span className="small">{ordinal(l)}</span>
                 {Array.from({ length: sheet.slots[l] }, (_, j) => (
-                  <input key={j} type="checkbox" checked={j < sheet.slotsUsed[l]} title="Used"
+                  <input key={j} type="checkbox" checked={j < sheet.slotsUsed[l]} title="Used" aria-label={`${ordinal(l)}-level slot ${j + 1} used`}
                     onChange={(e) => setUsed(l, e.target.checked ? j + 1 : j)} />
                 ))}
               </div>
@@ -439,7 +439,7 @@ function SpellsTab({ c, app, sheet, mutate, rollF }: { c: Character; app: AppSta
               <div className="slot-level pact">
                 <span className="small">Pact ({ordinal(sheet.pact.level)})</span>
                 {Array.from({ length: sheet.pact.count }, (_, j) => (
-                  <input key={j} type="checkbox" checked={j < app.pactUsed}
+                  <input key={j} type="checkbox" checked={j < app.pactUsed} aria-label={`Pact slot ${j + 1} used`}
                     onChange={(e) => mutate((_, a) => { a.pactUsed = e.target.checked ? j + 1 : j; })} />
                 ))}
               </div>
@@ -463,7 +463,7 @@ function SpellsTab({ c, app, sheet, mutate, rollF }: { c: Character; app: AppSta
             <tbody>
               {g.spells.map(({ el, v, prepared }) => (
                 <tr key={v.name} className={v.level > castableOf(g.ce) && !childText(el, 'grantedBy') ? 'too-high-row' : ''}>
-                  <td>{v.level > 0 && modeOf(g.ce) === 'prepared' && !childText(el, 'grantedBy') && <input type="checkbox" title="Prepared" checked={prepared} onChange={(e) => togglePrepared(g.ce, el, e.target.checked)} />}</td>
+                  <td>{v.level > 0 && modeOf(g.ce) === 'prepared' && !childText(el, 'grantedBy') && <input type="checkbox" title="Prepared" aria-label={`${v.name} prepared`} checked={prepared} onChange={(e) => togglePrepared(g.ce, el, e.target.checked)} />}</td>
                   <td><button className="link" onClick={() => setOpen(el)}>{v.name}</button>
                     {childText(el, 'grantedBy') && <>{' '}<span className="tag" title="Does not count against your limits">always prepared · {childText(el, 'grantedBy')}</span></>}
                     {v.level > castableOf(g.ce) && !childText(el, 'grantedBy') && <>{' '}<span className="tag too-high" title="Above the highest level you can cast">too high</span></>}
@@ -568,15 +568,15 @@ function InventoryTab({ c, sheet, mutate, rollF }: { c: Character; sheet: SheetD
           <tbody>
             {items.map(({ el, v, qty, eq, att }, i) => (
               <tr key={i}>
-                <td><input type="checkbox" checked={eq} onChange={(e) => mutate(() => setEquipped(el, e.target.checked))} /></td>
-                <td>{(v.magic || v.attunement) && <input type="checkbox" checked={att} onChange={async (e) => {
+                <td><input type="checkbox" aria-label={`${v.name} equipped`} checked={eq} onChange={(e) => mutate(() => setEquipped(el, e.target.checked))} /></td>
+                <td>{(v.magic || v.attunement) && <input type="checkbox" aria-label={`${v.name} attuned`} checked={att} onChange={async (e) => {
                   const on = e.target.checked;
                   const n = items.filter((x) => x.att).length;
                   if (on && n >= 3 && !(await confirmOverLimit(`You can normally be attuned to 3 items at once, and this would make ${n + 1}.`))) return;
                   mutate(() => setAttuned(el, on));
                 }} />}</td>
                 <td><button className="link" onClick={() => setOpen(el)}>{v.name}</button> <span className="muted small">{v.typeLabel}</span></td>
-                <td><NumberInput className="qty" value={qty} min={0} onChange={(n) => mutate(() => setItemQuantity(el, n))} /></td>
+                <td><NumberInput className="qty" value={qty} min={0} ariaLabel={`${v.name} quantity`} onChange={(n) => mutate(() => setItemQuantity(el, n))} /></td>
                 <td>{v.weight ? Math.round(v.weight * qty * 100) / 100 : ''}</td>
                 <td>
                   {v.rolls[0] && <button className="roll" onClick={() => rollF(v.rolls[0].formula, v.name)}>{v.rolls[0].formula}</button>}
@@ -644,10 +644,10 @@ function NotesTab({ c, mutate }: { c: Character; mutate: Mutate }) {
       {c.notes.map((n, i) => (
         <section key={i} className="panel">
           <div className="row between">
-            <input className="note-title" value={childText(n, 'name')} onChange={(e) => mutate(() => setChildText(n, 'name', e.target.value))} />
+            <input className="note-title" aria-label="Note title" value={childText(n, 'name')} onChange={(e) => mutate(() => setChildText(n, 'name', e.target.value))} />
             <button className="link danger" onClick={() => mutate((ch) => ch.remove(n))}>Delete</button>
           </div>
-          <textarea rows={6} value={childTexts(n, 'text').join('\n')} onChange={(e) => mutate(() => setChildText(n, 'text', e.target.value))} />
+          <textarea rows={6} aria-label={`${childText(n, 'name') || 'Note'} text`} value={childTexts(n, 'text').join('\n')} onChange={(e) => mutate(() => setChildText(n, 'text', e.target.value))} />
         </section>
       ))}
       <button onClick={() => mutate((ch) => { ch.addNote('New note', ''); })}>Add note</button>

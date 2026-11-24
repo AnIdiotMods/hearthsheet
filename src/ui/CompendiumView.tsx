@@ -72,7 +72,7 @@ export function CompendiumView({ files, onImport, onLoadSample, onToggle, onRemo
         </nav>
         <div className={`split ${sel ? 'has-selection' : ''}`}>
           <div className="list-pane">
-            <input type="search" placeholder={`Search ${KIND_LABEL[kind].toLowerCase()}…`} value={q} onChange={(e) => setQ(e.target.value)} />
+            <input type="search" placeholder={`Search ${KIND_LABEL[kind].toLowerCase()}…`} aria-label={`Search ${KIND_LABEL[kind].toLowerCase()}`} value={q} onChange={(e) => setQ(e.target.value)} />
             <ul className="entry-list">
               {list.slice(0, 2000).map((e) => (
                 <li key={e.name} className={sel?.el === e.el ? 'active' : ''} onClick={() => setSel(e)}>
