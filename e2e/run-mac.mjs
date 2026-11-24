@@ -89,7 +89,16 @@ async function answerPanel(kind, path) {
 
 async function run(step) {
   if (step.shot) return shot(step.shot);
-  if (step.tap) return until(`"${step.tap}"`, step.seconds ?? 15, () => send({ cmd: 'press', name: step.tap }));
+  if (step.tap) {
+    try { return await until(`"${step.tap}"`, step.seconds ?? 15, () => send({ cmd: 'press', name: step.tap })); } catch (e) {
+      // Nothing pressable: click its spot through System Events, as a mouse would.
+      const r = await send({ cmd: 'press', name: step.tap });
+      if (r.ok) return r;
+      if (r.x === undefined) throw e;
+      osa(`click at {${Math.round(r.x)}, ${Math.round(r.y)}}`);
+      return r;
+    }
+  }
   if (step.fill) {
     await until(`field "${step.fill}"`, 15, () => send({ cmd: 'fill', name: step.fill, focusOnly: true }));
     press('cmd+a'); press('delete');

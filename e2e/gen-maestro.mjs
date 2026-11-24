@@ -63,7 +63,9 @@ for (const [i, s] of steps.entries()) {
   else if (s.tap) {
     const t = s.entry ? starts(s.tap) : exact(s.tap);
     reveal(t);
-    add(s.below ? `- tapOn:\n    text: ${t}\n    below:\n      text: ${starts(s.below)}` : `- tapOn: ${t}`);
+    // A list entry's first tap can go to closing the keyboard; tap again if nothing changed.
+    const retry = s.entry ? `\n    retryTapIfNoChange: true` : '';
+    add(s.below || s.entry ? `- tapOn:\n    text: ${t}${s.below ? `\n    below:\n      text: ${starts(s.below)}` : ''}${retry}` : `- tapOn: ${t}`);
   }
   else if (s.fill) {
     reveal(starts(s.fill));

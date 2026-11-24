@@ -56,7 +56,7 @@ func nodes() -> [Node] {
   }
   for w in (attr(root, kAXWindowsAttribute) as? [AXUIElement]) ?? [] { walk(w, 0, false) }
   // Open pop-up menus hang off the app element.
-  for k in kids(root) where text(k, kAXRoleAttribute) == "AXMenu" { walk(k, 0, true) }
+  for k in kids(root) where text(k, kAXRoleAttribute) == "AXMenu" { walk(k, 0, false) }
   return out
 }
 
@@ -87,6 +87,17 @@ func click(_ e: AXUIElement) {
 
 func press(_ n: Node) {
   if AXUIElementPerformAction(n.el, kAXPressAction as CFString) != .success { click(n.el) }
+}
+
+/** Text inside something clickable (a list entry, a card): press the nearest ancestor that can be pressed. */
+func pressAncestor(_ e: AXUIElement) -> Bool {
+  var cur: AXUIElement? = e
+  for _ in 0..<6 {
+    guard let c = cur else { return false }
+    if AXUIElementPerformAction(c, kAXPressAction as CFString) == .success { return true }
+    cur = attr(c, kAXParentAttribute).map { $0 as! AXUIElement }
+  }
+  return false
 }
 
 let keyCodes: [String: CGKeyCode] = ["a": 0, "g": 5, "return": 36, "tab": 48, "delete": 51, "escape": 53, "down": 125, "up": 126]
@@ -139,7 +150,9 @@ func handle(_ c: [String: Any]) -> [String: Any] {
     if let n = find(name, roles: pressRoles) { press(n); return ["ok": true, "role": n.role] }
     // Text inside something pressable, such as a list entry or a card's heading: click it.
     if let n = reachable(nodes()).first(where: { $0.role == "AXStaticText" && $0.value == name || $0.role == "AXHeading" && $0.names.contains(name) }) {
-      click(n.el); return ["ok": true, "role": n.role, "clicked": true]
+      if pressAncestor(n.el) { return ["ok": true, "role": n.role, "pressedParent": true] }
+      let f = frame(n.el)
+      return ["ok": false, "error": "could not press \(name)", "x": f.midX, "y": f.midY]
     }
     return ["ok": false, "error": "nothing named \(name)"]
   case "fill":
