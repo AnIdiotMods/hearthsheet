@@ -396,7 +396,17 @@ button.primary.danger-fill { background: var(--danger); border-color: var(--dang
   .counter-name { min-width: 0; flex-basis: 100%; }
 
   /* Wide tables scroll sideways instead of squeezing */
-  .spell-table, .items, .attacks { display: block; overflow-x: auto; }
+  .items, .attacks { display: block; overflow-x: auto; }
+  /* Spells: the name and details use the whole width; dice, Cast and Remove go on the line below. */
+  .spell-table, .spell-table tbody { display: block; }
+  .spell-table tr { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto; align-items: center; gap: 4px 10px; padding: 8px 0; }
+  .spell-table td { display: block; padding: 0; text-align: left; }
+  .spell-table td:nth-child(1) { grid-row: 1; }
+  .spell-table td:nth-child(2) { grid-column: 2 / -1; grid-row: 1; }
+  .spell-table td:nth-child(2) > button.link { padding-left: 0; text-align: left; }
+  .spell-table td:nth-child(3) { grid-column: 2; grid-row: 2; }
+  .spell-table td:nth-child(4) { grid-column: 3; grid-row: 2; }
+  .spell-table td:nth-child(5) { grid-column: 4; grid-row: 2; }
   .roll-log li { grid-template-columns: 48px 1fr; }
   .roll-log li > :nth-child(n+3) { grid-column: 2; }
   .dice form input { width: 100%; flex: 1; }
