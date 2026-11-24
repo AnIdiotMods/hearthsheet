@@ -15,6 +15,7 @@ import { XElement, childText } from '../xml/xml';
 import { Field, Modal, NumberInput, TextToggle, TooHighTag, confirmOverLimit, useApp } from './common';
 import { ask } from './dialogs';
 import { RulesOptions, deriveSheet, mod } from '../rules/derive';
+import { isMobile } from '../platform';
 
 interface Props {
   records: CharacterRecord[];
@@ -197,7 +198,8 @@ function NewCharacter({ onClose, onCreate }: { onClose: () => void; onCreate: (c
   return (
     <Modal title="New character" onClose={onClose} wide>
       <div className="grid2">
-        <Field label="Name"><input autoFocus value={name} onChange={(e) => setName(e.target.value)} /></Field>
+        {/* On phones the keyboard would cover the race and class pickers, so it opens only when the name is tapped. */}
+        <Field label="Name"><input autoFocus={!isMobile()} value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field label="Race">
           <select value={race} onChange={(e) => { setRace(e.target.value); setRaceBonus([]); setRaceFeat(''); setRaceCantrip(''); setExtras(emptyExtras()); }}>
             <option value="">(none)</option>
