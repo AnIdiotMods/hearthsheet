@@ -49,8 +49,12 @@ Apple ID. Secrets:
 - `APPLE_SIGNING_IDENTITY`: e.g. `Developer ID Application: Your Name (TEAMID)`
 - `APPLE_ID`, `APPLE_PASSWORD` (the app-specific password), `APPLE_TEAM_ID`
 
-Tauri then signs and **notarizes** the app, so it opens without warnings. Without these, people
-have to right-click the app and choose Open the first time.
+Tauri then signs and **notarizes** the app, so it opens without warnings. Without these, the app
+is signed "ad hoc" (no identity), and the first time it is opened macOS says it can't check the app
+for malware. Choose Done, then open **System Settings → Privacy & Security** and click **Open
+Anyway** next to Hearthsheet (on macOS 14 and earlier, right-clicking the app and choosing Open also
+works). If macOS says the app "is damaged", the copy was not signed at all: run
+`xattr -cr /Applications/Hearthsheet.app` in Terminal, then open it again.
 
 ## iOS
 

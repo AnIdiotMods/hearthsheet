@@ -8,7 +8,9 @@
 //   AZURE_SIGNING_ENDPOINT + AZURE_SIGNING_ACCOUNT + AZURE_SIGNING_PROFILE
 //                                      Azure Trusted Signing (with AZURE_CLIENT_ID, AZURE_TENANT_ID,
 //                                      AZURE_CLIENT_SECRET for trusted-signing-cli)
-// macOS and iOS: Tauri reads APPLE_* variables itself (see docs/SIGNING.md).
+// macOS and iOS: Tauri reads APPLE_* variables itself (see docs/SIGNING.md). Without them the
+//                macOS app is signed ad hoc ("-"): no identity, but Apple-silicon Macs then offer
+//                "Open Anyway" instead of calling the downloaded app damaged.
 // Android: the Gradle build reads src-tauri/gen/android/keystore.properties (see docs/SIGNING.md).
 import { writeFileSync } from 'node:fs';
 
@@ -23,6 +25,12 @@ if (env.WINDOWS_CERTIFICATE_THUMBPRINT) {
 } else if (env.AZURE_SIGNING_ENDPOINT && env.AZURE_SIGNING_ACCOUNT && env.AZURE_SIGNING_PROFILE) {
   windows.signCommand = `trusted-signing-cli -e ${env.AZURE_SIGNING_ENDPOINT} -a ${env.AZURE_SIGNING_ACCOUNT} -c ${env.AZURE_SIGNING_PROFILE} -d Hearthsheet %1`;
 }
-const config = Object.keys(windows).length ? { bundle: { windows } } : {};
+const adHocMac = !env.APPLE_SIGNING_IDENTITY && !env.APPLE_CERTIFICATE;
+const bundle = {
+  ...(Object.keys(windows).length ? { windows } : {}),
+  ...(adHocMac ? { macOS: { signingIdentity: '-' } } : {}),
+};
+const config = Object.keys(bundle).length ? { bundle } : {};
 writeFileSync(new URL('../src-tauri/tauri.signing.json', import.meta.url), `${JSON.stringify(config, null, 2)}\n`);
 console.log(Object.keys(windows).length ? `Windows signing: ${windows.signCommand ? 'Azure Trusted Signing' : 'certificate store'}` : 'No Windows signing configured: unsigned build.');
+console.log(adHocMac ? 'No Apple certificate: the macOS app is signed ad hoc.' : 'macOS signing: Apple certificate.');
